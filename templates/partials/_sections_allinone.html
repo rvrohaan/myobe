@@ -1,0 +1,122 @@
+  <!-- ── MODE 10: All in One ───────────────────────────────────────────────── -->
+
+  <!-- Step 3: Tool selection -->
+  <div id="sec-aio-select" class="card hidden">
+    <h2>All in One <span style="font-size:.75rem;font-weight:500;color:var(--muted);margin-left:8px;">select tools</span></h2>
+    <p class="sub">Choose which documents to generate for <strong id="aio-course-name"></strong>. They will be produced one by one — you can edit or regenerate each result.</p>
+
+    <div id="aio-tool-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;"></div>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px 16px;background:rgba(99,102,241,.06);border-radius:8px;border:1px solid var(--border);flex-wrap:wrap;">
+      <span style="font-size:.85rem;font-weight:700;">Estimated tokens:</span>
+      <span id="aio-est-tokens" style="font-size:1.1rem;font-weight:900;color:var(--primary);">0</span>
+      <span style="font-size:.78rem;color:var(--muted);">(you have <span id="aio-avail-tokens">—</span> remaining)</span>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goBack('aio-select')">← Back</button>
+      <button class="btn btn-primary" id="btn-aio-start" disabled onclick="aioStart()">Generate Selected →</button>
+    </div>
+    <div class="alert alert-error hidden" id="aio-select-err"></div>
+  </div>
+
+  <!-- Step 4: Pipeline runner -->
+  <div id="sec-aio-run" class="card hidden">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+      <div id="aio-run-icon" style="font-size:2.2rem;flex-shrink:0;line-height:1;"></div>
+      <div>
+        <h2 style="margin:0;" id="aio-run-title">Generating…</h2>
+        <p class="sub" style="margin:2px 0 0;" id="aio-run-sub"></p>
+      </div>
+    </div>
+
+    <div class="uni-progress hidden" id="aio-run-progress">
+      <span class="uni-progress-label">Generating…</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+    </div>
+    <div class="stream-output hidden" id="aio-run-stream" style="max-height:180px;"></div>
+    <div class="uni-progress hidden" id="aio-run-loading" style="margin-bottom:10px;">
+      <span class="uni-progress-label" id="aio-run-loading-label">Processing…</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+    </div>
+
+    <!-- Preview (shown after generation completes) -->
+    <div id="aio-preview-wrap" class="hidden" style="margin-top:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <p style="font-size:.875rem;font-weight:700;margin:0;">Preview</p>
+        <button class="ctrl-btn" id="btn-aio-expand" onclick="aioToggleExpand()">Expand</button>
+      </div>
+      <div id="aio-preview-box" style="border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:.82rem;line-height:1.6;color:var(--text);white-space:pre-wrap;max-height:200px;overflow:hidden;transition:max-height .4s ease;"></div>
+
+      <!-- Edit area: CO-step gets a two-panel layout; all other steps get a plain textarea -->
+      <div id="aio-edit-wrap" class="hidden" style="margin-top:10px;">
+
+        <!-- ── CO-step edit panel (shown only for CO step) ── -->
+        <div id="aio-co-edit-panel" class="hidden">
+          <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;">
+
+            <!-- Left: editable CO list -->
+            <div style="flex:1;min-width:220px;">
+              <div id="aio-co-edit-list" style="display:flex;flex-direction:column;gap:8px;padding-right:2px;"></div>
+            </div>
+
+            <!-- Right: AI improve panel -->
+            <div class="ai-panel" id="aio-ai-panel" style="width:210px;flex-shrink:0;">
+              <div class="ai-panel-header">
+                <span class="ai-panel-title">AI Improve</span>
+              </div>
+              <div class="ai-panel-body">
+                <p style="font-size:.75rem;color:var(--muted);margin-bottom:12px;line-height:1.5;">Check one or more COs, then click <strong>Improve</strong> for AI-rewritten suggestions.</p>
+                <button id="btn-aio-ai-improve" class="btn btn-primary"
+                  style="width:100%;font-size:.78rem;padding:8px 0;justify-content:center;"
+                  onclick="_aioAiImproveSelected()">✨ Improve Selected</button>
+                <div id="aio-ai-status" class="ai-status-msg" style="margin-top:8px;font-size:.75rem;color:var(--muted);"></div>
+                <div id="aio-ai-output" style="margin-top:6px;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:14px;">
+            <button class="btn btn-primary" onclick="aioSaveEdit()" style="padding:7px 20px;">Save Changes</button>
+            <button class="btn btn-ghost" onclick="aioCancelEdit()">Cancel</button>
+          </div>
+        </div>
+
+        <!-- ── Plain textarea edit (for all non-CO steps) ── -->
+        <div id="aio-text-edit-panel" class="hidden">
+          <textarea id="aio-edit-area" class="text-input" style="width:100%;min-height:200px;font-size:.82rem;font-family:monospace;resize:vertical;box-sizing:border-box;"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn btn-primary" onclick="aioSaveEdit()" style="padding:7px 18px;">Save</button>
+            <button class="btn btn-ghost" onclick="aioCancelEdit()">Cancel</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Action row -->
+      <div id="aio-preview-actions" style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-ghost" id="btn-aio-edit" onclick="aioStartEdit()">✏ Edit</button>
+        <button class="btn btn-ghost" id="btn-aio-regen" onclick="aioRegen()">↻ Regenerate</button>
+        <span style="flex:1;"></span>
+        <button class="btn btn-ghost" onclick="aioSkip()">Skip →</button>
+        <button class="btn btn-primary" id="btn-aio-next" onclick="aioNext()">Next →</button>
+      </div>
+    </div>
+
+    <!-- Progress pills -->
+    <div id="aio-step-pills" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);"></div>
+
+    <div class="alert alert-error hidden" id="aio-run-err"></div>
+  </div>
+
+  <!-- Step 5: Done -->
+  <div id="sec-aio-done" class="card hidden">
+    <h2>All Done!</h2>
+    <p class="sub" id="aio-done-sub">All selected documents have been generated. Download each one below.</p>
+
+    <div id="aio-done-list" style="display:flex;flex-direction:column;gap:14px;margin:20px 0;"></div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
+    </div>
+  </div>

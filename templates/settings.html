@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — MyOBE</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:       #6366f1;
+      --primary-dark:  #4f46e5;
+      --text:          #f1f5f9;
+      --muted:         rgba(255,255,255,.48);
+      --border:        rgba(255,255,255,.1);
+      --success:       #10b981;
+      --radius:        14px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #080618 0%, #0d0b26 40%, #12103a 70%, #080618 100%);
+      background-attachment: fixed;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .bg-orb {
+      position: fixed; border-radius: 50%; filter: blur(90px);
+      pointer-events: none; z-index: 0;
+    }
+    .bg-orb-1 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(99,102,241,.15) 0%, transparent 70%); top: -150px; right: -100px; }
+    .bg-orb-2 { width: 350px; height: 350px; background: radial-gradient(circle, rgba(139,92,246,.12) 0%, transparent 70%); bottom: -100px; left: -50px; }
+
+    /* ── Navbar ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8,6,24,.88); backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      padding: 0 5%;
+      display: flex; align-items: center; height: 64px;
+    }
+    .nav-brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:#fff; font-size:1.15rem; font-weight:800; letter-spacing:-.4px; flex-shrink:0; }
+    .nav-brand-icon { width:36px; height:36px; background:var(--primary); border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; box-shadow:0 2px 8px rgba(99,102,241,.5); }
+    .nav-links { display:flex; align-items:center; gap:4px; margin-left:36px; list-style:none; }
+    .nav-links a { display:block; padding:7px 14px; text-decoration:none; font-size:.9rem; font-weight:500; color:rgba(255,255,255,.6); border-radius:8px; transition:color .15s,background .15s; }
+    .nav-links a:hover, .nav-links a.active { color:#fff; background:rgba(255,255,255,.08); }
+    .nav-actions { margin-left:auto; display:flex; align-items:center; gap:10px; }
+    .nav-username { font-size:.8rem; color:rgba(255,255,255,.5); }
+    .nav-token-badge { font-size:.68rem; font-weight:700; padding:2px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.04em; background:rgba(99,102,241,.18); color:#a5b4fc; }
+    .btn-nav-ghost { padding:8px 18px; background:transparent; border:1.5px solid rgba(255,255,255,.2); border-radius:8px; font-size:.88rem; font-weight:600; color:rgba(255,255,255,.8); text-decoration:none; transition:border-color .15s,color .15s; }
+    .btn-nav-ghost:hover, .btn-nav-ghost.active { border-color:var(--primary); color:#fff; }
+    .btn-nav-primary { padding:8px 20px; background:var(--primary); border:none; border-radius:8px; font-size:.88rem; font-weight:700; color:#fff; text-decoration:none; transition:background .15s; }
+    .btn-nav-primary:hover { background:var(--primary-dark); }
+    @media (max-width:640px) { .nav-links { display:none; } }
+
+    /* ── Page content ── */
+    main { flex: 1; position: relative; z-index: 1; max-width: 760px; margin: 0 auto; padding: 44px 20px; width: 100%; }
+
+    h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -.3px; margin-bottom: 4px; color: #fff; }
+    .page-sub { font-size: .9rem; color: var(--muted); margin-bottom: 36px; }
+
+    .settings-card {
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.1);
+      backdrop-filter: blur(20px);
+      border-radius: 18px;
+      padding: 28px 28px 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.3);
+    }
+    .settings-card h2 { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 18px; }
+
+    /* ── Account info ── */
+    .info-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.07);
+      font-size: .9rem;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label {
+      font-weight: 600; min-width: 110px; color: rgba(255,255,255,.4);
+      font-size: .78rem; text-transform: uppercase; letter-spacing: .05em;
+    }
+
+    /* ── Token balance hero ── */
+    .token-hero {
+      display: flex; align-items: center; gap: 20px;
+      background: linear-gradient(135deg, rgba(99,102,241,.15) 0%, rgba(139,92,246,.1) 100%);
+      border: 1px solid rgba(99,102,241,.25);
+      border-radius: 14px; padding: 20px 24px;
+      margin-bottom: 24px;
+    }
+    .token-hero-icon { font-size: 2.2rem; flex-shrink: 0; }
+    .token-hero-count {
+      font-size: 2.6rem; font-weight: 900; color: #fff; letter-spacing: -.04em; line-height: 1;
+    }
+    .token-hero-label { font-size: .8rem; color: var(--muted); margin-top: 3px; }
+
+    /* ── Top-up package cards ── */
+    .topup-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 540px) { .topup-grid { grid-template-columns: 1fr; } }
+
+    .topup-card {
+      background: rgba(255,255,255,.04);
+      border: 1.5px solid rgba(255,255,255,.1);
+      border-radius: 14px;
+      padding: 20px 18px;
+      cursor: pointer;
+      transition: border-color .18s, box-shadow .18s, background .18s;
+      text-align: center;
+      position: relative;
+    }
+    .topup-card:hover { border-color: rgba(99,102,241,.5); background: rgba(99,102,241,.08); }
+    .topup-card.popular-badge-wrap { border-color: rgba(99,102,241,.4); }
+
+    .topup-badge {
+      position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+      color: #fff; font-size: .62rem; font-weight: 800;
+      padding: 2px 10px; border-radius: 999px;
+      text-transform: uppercase; letter-spacing: .06em; white-space: nowrap;
+    }
+    .topup-tokens { font-size: 2rem; font-weight: 900; color: #fff; line-height: 1; margin-bottom: 4px; }
+    .topup-tokens small { font-size: .85rem; font-weight: 600; color: var(--muted); }
+    .topup-price { font-size: .95rem; font-weight: 700; color: #a5b4fc; margin-bottom: 14px; }
+    .topup-per { font-size: .72rem; color: var(--muted); margin-bottom: 16px; }
+    .btn-topup {
+      width: 100%; padding: 10px 0;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      color: #fff; border: none; border-radius: 9px;
+      font-size: .88rem; font-weight: 700; cursor: pointer;
+      transition: opacity .15s, transform .12s;
+      box-shadow: 0 3px 12px rgba(99,102,241,.3);
+    }
+    .btn-topup:hover { opacity: .9; transform: translateY(-1px); }
+    .btn-topup:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    /* ── Token cost table ── */
+    .cost-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    .cost-table th { text-align: left; font-size: .7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; padding: 0 0 10px; }
+    .cost-table td { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.06); color: rgba(255,255,255,.8); vertical-align: middle; }
+    .cost-table tr:last-child td { border-bottom: none; }
+    .cost-table td:last-child { text-align: right; }
+    .cost-pill {
+      display: inline-block; font-size: .7rem; font-weight: 700;
+      padding: 2px 10px; border-radius: 999px;
+      background: rgba(99,102,241,.18); color: #a5b4fc;
+    }
+
+    /* ── Email section inputs ── */
+    .email-input-wrap { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+    .email-input-wrap > div { flex:1; min-width:200px; }
+    .field-label {
+      display:block; font-size:.72rem; font-weight:700;
+      color:rgba(255,255,255,.45); text-transform:uppercase;
+      letter-spacing:.07em; margin-bottom:7px;
+    }
+    .dark-input {
+      width:100%; padding:10px 14px;
+      background:rgba(255,255,255,.07); border:1.5px solid rgba(255,255,255,.12);
+      border-radius:10px; font-size:.92rem; outline:none; color:#fff;
+      transition:border-color .15s,box-shadow .15s;
+    }
+    .dark-input:focus { border-color:rgba(99,102,241,.6); box-shadow:0 0 0 3px rgba(99,102,241,.15); }
+
+    .btn-save {
+      display: inline-block;
+      padding: 11px 28px;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      color: #fff; border: none; border-radius: 10px;
+      font-size: .95rem; font-weight: 700; cursor: pointer;
+      transition: opacity .15s, transform .15s;
+      box-shadow: 0 4px 16px rgba(99,102,241,.3);
+      white-space: nowrap;
+    }
+    .btn-save:hover { opacity: .9; transform: translateY(-1px); }
+
+    .flash-success {
+      background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.25);
+      color: #6ee7b7;
+      padding: 10px 16px; border-radius: 10px; font-size: .85rem;
+      margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
+    }
+    .flash-error {
+      background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.25);
+      color: #fca5a5;
+      padding: 10px 16px; border-radius: 10px; font-size: .85rem;
+      margin-bottom: 14px; display: flex; gap: 8px;
+    }
+    #topup-msg { margin-top: 16px; font-size: .85rem; min-height: 20px; }
+    #topup-msg.ok  { color: #6ee7b7; }
+    #topup-msg.err { color: #fca5a5; }
+
+    /* ── Theme toggle button ── */
+    .theme-toggle-btn {
+      width: 36px; height: 36px; border-radius: 8px;
+      border: 1.5px solid rgba(255,255,255,.2);
+      background: transparent; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; transition: border-color .15s, background .15s;
+      flex-shrink: 0; line-height: 1;
+    }
+    .theme-toggle-btn:hover { border-color: var(--primary); }
+
+    /* ── Light Theme ── */
+    html.light-theme { --primary: #2563eb; --primary-dark: #1d4ed8; --text: #1e293b; --muted: rgba(30,41,59,.55); --border: rgba(37,99,235,.2); --success: #059669; }
+    html.light-theme body { background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 40%, #eff6ff 70%, #dbeafe 100%); background-attachment: fixed; color: #1e293b; }
+    html.light-theme nav { background: rgba(219,234,254,.92); border-bottom-color: rgba(37,99,235,.12); }
+    html.light-theme .nav-brand { color: #1e293b; }
+    html.light-theme .nav-links a { color: rgba(30,41,59,.65); }
+    html.light-theme .nav-links a:hover, html.light-theme .nav-links a.active { color: #1e293b; background: rgba(37,99,235,.1); }
+    html.light-theme .nav-username { color: rgba(30,41,59,.5); }
+    html.light-theme .nav-token-badge { background: rgba(37,99,235,.12); color: #2563eb; }
+    html.light-theme .btn-nav-ghost { border-color: rgba(37,99,235,.3); color: rgba(30,41,59,.8); }
+    html.light-theme .btn-nav-ghost:hover, html.light-theme .btn-nav-ghost.active { border-color: #2563eb; color: #1e293b; }
+    html.light-theme .theme-toggle-btn { border-color: rgba(37,99,235,.3); }
+    html.light-theme h1 { color: #1e293b; }
+    html.light-theme .page-sub { color: rgba(30,41,59,.55); }
+    html.light-theme .settings-card { background: rgba(255,255,255,.8); border-color: rgba(37,99,235,.12); box-shadow: 0 4px 20px rgba(37,99,235,.08); }
+    html.light-theme .settings-card h2 { color: #1e293b; }
+    html.light-theme .info-row { border-bottom-color: rgba(30,41,59,.08); color: #1e293b; }
+    html.light-theme .info-row span:not(.info-label) { color: #1e293b !important; }
+    html.light-theme .info-label { color: rgba(30,41,59,.45); }
+    html.light-theme .token-hero { background: linear-gradient(135deg, rgba(37,99,235,.1) 0%, rgba(59,130,246,.07) 100%); border-color: rgba(37,99,235,.2); }
+    html.light-theme .token-hero-count { color: #1e293b; }
+    html.light-theme .token-hero-label { color: rgba(30,41,59,.55); }
+    html.light-theme .topup-card { background: rgba(255,255,255,.7); border-color: rgba(37,99,235,.15); }
+    html.light-theme .topup-card:hover { border-color: rgba(37,99,235,.5); background: rgba(37,99,235,.06); }
+    html.light-theme .topup-tokens { color: #1e293b; }
+    html.light-theme .topup-price { color: #2563eb; }
+    html.light-theme .topup-per { color: rgba(30,41,59,.5); }
+    html.light-theme .cost-table th { color: rgba(30,41,59,.5); }
+    html.light-theme .cost-table td { color: rgba(30,41,59,.8); border-bottom-color: rgba(30,41,59,.08); }
+    html.light-theme .cost-pill { background: rgba(37,99,235,.12); color: #2563eb; }
+    html.light-theme .field-label { color: rgba(30,41,59,.5); }
+    html.light-theme .dark-input { background: rgba(255,255,255,.85); border-color: rgba(37,99,235,.2); color: #1e293b; }
+    html.light-theme .dark-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); background: #fff; }
+    html.light-theme #acct-token-count { color: #2563eb !important; }
+    html.light-theme .flash-success { background: rgba(5,150,105,.1); border-color: rgba(5,150,105,.25); color: #065f46; }
+    html.light-theme .flash-error { background: rgba(220,38,38,.08); border-color: rgba(220,38,38,.2); color: #991b1b; }
+  </style>
+  <script>(function(){ if(localStorage.getItem('edugen-theme')==='light') document.documentElement.classList.add('light-theme'); })();</script>
+</head>
+<body>
+
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+
+{% include 'partials/_navbar.html' %}
+
+<main>
+  <h1>Settings</h1>
+  <p class="page-sub">Manage your account and token balance.</p>
+
+  <!-- ── Account ── -->
+  <div class="settings-card">
+    <h2>Account</h2>
+    <div class="info-row">
+      <span class="info-label">Username</span>
+      <span>{{ username }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Email</span>
+      <span style="color:{% if email %}#f1f5f9{% else %}rgba(255,255,255,.35){% endif %}">
+        {{ email or 'Not set' }}
+      </span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Tokens</span>
+      <span id="acct-token-count" style="font-size:1rem;font-weight:800;color:#a5b4fc;">{{ tokens }}</span>
+    </div>
+  </div>
+
+  <!-- ── Email ── -->
+  <div class="settings-card">
+    <h2>Email Address</h2>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:20px;">
+      Your email is used for password recovery. Keep it up to date.
+    </p>
+
+    {% if email_error %}
+    <div class="flash-error">
+      <span>&#9888;</span><span>{{ email_error }}</span>
+    </div>
+    {% endif %}
+    {% if email_ok %}
+    <div class="flash-success">
+      <span>&#10003;</span><span>{{ email_ok }}</span>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/settings">
+      <input type="hidden" name="action" value="email">
+      <div class="email-input-wrap">
+        <div>
+          <label class="field-label">New email</label>
+          <input type="email" name="email" required autocomplete="email"
+                 value="{{ email }}" class="dark-input">
+        </div>
+        <button class="btn-save" type="submit">Update Email</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ── Token top-up ── -->
+  <div class="settings-card">
+    <h2>Top Up Tokens</h2>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:20px;">
+      Each generation costs 1–2 tokens. Pick a package to add more.
+    </p>
+
+    <div class="token-hero">
+      <div class="token-hero-icon">&#9711;</div>
+      <div>
+        <div class="token-hero-count" id="token-balance">{{ tokens }}</div>
+        <div class="token-hero-label">tokens remaining</div>
+      </div>
+    </div>
+
+    <div class="topup-grid">
+      {% for pkg in packages %}
+      <div class="topup-card{% if pkg.id == 'popular' %} popular-badge-wrap{% endif %}">
+        {% if pkg.id == 'popular' %}<div class="topup-badge">Most Popular</div>{% endif %}
+        <div class="topup-tokens">{{ pkg.tokens }} <small>tokens</small></div>
+        <div class="topup-price">&#8377;{{ pkg.price }}</div>
+        <div class="topup-per">&#8377;{{ (pkg.price / pkg.tokens) | round(1) }} / token</div>
+        <button class="btn-topup" onclick="doTopup('{{ pkg.id }}', this)">Buy Now</button>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div id="topup-msg"></div>
+  </div>
+
+  <!-- ── Token cost reference ── -->
+  <div class="settings-card">
+    <h2>Token Costs</h2>
+    <table class="cost-table">
+      <thead><tr><th>Action</th><th>Cost</th></tr></thead>
+      <tbody>
+        <tr><td>CO Generator</td><td><span class="cost-pill">1 token</span></td></tr>
+        <tr><td>Question Bank</td><td><span class="cost-pill">3 tokens</span></td></tr>
+        <tr><td>Question Paper export</td><td><span class="cost-pill">1 token</span></td></tr>
+        <tr><td>Template Paper export</td><td><span class="cost-pill">1 token</span></td></tr>
+        <tr><td>CO&#8211;PO Mapping</td><td><span class="cost-pill">1 token</span></td></tr>
+        <tr><td>Lesson Plan</td><td><span class="cost-pill">3 tokens</span></td></tr>
+        <tr><td>Teaching Diary</td><td><span class="cost-pill">3 tokens</span></td></tr>
+        <tr><td>AI Rephrase / Review</td><td><span class="cost-pill">1 token</span></td></tr>
+        <tr><td>Regenerate COs</td><td><span class="cost-pill">1 token</span></td></tr>
+        <tr><td>CO Attainment (AI)</td><td><span class="cost-pill">1 token</span></td></tr>
+        <tr><td>PO Attainment (AI)</td><td><span class="cost-pill">1 token</span></td></tr>
+        <tr><td>SDG PO Auto-generation</td><td><span class="cost-pill">1 token</span></td></tr>
+        <tr><td>SDG CO Contributions</td><td><span class="cost-pill">1 token</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+  async function doTopup(pkgId, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Please wait…';
+    const msg = document.getElementById('topup-msg');
+    msg.textContent = '';
+
+    let order;
+    try {
+      const r = await fetch('/create_order', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({package_id: pkgId})
+      });
+      order = await r.json();
+    } catch(e) {
+      msg.className = 'err';
+      msg.textContent = 'Network error. Please try again.';
+      btn.disabled = false;
+      btn.textContent = 'Buy Now';
+      return;
+    }
+
+    if (order.error) {
+      msg.className = 'err';
+      msg.textContent = order.error;
+      btn.disabled = false;
+      btn.textContent = 'Buy Now';
+      return;
+    }
+
+    const options = {
+      key:         order.key_id,
+      amount:      order.amount,
+      currency:    order.currency,
+      name:        'MyOBE',
+      description: order.label + ' — ' + order.tokens + ' tokens',
+      order_id:    order.order_id,
+      theme:       { color: '#4f46e5' },
+      handler: async function(response) {
+        try {
+          const vr = await fetch('/verify_payment', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              razorpay_order_id:   response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature:  response.razorpay_signature,
+              package_id:          pkgId,
+            })
+          });
+          const data = await vr.json();
+          if (data.ok) {
+            document.getElementById('token-balance').textContent = data.tokens;
+            document.getElementById('acct-token-count').textContent = data.tokens;
+            msg.className = 'ok';
+            msg.textContent = '+' + data.added + ' tokens added! New balance: ' + data.tokens;
+          } else {
+            msg.className = 'err';
+            msg.textContent = data.error || 'Payment verification failed. Contact support.';
+          }
+        } catch(e) {
+          msg.className = 'err';
+          msg.textContent = 'Could not verify payment. Please contact support.';
+        }
+        btn.disabled = false;
+        btn.textContent = 'Buy Now';
+      },
+      modal: {
+        ondismiss: function() {
+          btn.disabled = false;
+          btn.textContent = 'Buy Now';
+        }
+      }
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.on('payment.failed', function(response) {
+      msg.className = 'err';
+      msg.textContent = 'Payment failed: ' + (response.error.description || 'Unknown error.');
+      btn.disabled = false;
+      btn.textContent = 'Buy Now';
+    });
+    rzp.open();
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+  <!-- ── SHARED: Upload Syllabus (Mode 1 & 2) ──────────────────────────── -->
+  <div id="sec-upload" class="card hidden">
+    <h2>Upload Syllabus</h2>
+    <p class="sub">Supports PDF, Word (.docx / .doc), and plain-text (.txt) files</p>
+    <div class="upload-zone" id="upload-zone">
+      <div class="upload-icon">📄</div>
+      <h3>Drag &amp; drop your syllabus here</h3>
+      <p>or click to browse</p>
+      <p style="margin-top:8px;font-size:.72rem;">PDF · DOCX · TXT</p>
+      <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt">
+    </div>
+    <div class="uni-progress hidden" id="upload-loading">
+      <span class="uni-progress-label">Extracting text and detecting courses…</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+    </div>
+    <div class="alert alert-error hidden" id="upload-err"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="startOver()">← Back</button>
+    </div>
+  </div>
+
+  <!-- ── SHARED: Select Course (Mode 1 & 2) ────────────────────────────── -->
+  <div id="sec-courses" class="card hidden">
+    <h2>Select a Course</h2>
+    <p class="sub">Found <strong id="course-count">0</strong> courses in the syllabus. Click one to select it.</p>
+    <input class="search-box" id="course-search" type="text" placeholder="Search by code or title…">
+    <div class="course-list" id="course-list"></div>
+
+    <!-- CO slider — shown only in Mode 1 -->
+    <div class="slider-row" id="cos-slider-row">
+      <label>Number of COs to generate: <span class="slider-val" id="cos-val">5</span></label>
+      <input type="range" id="cos-slider" min="3" max="15" value="5">
+      <div class="slider-ticks"><span>3</span><span>15</span></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goBack('courses')">← Back</button>
+      <button class="btn btn-primary" id="btn-course-next" disabled onclick="courseNext()">
+        <span id="btn-course-next-label">Generate COs</span>
+      </button>
+    </div>
+  </div>

@@ -1,0 +1,66 @@
+[
+  {
+    "id": "institutional-table",
+    "name": "Institutional Exam Paper — Table Format",
+    "description": "Standard university/college exam with a question table containing Q#, Text, CO, PO, (BL), Marks columns in any order. Used by BMS, VTU, Anna University, and most affiliated colleges.",
+    "priority": 10,
+    "parser_type": "table",
+    "patterns": {
+      "unit_header":  "^unit[\\s\\W]*[IVXivx\\d]+",
+      "col_header":   "^.{0,15}C[O0]\\s+PO\\s+(BL\\s+)?Marks\\s*$",
+      "or_separator": "^\\s*OR\\s*$",
+      "co_cell":      "^C[O0]\\d+$",
+      "po_cell":      "^PO\\d+$",
+      "bl_cell":      "^[1-6]$",
+      "qnum_cell":    "^\\d{1,2}\\.?$",
+      "sub_cell":     "^[a-e][\\)\\.:]{0,1}$"
+    },
+    "options": {
+      "require_co":      true,
+      "marks_min":       1,
+      "marks_max":       100,
+      "min_text_length": 5
+    }
+  },
+  {
+    "id": "qblock-assignment",
+    "name": "Assignment Manual — Q-Block Paragraph Format",
+    "description": "Assignment documents where questions appear as Q1./Q2./Q3. stand-alone paragraphs followed by multi-line text, then 'CO: CO1', 'BL: L4', 'Marks: 10' on separate lines. 'Assignment − I / II / III' sections become unit names.",
+    "priority": 6,
+    "parser_type": "qblock",
+    "patterns": {
+      "block_starts": [
+        {"regex": "^\\s*Q\\s*[.\\-]?\\s*(\\d+)\\s*\\.?\\s*$", "type": "q",    "num_group": 1},
+        {"regex": "^Assignment\\s*[\\W\\s]+(?:[IVXivx]+|\\d+)",  "type": "unit", "num_group": 0}
+      ],
+      "co_line":      "^CO\\s*[:\\-]\\s*(C[O0]\\d+)",
+      "marks_line":   "^Marks\\s*[:\\-]\\s*(\\d+)",
+      "bl_line":      "^BL\\s*[:\\-]",
+      "co_table_row": "^(C[O0]\\d+)\\t(L?\\d+)\\t(\\d+)$"
+    },
+    "options": {
+      "marks_min": 1,
+      "marks_max": 100
+    }
+  },
+  {
+    "id": "qblock-lab",
+    "name": "Lab Manual — Experiment Block Format",
+    "description": "Lab manuals where experiments appear as 'Experiment − N' / 'Experiment N' headers followed by content paragraphs and a CO | BL | Marks mini-table adjacent to each experiment.",
+    "priority": 6,
+    "parser_type": "qblock",
+    "patterns": {
+      "block_starts": [
+        {"regex": "^Experiment\\s*[\\W]+\\s*(\\d+)", "type": "exp", "num_group": 1}
+      ],
+      "co_line":      "^CO\\s*[:\\-]\\s*(C[O0]\\d+)",
+      "marks_line":   "^Marks\\s*[:\\-]\\s*(\\d+)",
+      "bl_line":      "^BL\\s*[:\\-]",
+      "co_table_row": "^(C[O0]\\d+)\\t(L?\\d+)\\t(\\d+)$"
+    },
+    "options": {
+      "marks_min": 1,
+      "marks_max": 100
+    }
+  }
+]

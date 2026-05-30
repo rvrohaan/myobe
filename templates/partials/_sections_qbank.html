@@ -1,0 +1,159 @@
+  <!-- ── MODE 2: Configure Question Bank ───────────────────────────────── -->
+  <div id="sec-configure-qbank" class="card hidden">
+    <h2 id="qb-config-title">Configure Question Bank</h2>
+    <p class="sub" id="qb-config-sub">Set how many questions to generate per unit. Leave assignment/quiz at 0 to skip them.</p>
+
+    <!-- Lab course badge (hidden by default) -->
+    <div id="qb-lab-badge" class="hidden" style="display:flex;align-items:center;gap:8px;background:rgba(75,0,130,.08);border:1px solid rgba(75,0,130,.25);border-radius:8px;padding:10px 14px;margin-bottom:16px;">
+      <span style="font-size:1.2rem;">🔬</span>
+      <span style="font-size:.85rem;color:#4b0082;font-weight:600;">Lab / Practical course detected — experiment mode enabled</span>
+    </div>
+
+    <!-- Lab config (shown for lab courses) -->
+    <div id="qb-lab-config" class="hidden">
+      <div class="num-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));">
+        <div class="num-field">
+          <label>Experiments / unit</label>
+          <input type="number" id="qb-nexp" value="3" min="1" max="10">
+          <div class="hint">Each includes aim, procedure &amp; viva questions</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Regular config (hidden for lab courses) -->
+    <div id="qb-regular-config">
+      <div class="num-grid">
+        <div class="num-field">
+          <label>2-mark questions / unit</label>
+          <input type="number" id="qb-n2" value="4" min="1" max="20">
+          <div class="hint">Recall &amp; short answer</div>
+        </div>
+        <div class="num-field">
+          <label>5-mark questions / unit</label>
+          <input type="number" id="qb-n5" value="4" min="1" max="20">
+          <div class="hint">Descriptive &amp; analysis</div>
+        </div>
+        <div class="num-field">
+          <label>10-mark questions / unit</label>
+          <input type="number" id="qb-n10" value="4" min="1" max="20">
+          <div class="hint">Case study &amp; design</div>
+        </div>
+        <div class="num-field">
+          <label>Assignment tasks / unit</label>
+          <input type="number" id="qb-nassign" value="2" min="0" max="10">
+          <div class="hint">0 to skip</div>
+        </div>
+        <div class="num-field">
+          <label>Quiz questions / unit</label>
+          <input type="number" id="qb-nquiz" value="5" min="0" max="20">
+          <div class="hint">MCQ / T-F / Fill-blank · 0 to skip</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goBack('configure-qbank')">← Back</button>
+      <button class="btn btn-primary" onclick="openCoSelectStep()">Select COs →</button>
+    </div>
+  </div>
+
+  <!-- ── MODE 2: Select / Upload COs ──────────────────────────────────── -->
+  <div id="sec-co-select-qbank" class="card hidden">
+    <h2>Course Outcomes</h2>
+    <p class="sub">Auto-generate COs from the syllabus, or upload an existing CO file. Then pick which ones to use.</p>
+
+    <!-- Source tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:18px;">
+      <button class="ctrl-btn" id="cotab-auto"   onclick="switchCoTab('auto')"   style="padding:6px 14px;font-size:.82rem;">Auto-generate from syllabus</button>
+      <button class="ctrl-btn" id="cotab-upload" onclick="switchCoTab('upload')" style="padding:6px 14px;font-size:.82rem;">Upload CO file</button>
+    </div>
+
+    <!-- Auto-generate panel -->
+    <div id="co-autogen-panel">
+      <button class="btn btn-primary" id="btn-gen-cos-qb" onclick="generateCosForQBank()" style="margin-bottom:12px;">Generate COs</button>
+      <div class="uni-progress hidden" id="co-qb-progress">
+        <span class="uni-progress-label">Generating COs…</span>
+        <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+      </div>
+      <div class="stream-output hidden" id="co-qb-stream" style="max-height:200px;"></div>
+    </div>
+
+    <!-- Upload CO panel -->
+    <div id="co-upload-panel" class="hidden">
+      <div class="upload-zone" id="co-upload-zone" style="padding:28px 16px;">
+        <div class="upload-icon" style="font-size:2rem;">🎯</div>
+        <h3 style="font-size:.9rem;">Drop your CO file here</h3>
+        <p>or click to browse — TXT · DOCX · PDF</p>
+        <input type="file" id="co-file-input" accept=".txt,.docx,.doc,.pdf">
+      </div>
+      <div class="uni-progress hidden" id="co-upload-loading">
+        <span class="uni-progress-label">Parsing CO file…</span>
+        <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+      </div>
+      <div class="alert alert-error hidden" id="co-upload-err"></div>
+    </div>
+
+    <!-- CO review (revealed after COs are loaded) -->
+    <div id="co-review-qbank" class="hidden" style="margin-top:16px;">
+      <div class="select-controls">
+        <span class="label">Select:</span>
+        <button class="ctrl-btn" onclick="selectAllCosQB(true)">All</button>
+        <button class="ctrl-btn" onclick="selectAllCosQB(false)">None</button>
+        <button class="ctrl-btn" onclick="invertCoSelQB()">Invert</button>
+        <span class="sel-count" id="co-sel-count-qb"></span>
+      </div>
+      <div class="co-cards" id="co-cards-qbank"></div>
+      <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:.8rem;color:var(--muted);font-weight:600;">Download COs for reference:</span>
+        <button class="ctrl-btn" onclick="downloadQBankCos('txt')">TXT</button>
+        <button class="ctrl-btn" onclick="downloadQBankCos('docx')">DOCX</button>
+        <button class="ctrl-btn" onclick="downloadQBankCos('pdf')">PDF</button>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top:18px;">
+      <button class="btn btn-ghost" onclick="goBack('co-select-qbank')">← Back</button>
+      <button class="btn btn-primary" id="btn-start-qbank" disabled onclick="startQBankGeneration()">Generate Question Bank →</button>
+    </div>
+    <div class="alert alert-error hidden" id="co-sel-err"></div>
+  </div>
+
+  <!-- ── MODE 2: Generating Question Bank ──────────────────────────────── -->
+  <div id="sec-generating-qbank" class="card hidden">
+    <h2 id="qb-gen-title">Generating Question Bank…</h2>
+    <p class="sub" id="qb-gen-sub"></p>
+    <div class="uni-progress" id="qb-gen-progress">
+      <span class="uni-progress-label" id="qb-gen-status-label">Generating Question Bank…</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill" id="qb-progress-fill" style="width:0%"></div></div>
+    </div>
+    <div class="stream-output" id="qb-stream-out"></div>
+  </div>
+
+  <!-- ── MODE 2: Export Question Bank ──────────────────────────────────── -->
+  <div id="sec-export-qbank" class="card hidden">
+    <h2 id="qb-exp-title">Export Question Bank</h2>
+    <p class="sub" id="qb-exp-sub"></p>
+    <p style="font-size:.85rem;font-weight:600;color:var(--muted);margin-bottom:10px;">Output format</p>
+    <div class="format-grid">
+      <div class="fmt-card" data-qbfmt="txt"  onclick="pickQBFmt('txt')">
+        <div class="fmt-icon">📝</div><div class="fmt-label">Text</div>
+      </div>
+      <div class="fmt-card selected" data-qbfmt="docx" onclick="pickQBFmt('docx')">
+        <div class="fmt-icon">📘</div><div class="fmt-label">Word</div>
+      </div>
+      <div class="fmt-card" data-qbfmt="pdf"  onclick="pickQBFmt('pdf')">
+        <div class="fmt-icon">📕</div><div class="fmt-label">PDF</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goBack('export-qbank')">← Back</button>
+      <button class="btn btn-primary" id="btn-dl-qbank" onclick="downloadQBank()">⬇ Download</button>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
+    </div>
+    <div class="uni-progress hidden" id="dl-qbank-progress">
+      <span class="uni-progress-label">Generating document…</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill"></div></div>
+    </div>
+    <div class="alert alert-error hidden" id="qb-exp-err"></div>
+  </div>

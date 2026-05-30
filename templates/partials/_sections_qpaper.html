@@ -1,0 +1,391 @@
+  <!-- ── MODE 3: Source selection + upload ────────────────────────────── -->
+  <div id="sec-upload-qb" class="card hidden">
+    <h2>Question Paper — Choose Source</h2>
+    <p class="sub">Upload an existing question bank, or build one now from a syllabus.</p>
+
+    <!-- Source tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:20px;">
+      <button class="ctrl-btn" id="qptab-qbfile" onclick="switchQPTab('qbfile')"
+              style="padding:6px 14px;font-size:.82rem;">Upload Question Bank</button>
+      <button class="ctrl-btn" id="qptab-syllabus" onclick="switchQPTab('syllabus')"
+              style="padding:6px 14px;font-size:.82rem;">Generate from Syllabus</button>
+    </div>
+
+    <!-- ── Panel A: Upload QB file ── -->
+    <div id="qp-qbfile-panel">
+      <div class="upload-zone" id="upload-qb-zone">
+        <div class="upload-icon">📚</div>
+        <h3>Drag &amp; drop your question bank here</h3>
+        <p>or click to browse</p>
+        <p style="margin-top:8px;font-size:.72rem;">TXT · DOCX · PDF</p>
+        <input type="file" id="qb-file-input" accept=".txt,.docx,.pdf">
+      </div>
+      <div class="uni-progress hidden" id="qb-upload-loading">
+        <span class="uni-progress-label">Parsing question bank…</span>
+        <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+      </div>
+      <div class="alert alert-error hidden" id="qb-upload-err"></div>
+    </div>
+
+    <!-- ── Panel B: Generate QB from Syllabus ── -->
+    <div id="qp-syllabus-panel" class="hidden">
+
+      <!-- Phase 1: Upload syllabus -->
+      <div id="qps-phase-upload">
+        <div class="upload-zone" id="qps-syl-zone">
+          <div class="upload-icon">📄</div>
+          <h3>Drag &amp; drop your syllabus here</h3>
+          <p>or click to browse — PDF · DOCX · TXT</p>
+          <input type="file" id="qps-syl-input" accept=".pdf,.docx,.doc,.txt">
+        </div>
+        <div class="uni-progress hidden" id="qps-upload-loading">
+          <span class="uni-progress-label">Extracting courses…</span>
+          <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+        </div>
+        <div class="alert alert-error hidden" id="qps-upload-err"></div>
+      </div>
+
+      <!-- Phase 2: Course + QB config (shown after upload) -->
+      <div id="qps-phase-config" class="hidden">
+        <p style="font-size:.85rem;font-weight:600;margin-bottom:8px;">Select course</p>
+        <input class="search-box" id="qps-course-search" type="text" placeholder="Search…" style="margin-bottom:8px;">
+        <div class="course-list" id="qps-course-list" style="max-height:200px;"></div>
+
+        <p style="font-size:.85rem;font-weight:600;margin:14px 0 8px;">Questions per unit</p>
+        <div class="num-grid" style="grid-template-columns:repeat(5,1fr);">
+          <div class="num-field">
+            <label>2-mark</label>
+            <input type="number" id="qps-n2" value="4" min="1" max="20">
+          </div>
+          <div class="num-field">
+            <label>5-mark</label>
+            <input type="number" id="qps-n5" value="4" min="1" max="20">
+          </div>
+          <div class="num-field">
+            <label>10-mark</label>
+            <input type="number" id="qps-n10" value="4" min="1" max="20">
+          </div>
+          <div class="num-field">
+            <label>Assignments</label>
+            <input type="number" id="qps-nassign" value="2" min="0" max="10">
+          </div>
+          <div class="num-field">
+            <label>Quiz Qs</label>
+            <input type="number" id="qps-nquiz" value="5" min="0" max="20">
+          </div>
+        </div>
+        <p style="font-size:.72rem;color:var(--muted);margin-top:6px;">COs are auto-generated from the syllabus — no selection step needed.</p>
+
+        <div style="margin-top:14px;">
+          <button class="btn btn-primary" id="qps-btn-gen" disabled onclick="qpsGenerate()">
+            Generate Question Bank →
+          </button>
+        </div>
+        <div class="alert alert-error hidden" id="qps-config-err"></div>
+      </div>
+
+      <!-- Phase 3: Generation progress -->
+      <div id="qps-phase-generating" class="hidden">
+        <div class="uni-progress" style="margin-top:0;">
+          <span class="uni-progress-label" id="qps-gen-label">Generating…</span>
+          <div class="uni-progress-track"><div class="uni-progress-fill" id="qps-progress-fill" style="width:0%"></div></div>
+        </div>
+        <div class="stream-output" id="qps-stream-out" style="max-height:240px;margin-top:12px;"></div>
+        <div class="alert alert-error hidden" id="qps-gen-err" style="margin-top:8px;"></div>
+      </div>
+
+    </div><!-- /qp-syllabus-panel -->
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="startOver()">← Back</button>
+    </div>
+  </div>
+
+  <!-- ── MODE 3: Preview Question Bank ─────────────────────────────────── -->
+  <div id="sec-preview-qb" class="card hidden">
+    <h2>Question Bank Preview</h2>
+    <p class="sub" id="qb-preview-sub"></p>
+    <div class="qb-summary" id="qb-summary-grid"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goBack('preview-qb')">← Back</button>
+      <button class="btn btn-primary" onclick="openConfigurePaper()">Configure Paper →</button>
+    </div>
+  </div>
+
+  <!-- ── MODE 3: Configure Paper ───────────────────────────────────────── -->
+  <div id="sec-configure-paper" class="card hidden">
+    <h2>Configure Question Paper</h2>
+    <p class="sub">Select paper type and enter the exam details.</p>
+
+    <!-- Regular paper types (hidden for lab QB) -->
+    <div class="ptype-grid" id="regular-ptype-section">
+      <div class="ptype-card selected" data-ptype="assign" onclick="pickPtype('assign')">
+        <div class="ptype-icon">📝</div>
+        <div class="ptype-label">Assignment</div>
+        <div class="ptype-desc">Open-ended take-home tasks</div>
+      </div>
+      <div class="ptype-card" data-ptype="quiz" onclick="pickPtype('quiz')">
+        <div class="ptype-icon">🧩</div>
+        <div class="ptype-label">Quiz</div>
+        <div class="ptype-desc">MCQ, T/F, Fill-in-blank</div>
+      </div>
+      <div class="ptype-card" data-ptype="internal" onclick="pickPtype('internal')">
+        <div class="ptype-icon">📄</div>
+        <div class="ptype-label">Internal Assessment</div>
+        <div class="ptype-desc">Mid-term / CIE</div>
+      </div>
+      <div class="ptype-card" data-ptype="final" onclick="pickPtype('final')">
+        <div class="ptype-icon">🏛️</div>
+        <div class="ptype-label">Final Exam</div>
+        <div class="ptype-desc">Semester-end examination</div>
+      </div>
+    </div>
+
+    <!-- Lab paper types (shown only for lab QB) -->
+    <div class="ptype-grid hidden" id="lab-ptype-section">
+      <div class="ptype-card selected" data-ptype="practical" onclick="pickPtype('practical')">
+        <div class="ptype-icon">🧪</div>
+        <div class="ptype-label">Practical Exam</div>
+        <div class="ptype-desc">Experiment + observation sheet</div>
+      </div>
+      <div class="ptype-card" data-ptype="viva" onclick="pickPtype('viva')">
+        <div class="ptype-icon">🎤</div>
+        <div class="ptype-label">Viva / Oral Exam</div>
+        <div class="ptype-desc">Viva questions from experiments</div>
+      </div>
+    </div>
+
+    <!-- Common metadata -->
+    <div class="field-row">
+      <div class="field">
+        <label>Paper Title</label>
+        <input type="text" id="paper-title" placeholder="e.g. Internal Assessment Test — I">
+      </div>
+      <div class="field">
+        <label>Date (leave blank to fill later)</label>
+        <input type="text" id="paper-date" placeholder="e.g. 20-Jun-2025">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Duration</label>
+        <input type="text" id="paper-duration" placeholder="e.g. 1.5 Hours">
+      </div>
+      <div class="field">
+        <label>Max Marks</label>
+        <input type="text" id="paper-marks" placeholder="e.g. 30">
+      </div>
+    </div>
+
+    <!-- Quiz-only: marks per question -->
+    <div class="field-row solo" id="quiz-marks-row" style="display:none">
+      <div class="field">
+        <label>Marks per quiz question</label>
+        <input type="number" id="quiz-marks-each" value="1" min="1" max="10">
+      </div>
+    </div>
+
+    <!-- Internal / Final: parts config (shown when ptype = internal / final) -->
+    <div class="parts-section hidden" id="parts-section">
+      <h3>Question sections</h3>
+      <div id="parts-container"></div>
+    </div>
+
+    <!-- Assign / Quiz / Lab: pick specific items (shown when ptype = assign / quiz / practical / viva) -->
+    <div class="parts-section hidden" id="assign-quiz-picker-section">
+      <h3 id="assign-quiz-picker-heading">Pick specific questions</h3>
+      <div class="picker-toggle">
+        <button type="button" onclick="toggleAssignQuizPicker()">
+          <span id="aq-picker-icon">▶</span> Pick specific questions
+        </button>
+        <span class="picker-sel-count" id="aq-picker-count"></span>
+      </div>
+      <div class="picker-panel hidden" id="aq-picker-panel">
+        <div style="font-size:.7rem;color:var(--muted);margin-bottom:6px;">
+          Check which questions to include. Unchecking all reverts to using all available questions.
+        </div>
+        <div id="aq-picker-list">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Show CO tags toggle -->
+    <div class="toggle-row">
+      <input type="checkbox" class="toggle" id="show-co-toggle">
+      <label for="show-co-toggle">Show CO tags on the paper (e.g. [CO1])</label>
+    </div>
+
+    <!-- Format -->
+    <p style="font-size:.85rem;font-weight:600;color:var(--muted);margin-top:18px;margin-bottom:10px;">Output format</p>
+    <div class="format-grid">
+      <div class="fmt-card" data-paperfmt="txt"  onclick="pickPaperFmt('txt')">
+        <div class="fmt-icon">📝</div><div class="fmt-label">Text</div>
+      </div>
+      <div class="fmt-card selected" data-paperfmt="docx" onclick="pickPaperFmt('docx')">
+        <div class="fmt-icon">📘</div><div class="fmt-label">Word</div>
+      </div>
+      <div class="fmt-card" data-paperfmt="pdf"  onclick="pickPaperFmt('pdf')">
+        <div class="fmt-icon">📕</div><div class="fmt-label">PDF</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goBack('configure-paper')">← Back</button>
+      <button class="btn btn-primary" id="btn-gen-paper" onclick="generatePaper()">Preview Paper →</button>
+      <button class="btn btn-ghost" onclick="openTemplateFill()" style="border-color:var(--primary);color:var(--primary);">📋 Fill Template Paper</button>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
+    </div>
+    <div class="uni-progress hidden" id="gen-paper-progress">
+      <span class="uni-progress-label">Composing paper…</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill"></div></div>
+    </div>
+    <div class="alert alert-error hidden" id="paper-err"></div>
+  </div>
+
+  <!-- ── MODE 3: Editable Paper Preview ───────────────────────────────────── -->
+  <div id="sec-paper-preview" class="card hidden">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <h2 style="margin:0;">Paper Preview</h2>
+      <button id="ai-panel-toggle-btn" class="btn btn-ghost" style="padding:4px 10px;font-size:.78rem;" onclick="toggleAiPanel()">Suggestions</button>
+    </div>
+    <p class="sub">Review and edit the question paper below. Select a question, then click "Analyse" for feedback.</p>
+
+    <div class="preview-layout">
+      <div id="paper-preview-div" contenteditable="true" spellcheck="false"></div>
+
+      <!-- AI Suggestions Panel -->
+      <div class="ai-panel" id="ai-panel">
+        <div class="ai-panel-header" onclick="toggleAiPanel()">
+          <span class="ai-panel-title">Suggestions</span>
+          <span class="ai-panel-toggle" id="ai-panel-toggle-icon">◀</span>
+        </div>
+        <div class="ai-panel-body">
+          <div style="display:flex;gap:6px;margin-bottom:10px;">
+            <button id="ai-analyse-btn" class="btn btn-primary"
+              style="flex:1;font-size:.78rem;padding:6px 0;justify-content:center;"
+              onclick="_runAiReview()">Analyse</button>
+            <button id="ai-rephrase-btn" class="btn btn-ghost"
+              style="flex:1;font-size:.78rem;padding:6px 0;justify-content:center;"
+              onclick="_runRephrase()">Rephrase</button>
+          </div>
+          <div class="ai-status-msg" id="ai-status">Click inside a question row, then press a button.</div>
+          <div id="ai-rephrase-output"></div>
+          <div id="ai-undo-bar" style="display:none;margin-bottom:8px;">
+            <button class="btn btn-ghost" style="width:100%;font-size:.75rem;padding:5px 0;text-align:center;border-color:#f59e0b;color:#92400e;background:#fffbeb;" onclick="_undoAiApply()">↩ Undo last change</button>
+          </div>
+          <div id="ai-suggestions-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:.85rem;font-weight:600;color:var(--muted);margin-top:20px;margin-bottom:10px;">Download format</p>
+    <div class="format-grid" id="paper-preview-fmt-grid">
+      <div class="fmt-card" data-previewfmt="txt"  onclick="pickPreviewFmt('txt')">
+        <div class="fmt-icon">📝</div><div class="fmt-label">Text</div>
+      </div>
+      <div class="fmt-card selected" data-previewfmt="docx" onclick="pickPreviewFmt('docx')">
+        <div class="fmt-icon">📘</div><div class="fmt-label">Word</div>
+      </div>
+      <div class="fmt-card" data-previewfmt="pdf"  onclick="pickPreviewFmt('pdf')">
+        <div class="fmt-icon">📕</div><div class="fmt-label">PDF</div>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" onclick="goBack('paper-preview')">← Back</button>
+      <span class="spacer"></span>
+      <button class="btn btn-primary" id="btn-dl-edited-paper" onclick="downloadEditedPaper()">⬇ Download Paper</button>
+      <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
+    </div>
+    <div class="uni-progress hidden" id="dl-paper-progress">
+      <span class="uni-progress-label">Generating document…</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill"></div></div>
+    </div>
+    <div class="alert alert-error hidden" id="paper-preview-err"></div>
+  </div>
+
+  <!-- ── sec-template-fill ───────────────────────────────────────────────── -->
+  <div class="card hidden" id="sec-template-fill">
+    <h2>Fill Template Paper</h2>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:18px;">
+      Upload your institution's sample question paper. We'll keep the exact header and
+      unit structure — you pick a replacement question from your question bank for each slot.
+    </p>
+
+    <!-- Phase 1: Upload -->
+    <div id="tpl-phase-upload">
+      <div class="upload-zone" id="tpl-zone">
+        <div style="font-size:2rem;">📄</div>
+        <p>Drag &amp; drop a sample paper here</p>
+        <p style="font-size:.8rem;color:var(--muted);">or click to browse — PDF · DOCX</p>
+        <input type="file" id="tpl-file-input" accept=".pdf,.docx,.doc">
+      </div>
+      <div class="alert alert-error hidden" id="tpl-upload-err"></div>
+      <div class="uni-progress hidden" id="tpl-upload-loading">
+        <span class="uni-progress-label">Parsing template…</span>
+        <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+      </div>
+    </div>
+
+    <!-- Phase 2: Slot grid (shown after parse) -->
+    <div id="tpl-phase-slots" class="hidden">
+      <!-- Editable header fields -->
+      <h3 style="font-size:.85rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 10px;">Paper Header</h3>
+      <div class="field-row">
+        <div class="field"><label>College / Institution</label><input type="text" id="tpl-college"></div>
+        <div class="field"><label>Sub-title (e.g. Affiliated to VTU)</label><input type="text" id="tpl-subtitle"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Exam Name</label><input type="text" id="tpl-examname"></div>
+        <div class="field"><label>Programme</label><input type="text" id="tpl-programme"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Branch</label><input type="text" id="tpl-branch"></div>
+        <div class="field"><label>Semester</label><input type="text" id="tpl-semester"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Course Code</label><input type="text" id="tpl-coursecode"></div>
+        <div class="field"><label>Course Name</label><input type="text" id="tpl-course"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Duration</label><input type="text" id="tpl-duration"></div>
+        <div class="field"><label>Max Marks</label><input type="text" id="tpl-maxmarks"></div>
+      </div>
+
+      <!-- Parse-result badge -->
+      <div id="tpl-profile-badge" style="display:none;align-items:center;gap:10px;margin:14px 0 4px;flex-wrap:wrap;">
+        <span style="font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">Parsed via</span>
+        <span id="tpl-profile-name" style="background:var(--primary);color:#fff;font-size:.72rem;font-weight:600;padding:2px 9px;border-radius:20px;"></span>
+        <span id="tpl-confidence-bar" style="font-size:.72rem;color:var(--muted);"></span>
+        <button type="button" onclick="openProfileManager()" style="margin-left:auto;font-size:.72rem;border:1px solid var(--border);background:none;cursor:pointer;padding:2px 8px;border-radius:4px;color:var(--muted);">Manage formats</button>
+      </div>
+
+      <!-- Slot table -->
+      <h3 style="font-size:.85rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 6px;">
+        Question Slots
+        <span id="tpl-slot-summary" style="font-size:.75rem;font-weight:400;color:var(--muted);margin-left:10px;"></span>
+      </h3>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:10px;">Click <strong>Pick</strong> on any row to select a replacement from your question bank. Leave blank to keep the original question.</p>
+      <div id="tpl-slot-grid" style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:18px;"></div>
+
+      <!-- Format + Generate -->
+      <p style="font-size:.85rem;font-weight:600;color:var(--muted);margin-bottom:10px;">Output format</p>
+      <div class="format-grid">
+        <div class="fmt-card" data-tplfmt="txt"  onclick="pickTplFmt('txt')"><div class="fmt-icon">📝</div><div class="fmt-label">Text</div></div>
+        <div class="fmt-card selected" data-tplfmt="docx" onclick="pickTplFmt('docx')"><div class="fmt-icon">📘</div><div class="fmt-label">Word</div></div>
+        <div class="fmt-card" data-tplfmt="pdf"  onclick="pickTplFmt('pdf')"><div class="fmt-icon">📕</div><div class="fmt-label">PDF</div></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="showSection('configure-paper'); setStepBar(3);">← Back</button>
+        <button class="btn btn-primary" id="btn-gen-tpl" onclick="generateTemplatePaper()">Preview Paper →</button>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
+      </div>
+      <div class="uni-progress hidden" id="gen-tpl-progress">
+        <span class="uni-progress-label">Composing paper from template…</span>
+        <div class="uni-progress-track"><div class="uni-progress-fill"></div></div>
+      </div>
+      <div class="alert alert-error hidden" id="tpl-gen-err"></div>
+    </div>
+  </div>

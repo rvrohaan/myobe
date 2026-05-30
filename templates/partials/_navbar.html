@@ -1,0 +1,43 @@
+<nav>
+  <a class="nav-brand" href="/">
+    <div class="nav-brand-icon">🎓</div>
+    MyOBE
+  </a>
+
+  <ul class="nav-links">
+    <li><a href="/" {% if request.path == '/' %}class="active"{% endif %}>Home</a></li>
+    <li><a href="/#products">Products</a></li>
+    <li><a href="/#pricing">Pricing</a></li>
+  </ul>
+
+  <div class="nav-actions">
+    {% if session.logged_in %}
+      <span class="nav-username">{{ session.username }}</span>
+      <span class="nav-token-badge">&#9711; {{ session.tokens or 0 }} tokens</span>
+      {% if request.path == '/app' %}
+        <a href="#" class="btn-nav-ghost" onclick="startOver();return false;" title="Back to mode selection">Dashboard</a>
+      {% else %}
+        <a href="/app" class="btn-nav-ghost">Dashboard</a>
+      {% endif %}
+      <a href="/settings" class="btn-nav-ghost{% if request.path == '/settings' %} active{% endif %}">Settings</a>
+      <a href="/logout" class="btn-nav-ghost">Sign Out</a>
+    {% else %}
+      <a href="/login" class="btn-nav-ghost{% if request.path == '/login' %} active{% endif %}">Sign In</a>
+      {% if request.path != '/login' %}
+        <a href="/login?tab=register" class="btn-nav-primary">Get Started</a>
+      {% endif %}
+    {% endif %}
+    <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle theme">☀️</button>
+  </div>
+</nav>
+<script>
+  function toggleTheme() {
+    const isLight = document.documentElement.classList.toggle('light-theme');
+    localStorage.setItem('myobe-theme', isLight ? 'light' : 'dark');
+    document.getElementById('themeToggleBtn').textContent = isLight ? '🌙' : '☀️';
+  }
+  (function(){
+    if(document.documentElement.classList.contains('light-theme'))
+      document.getElementById('themeToggleBtn').textContent = '🌙';
+  })();
+</script>

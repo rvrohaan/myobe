@@ -1,0 +1,188 @@
+  <!-- ── MODE 6: Teaching Diary — Upload syllabus ──────────────────────────── -->
+  <div id="sec-td-upload" class="card hidden">
+    <h2>Upload Syllabus for Teaching Diary</h2>
+    <p class="sub">Upload a syllabus PDF, Word, or TXT file. The tool will detect courses automatically.</p>
+    <div class="upload-zone" id="td-upload-zone">
+      <div class="upload-icon">📓</div>
+      <h3>Drag &amp; drop your syllabus here</h3>
+      <p>or click to browse — PDF · DOCX · TXT</p>
+      <input type="file" id="td-file-input" accept=".pdf,.docx,.doc,.txt">
+    </div>
+    <div class="uni-progress hidden" id="td-upload-loading">
+      <span class="uni-progress-label">Parsing syllabus…</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+    </div>
+    <div class="alert alert-error hidden" id="td-upload-err"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="startOver()">← Back</button>
+    </div>
+  </div>
+
+  <!-- ── MODE 6: Select course ──────────────────────────────────────────────── -->
+  <div id="sec-td-courses" class="card hidden">
+    <h2>Select Course</h2>
+    <p class="sub">Courses detected in your syllabus. Select one to configure.</p>
+    <div class="course-list" id="td-course-list" style="max-height:280px;overflow-y:auto;"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="showSection('td-upload'); setStepBar(1);">← Back</button>
+      <button class="btn btn-primary" id="btn-td-next" disabled onclick="showSection('td-config'); setStepBar(3);">Configure →</button>
+    </div>
+    <div class="alert alert-error hidden" id="td-course-err"></div>
+  </div>
+
+  <!-- ── MODE 6: Configure metadata ────────────────────────────────────────── -->
+  <div id="sec-td-config" class="card hidden">
+    <h2>Configure Teaching Diary</h2>
+    <p class="sub">Adjust details before generating. These populate the diary header.</p>
+
+    <!-- CO source tabs -->
+    <div style="margin-bottom:18px;">
+      <p style="font-size:.85rem;font-weight:700;margin-bottom:8px;">Course Outcomes source</p>
+      <div style="display:flex;gap:8px;">
+        <button class="ctrl-btn" id="td-cotab-auto"   onclick="switchTdCoTab('auto')"   style="padding:6px 14px;font-size:.82rem;">Auto-generate from syllabus</button>
+        <button class="ctrl-btn" id="td-cotab-upload" onclick="switchTdCoTab('upload')" style="padding:6px 14px;font-size:.82rem;">Upload existing CO file</button>
+      </div>
+
+      <!-- Auto-generate panel -->
+      <div id="td-co-auto-panel" style="margin-top:12px;">
+        <label class="input-label">Number of Course Outcomes</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="range" id="td-num-cos" min="3" max="10" value="5"
+                 oninput="document.getElementById('td-cos-val').textContent=this.value"
+                 style="width:160px;accent-color:var(--primary);">
+          <span id="td-cos-val" style="font-weight:700;min-width:18px;">5</span>
+        </div>
+      </div>
+
+      <!-- Upload CO panel -->
+      <div id="td-co-upload-panel" class="hidden" style="margin-top:12px;">
+        <div class="upload-zone" id="td-co-upload-zone" style="padding:24px 16px;">
+          <div class="upload-icon" style="font-size:1.6rem;">🎯</div>
+          <h3 style="margin:6px 0 4px;">Drop your CO file here</h3>
+          <p style="margin:0;font-size:.82rem;">TXT · DOCX · PDF</p>
+          <input type="file" id="td-co-file-input" accept=".txt,.docx,.doc,.pdf">
+        </div>
+        <div class="uni-progress hidden" id="td-co-upload-loading" style="margin-top:8px;">
+          <span class="uni-progress-label">Parsing CO file…</span>
+          <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+        </div>
+        <div class="alert alert-error hidden" id="td-co-upload-err" style="margin-top:8px;"></div>
+        <div id="td-co-preview" class="hidden" style="margin-top:10px;">
+          <div class="summary-bar" id="td-co-summary-bar"></div>
+          <div class="co-cards" id="td-co-cards" style="margin-top:8px;max-height:180px;overflow-y:auto;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metadata fields -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px;border-top:1px solid var(--border);padding-top:16px;">
+      <div>
+        <label class="input-label">Faculty Name</label>
+        <input type="text" id="td-faculty" class="text-input" value="Dr. Faculty" placeholder="Dr. XYZ">
+      </div>
+      <div>
+        <label class="input-label">Academic Year</label>
+        <input type="text" id="td-acyear" class="text-input" value="2026–2027" placeholder="2026–2027">
+      </div>
+      <div>
+        <label class="input-label">Semester</label>
+        <input type="text" id="td-semester" class="text-input" value="III Semester" placeholder="III Semester">
+      </div>
+      <div>
+        <label class="input-label">Section</label>
+        <input type="text" id="td-section" class="text-input" value="A" placeholder="A">
+      </div>
+      <div>
+        <label class="input-label">Regulation</label>
+        <input type="text" id="td-regulation" class="text-input" value="R26" placeholder="R26">
+      </div>
+      <div>
+        <label class="input-label">Program</label>
+        <input type="text" id="td-program" class="text-input" value="B.Tech – CSE" placeholder="B.Tech – CSE">
+      </div>
+      <div>
+        <label class="input-label">Course Type</label>
+        <select id="td-course-type" class="text-input">
+          <option value="Theory + Lab">Theory + Lab</option>
+          <option value="Theory">Theory</option>
+          <option value="Lab">Lab</option>
+        </select>
+      </div>
+      <div>
+        <label class="input-label">Credits</label>
+        <input type="text" id="td-credits" class="text-input" value="4" placeholder="4">
+      </div>
+      <div>
+        <label class="input-label">L-T-P</label>
+        <input type="text" id="td-ltp" class="text-input" value="3-0-2" placeholder="3-0-2">
+      </div>
+      <div>
+        <label class="input-label">Total Contact Hours</label>
+        <input type="text" id="td-total-hours" class="text-input" value="45" placeholder="45">
+      </div>
+      <div>
+        <label class="input-label">Department</label>
+        <input type="text" id="td-dept" class="text-input" value="Department of Computer Science and Engineering" placeholder="Department of…">
+      </div>
+      <div>
+        <label class="input-label">Course Coordinator</label>
+        <input type="text" id="td-coordinator" class="text-input" placeholder="Coordinator name">
+      </div>
+      <div>
+        <label class="input-label">HoD</label>
+        <input type="text" id="td-hod" class="text-input" placeholder="HoD name">
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top:20px;">
+      <button class="btn btn-ghost" onclick="showSection('td-courses'); setStepBar(2);">← Back</button>
+      <button class="btn btn-primary" onclick="startTdGenerate()">Generate Teaching Diary →</button>
+    </div>
+    <div class="alert alert-error hidden" id="td-config-err"></div>
+  </div>
+
+  <!-- ── MODE 6: Generating ─────────────────────────────────────────────────── -->
+  <div id="sec-td-generating" class="card hidden">
+    <h2>Generating Teaching Diary…</h2>
+    <p class="sub" id="td-gen-status">Generating session plan and diary sections — this may take 30–60 seconds…</p>
+    <div class="uni-progress" id="td-gen-progress" style="margin-top:20px;">
+      <span class="uni-progress-label">Analysing syllabus…</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill"></div></div>
+    </div>
+    <div class="alert alert-error hidden" id="td-gen-err"></div>
+  </div>
+
+  <!-- ── MODE 6: Result + Export ────────────────────────────────────────────── -->
+  <div id="sec-td-result" class="card hidden">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <h2 style="margin:0;">Teaching Diary Generated</h2>
+    </div>
+    <p class="sub" id="td-result-sub"></p>
+
+    <!-- Preview -->
+    <div id="td-preview-wrap" style="margin-top:12px;border:1px solid var(--border);border-radius:8px;padding:14px;background:#f9fafb;color:#1e293b;max-height:460px;overflow-y:auto;font-size:.83rem;"></div>
+
+    <p style="font-size:.85rem;font-weight:600;color:var(--muted);margin:18px 0 10px;">Export format</p>
+    <div class="format-grid">
+      <div class="fmt-card" data-tdfmt="txt" onclick="pickTdFmt('txt')">
+        <div class="fmt-icon">📝</div><div class="fmt-label">Text</div>
+      </div>
+      <div class="fmt-card selected" data-tdfmt="docx" onclick="pickTdFmt('docx')">
+        <div class="fmt-icon">📘</div><div class="fmt-label">Word</div>
+      </div>
+      <div class="fmt-card" data-tdfmt="pdf" onclick="pickTdFmt('pdf')">
+        <div class="fmt-icon">📕</div><div class="fmt-label">PDF</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="showSection('td-config'); setStepBar(3);">← Back</button>
+      <button class="btn btn-primary" id="btn-td-download" onclick="downloadTd()">⬇ Download</button>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
+    </div>
+    <div class="uni-progress hidden" id="dl-td-progress">
+      <span class="uni-progress-label">Generating document…</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill"></div></div>
+    </div>
+    <div class="alert alert-error hidden" id="td-result-err"></div>
+  </div>

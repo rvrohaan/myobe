@@ -1,0 +1,233 @@
+  <!-- ── Mode Selection ──────────────────────────────────────────────────── -->
+
+  <style>
+    /* ── Greeting card ── */
+    .greeting-card {
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+      border-radius: 16px; padding: 24px 28px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px; gap: 16px;
+      animation: fadeInUp .35s cubic-bezier(.2,.8,.4,1) both;
+      box-shadow: 0 6px 28px rgba(49,46,129,.35);
+      flex-wrap: wrap;
+    }
+    .greeting-left {}
+    .greeting-label {
+      font-size: .72rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: rgba(255,255,255,.45); margin-bottom: 4px;
+    }
+    .greeting-name {
+      font-size: 1.4rem; font-weight: 900; color: #fff; letter-spacing: -.3px;
+    }
+    .greeting-plan {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18);
+      color: #c7d2fe; font-size: .75rem; font-weight: 700;
+      padding: 4px 12px; border-radius: 999px; margin-top: 8px;
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+    .greeting-plan-dot { width: 6px; height: 6px; border-radius: 50%; background: #818cf8; }
+    .greeting-right { display: flex; gap: 10px; flex-wrap: wrap; }
+    .greeting-stat {
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 10px; padding: 10px 16px; text-align: center;
+    }
+    .greeting-stat strong { display: block; font-size: 1.3rem; font-weight: 800; color: #fff; }
+    .greeting-stat span { font-size: .68rem; color: rgba(255,255,255,.45); text-transform: uppercase; letter-spacing: .05em; }
+
+    /* ── Mode grid ── */
+    .mode-select-card { margin-bottom: 20px; }
+    .mode-select-card h2 { font-size: 1.05rem; margin-bottom: 4px; }
+    .mode-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    @media (max-width: 700px) { .mode-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 440px) { .mode-grid { grid-template-columns: 1fr; } }
+
+    .mode-card {
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 22px 20px;
+      cursor: pointer;
+      text-align: left;
+      position: relative; overflow: hidden;
+      background: var(--card);
+      transition: transform .22s cubic-bezier(.2,.8,.4,1), box-shadow .22s, border-color .2s;
+      animation: fadeInUp .32s ease both;
+    }
+    .mode-card::after {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      background: var(--mc-accent, var(--primary));
+      transform: scaleX(0); transform-origin: left;
+      transition: transform .25s cubic-bezier(.2,.8,.4,1);
+    }
+    .mode-card:hover { transform: translateY(-5px); box-shadow: 0 12px 36px rgba(0,0,0,.1); border-color: rgba(99,102,241,.25); }
+    .mode-card:hover::after { transform: scaleX(1); }
+
+    .mode-grid .mode-card:nth-child(1) { animation-delay: .04s; }
+    .mode-grid .mode-card:nth-child(2) { animation-delay: .09s; }
+    .mode-grid .mode-card:nth-child(3) { animation-delay: .14s; }
+    .mode-grid .mode-card:nth-child(4) { animation-delay: .19s; }
+    .mode-grid .mode-card:nth-child(5) { animation-delay: .24s; }
+    .mode-grid .mode-card:nth-child(6) { animation-delay: .29s; }
+    .mode-grid .mode-card:nth-child(7) { animation-delay: .34s; }
+    .mode-grid .mode-card:nth-child(8) { animation-delay: .39s; }
+    .mode-grid .mode-card:nth-child(9)  { animation-delay: .44s; }
+    .mode-grid .mode-card:nth-child(10) { animation-delay: .49s; }
+
+    .mode-icon-wrap {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; margin-bottom: 14px;
+      background: var(--mc-icon-bg, #ede9fe);
+    }
+    .mode-title { font-size: .97rem; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+    .mode-desc  { font-size: .78rem; color: var(--muted); line-height: 1.5; }
+
+  </style>
+
+  <!-- ── Greeting banner ── -->
+  <div class="greeting-card" id="greeting-card">
+    <div class="greeting-left">
+      <div class="greeting-label" id="greeting-time-label">Welcome back</div>
+      <div class="greeting-name">{{ session.username|title }}</div>
+      <div class="greeting-plan">
+        <span class="greeting-plan-dot"></span>
+        <span id="greeting-token-count">{{ session.tokens or 0 }}</span> tokens remaining
+      </div>
+    </div>
+    <div class="greeting-right" id="greeting-stats">
+      <!-- filled by JS from localStorage -->
+    </div>
+  </div>
+
+  <!-- ── Tool selector ── -->
+  <div id="sec-mode-select" class="card animate-in">
+    <h2>What would you like to generate?</h2>
+    <p class="sub">Choose a task to get started. Each creates professional academic content from your syllabus.</p>
+
+    <div class="mode-grid">
+
+      <!-- CO Generator — always available -->
+      <div class="mode-card" onclick="selectMode('cos')"
+           style="--mc-accent:linear-gradient(90deg,#6366f1,#8b5cf6); --mc-icon-bg:#ede9fe;">
+        <div class="mode-icon-wrap">🎯</div>
+        <div class="mode-title">Course Outcomes</div>
+        <div class="mode-desc">Generate CO statements aligned to Bloom's taxonomy from a syllabus PDF or Word file.</div>
+      </div>
+
+      <!-- Question Bank -->
+      <div class="mode-card" onclick="selectMode('qbank')"
+           style="--mc-accent:linear-gradient(90deg,#0ea5e9,#38bdf8); --mc-icon-bg:#e0f2fe;">
+        <div class="mode-icon-wrap">📚</div>
+        <div class="mode-title">Question Bank</div>
+        <div class="mode-desc">Auto-generate 2-mark, 5-mark, 10-mark questions, assignments &amp; quizzes — organised by unit.</div>
+      </div>
+
+      <!-- Question Paper -->
+      <div class="mode-card" onclick="selectMode('qpaper')"
+           style="--mc-accent:linear-gradient(90deg,#f59e0b,#fbbf24); --mc-icon-bg:#fef3c7;">
+        <div class="mode-icon-wrap">📋</div>
+        <div class="mode-title">Question Paper</div>
+        <div class="mode-desc">Compose an Assignment, Quiz, Internal Assessment, or Final Exam from an existing question bank.</div>
+      </div>
+
+      <!-- CO–PO Mapping -->
+      <div class="mode-card" onclick="selectMode('pomap')"
+           style="--mc-accent:linear-gradient(90deg,#10b981,#34d399); --mc-icon-bg:#d1fae5;">
+        <div class="mode-icon-wrap">🗺️</div>
+        <div class="mode-title">CO–PO Mapping</div>
+        <div class="mode-desc">Generate an NBA-compliant CO–PO mapping table with 3/2/1/0 scores from your Course Outcomes file.</div>
+      </div>
+
+      <!-- Lesson Plan -->
+      <div class="mode-card" onclick="selectMode('lessonplan')"
+           style="--mc-accent:linear-gradient(90deg,#f43f5e,#fb7185); --mc-icon-bg:#ffe4e6;">
+        <div class="mode-icon-wrap">📅</div>
+        <div class="mode-title">Course Lesson Plan</div>
+        <div class="mode-desc">Generate a complete 13-section lesson plan with COs, CO-PO-SDG mapping, session delivery plan, and NBA/NAAC alignment.</div>
+      </div>
+
+      <!-- Teaching Diary -->
+      <div class="mode-card" onclick="selectMode('teachingdiary')"
+           style="--mc-accent:linear-gradient(90deg,#8b5cf6,#a78bfa); --mc-icon-bg:#ede9fe;">
+        <div class="mode-icon-wrap">📓</div>
+        <div class="mode-title">Teaching Diary</div>
+        <div class="mode-desc">Generate a full-semester teaching diary with session delivery plan, tutorial/lab diary, CO attainment, and NBA/NAAC evidence.</div>
+      </div>
+
+      <!-- CO → SDG Contribution -->
+      <div class="mode-card" onclick="selectMode('sdgco')"
+           style="--mc-accent:linear-gradient(90deg,#06b6d4,#22d3ee); --mc-icon-bg:#cffafe;">
+        <div class="mode-icon-wrap">📊</div>
+        <div class="mode-title">CO → SDG Contribution</div>
+        <div class="mode-desc">Analyse CO-level SDG contributions using the full CO→PO→SDG pipeline to identify key contributing outcomes.</div>
+      </div>
+
+      <!-- PO → SDG Contribution -->
+      <div class="mode-card" onclick="selectMode('sdgpo')"
+           style="--mc-accent:linear-gradient(90deg,#f97316,#fb923c); --mc-icon-bg:#ffedd5;">
+        <div class="mode-icon-wrap">🌍</div>
+        <div class="mode-title">PO → SDG Contribution</div>
+        <div class="mode-desc">Calculate how Programme Outcomes contribute to UN SDGs using weighted attainment scores and a Composite SDG Index.</div>
+      </div>
+
+      <!-- CO Attainment Calculator -->
+      <div class="mode-card" onclick="selectMode('coatt')"
+           style="--mc-accent:linear-gradient(90deg,#ec4899,#f472b6); --mc-icon-bg:#fce7f3;">
+        <div class="mode-icon-wrap">📈</div>
+        <div class="mode-title">CO Attainment</div>
+        <div class="mode-desc">Upload a Method-2 Tier-I CIE mark sheet (XLS/XLSX) to auto-calculate CO attainment levels and PO attainment via weighted average.</div>
+      </div>
+
+      <!-- All in One -->
+      <div class="mode-card" onclick="selectMode('allinone')"
+           style="--mc-accent:linear-gradient(90deg,#f43f5e,#ec4899,#8b5cf6); --mc-icon-bg:#fce7f3; grid-column: 1 / -1; display:flex; align-items:center; gap:20px;">
+        <div class="mode-icon-wrap" style="margin-bottom:0;flex-shrink:0;">⚡</div>
+        <div>
+          <div class="mode-title">All in One</div>
+          <div class="mode-desc">Generate all documents in sequence from a single syllabus — COs, Question Bank, CO-PO Mapping, Lesson Plan, Teaching Diary, SDG Contributions, and CO Attainment.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Step indicator ── -->
+  <div class="steps hidden" id="steps-bar"></div>
+
+  <script>
+    /* ── Greeting time-of-day label ── */
+    (function() {
+      const h = new Date().getHours();
+      const label = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+      const el = document.getElementById('greeting-time-label');
+      if (el) el.textContent = label;
+    })();
+
+    /* ── Greeting stats from localStorage ── */
+    function refreshGreetingStats() {
+      try {
+        const currentUser = "{{ session['username'] | e }}";
+        const storedUser  = localStorage.getItem('edugen_user');
+        if (storedUser === null) {
+          localStorage.setItem('edugen_user', currentUser);
+        } else if (storedUser !== currentUser) {
+          localStorage.setItem('edugen_user', currentUser);
+          localStorage.setItem('edugen_total_generations', '0');
+        }
+        const total   = parseInt(localStorage.getItem('edugen_total_generations') || '0', 10);
+        const statsEl = document.getElementById('greeting-stats');
+        if (!statsEl || total === 0) return;
+        statsEl.innerHTML = `
+          <div class="greeting-stat">
+            <strong>${total}</strong>
+            <span>Generations</span>
+          </div>`;
+      } catch(e) {}
+    }
+    refreshGreetingStats();
+  </script>

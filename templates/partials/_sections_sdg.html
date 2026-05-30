@@ -1,0 +1,224 @@
+  <!-- ── MODE 7: PO → SDG Contribution ──────────────────────────────────────── -->
+
+  <!-- Results -->
+  <div id="sec-sdgpo-result" class="card hidden">
+    <h2>PO → SDG Contribution Results</h2>
+    <p class="sub" id="sdgpo-result-sub"></p>
+
+    <!-- Active SDG chips + add -->
+    <div style="margin-bottom:16px;border:1px solid var(--border);border-radius:10px;padding:12px 16px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:.8rem;font-weight:700;color:var(--muted);white-space:nowrap;">Active SDGs:</span>
+        <div id="sdgpo-result-sdg-chips" style="display:flex;flex-wrap:wrap;gap:6px;flex:1;"></div>
+        <select id="sdgpo-result-sdg-add"
+                onchange="sdgPoResultAddSdg(this)"
+                style="font-size:.8rem;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);cursor:pointer;">
+          <option value="">+ Add SDG</option>
+        </select>
+      </div>
+      <!-- Loading indicator shown while fetching on-demand SDG weights -->
+      <div class="uni-progress hidden" id="sdgpo-sdg-loading" style="margin-top:10px;">
+        <span class="uni-progress-label" id="sdgpo-sdg-loading-label">Analysing…</span>
+        <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+      </div>
+    </div>
+
+    <div id="sdgpo-results-wrap" style="overflow-x:auto;margin-bottom:16px;transition:opacity .25s;"></div>
+
+    <div style="background:rgba(99,102,241,.07);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:20px;">
+      <span style="font-size:.875rem;font-weight:700;">Composite SDG Index:</span>
+      <span style="font-size:1.15rem;font-weight:900;color:var(--primary);margin-left:10px;" id="sdgpo-composite-val"></span>
+      <span style="font-size:.82rem;color:var(--muted);margin-left:8px;" id="sdgpo-composite-interp"></span>
+    </div>
+
+    <p style="font-size:.85rem;font-weight:600;color:var(--muted);margin-bottom:10px;">Export format</p>
+    <div class="format-grid">
+      <div class="fmt-card" data-sdgpofmt="txt"  onclick="pickSdgPoFmt('txt')">
+        <div class="fmt-icon">📝</div><div class="fmt-label">Text</div>
+      </div>
+      <div class="fmt-card selected" data-sdgpofmt="docx" onclick="pickSdgPoFmt('docx')">
+        <div class="fmt-icon">📘</div><div class="fmt-label">Word</div>
+      </div>
+      <div class="fmt-card" data-sdgpofmt="pdf"  onclick="pickSdgPoFmt('pdf')">
+        <div class="fmt-icon">📕</div><div class="fmt-label">PDF</div>
+      </div>
+    </div>
+    <div class="actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" onclick="goBack('sdgpo-result')">← Back</button>
+      <button class="btn btn-primary" id="btn-sdgpo-download" onclick="downloadSdgPo()">⬇ Download</button>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
+    </div>
+    <div class="alert alert-error hidden" id="sdgpo-result-err"></div>
+  </div>
+
+  <!-- ── MODE 8: CO → SDG Contribution ───────────────────────────────────────── -->
+
+  <!-- Step 3: Generate / Upload COs -->
+  <div id="sec-sdgco-cos" class="card hidden">
+    <h2>Course Outcomes</h2>
+    <p class="sub">Upload an existing CO file, or auto-generate Course Outcomes from your syllabus.</p>
+
+    <!-- Source tabs (hidden in generate path) -->
+    <div id="sdgco-tab-bar" style="display:flex;gap:8px;margin-bottom:18px;">
+      <button class="ctrl-btn" id="sdgco-cotab-upload" onclick="switchSdgCoTab('upload')" style="padding:6px 14px;font-size:.82rem;">Upload CO file</button>
+      <button class="ctrl-btn" id="sdgco-cotab-auto"   onclick="switchSdgCoTab('auto')"   style="padding:6px 14px;font-size:.82rem;">Auto-generate from syllabus</button>
+    </div>
+
+    <!-- Auto-generate panel (progress/stream shown during generation in generate path) -->
+    <div id="sdgco-autogen-panel" class="hidden">
+      <button class="btn btn-primary" id="btn-sdgco-gen-cos" onclick="generateCosForSdgCo()" style="margin-bottom:14px;">Generate COs →</button>
+      <div class="uni-progress hidden" id="sdgco-cos-progress">
+        <span class="uni-progress-label">Generating COs…</span>
+        <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+      </div>
+      <div class="stream-output hidden" id="sdgco-cos-stream" style="max-height:200px;"></div>
+    </div>
+
+    <!-- Upload panel -->
+    <div id="sdgco-upload-panel">
+      <div class="upload-zone" id="sdgco-co-upload-zone" style="padding:28px 16px;">
+        <div class="upload-icon" style="font-size:2rem;">🎯</div>
+        <h3 style="font-size:.9rem;">Drop your CO file here</h3>
+        <p>or click to browse — TXT · DOCX · PDF</p>
+        <input type="file" id="sdgco-co-file-input" accept=".txt,.docx,.doc,.pdf">
+      </div>
+      <div class="uni-progress hidden" id="sdgco-co-upload-loading">
+        <span class="uni-progress-label">Parsing CO file…</span>
+        <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+      </div>
+    </div>
+
+    <!-- CO review — statement list, no inputs needed -->
+    <div id="sdgco-cos-review" class="hidden" style="margin-top:18px;">
+      <div id="sdgco-cos-list" style="border:1px solid var(--border);border-radius:8px;overflow:hidden;"></div>
+      <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:.8rem;color:var(--muted);font-weight:600;">Download COs:</span>
+        <button class="ctrl-btn" onclick="downloadSdgCoCos('txt')">TXT</button>
+        <button class="ctrl-btn" onclick="downloadSdgCoCos('docx')">DOCX</button>
+        <button class="ctrl-btn" onclick="downloadSdgCoCos('pdf')">PDF</button>
+        <button class="ctrl-btn hidden" id="btn-sdgco-regen" onclick="regenSelectedSdgCo()" style="margin-left:8px;" title="Check individual COs to re-generate only those, or click with none checked to re-generate all">↻ Re-generate</button>
+      </div>
+    </div>
+
+    <div class="uni-progress hidden" id="sdgco-gen-contrib-loading" style="margin-top:14px;">
+      <span class="uni-progress-label">Analysing CO → SDG contributions…</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+    </div>
+
+    <div class="actions" style="margin-top:18px;">
+      <button class="btn btn-ghost" onclick="goBack('sdgco-cos')">← Back</button>
+      <button class="btn btn-primary" id="btn-sdgco-proceed" disabled onclick="generateSdgCoContributions()">Generate Contributions →</button>
+    </div>
+    <div class="alert alert-error hidden" id="sdgco-cos-err"></div>
+  </div>
+
+  <!-- Step 4: Configure weights -->
+  <div id="sec-sdgco-input" class="card hidden">
+    <h2>Configure Weights</h2>
+    <p class="sub">Set the Programme Outcomes, CO–PO mapping weights, and the target SDG weights to calculate CO contributions.</p>
+
+    <!-- PO list -->
+    <div style="margin-bottom:20px;border-top:1px solid var(--border);padding-top:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <p style="font-size:.875rem;font-weight:700;margin:0;">Programme Outcomes</p>
+        <button class="ctrl-btn" onclick="sdgCoAddPo()">+ Add PO</button>
+      </div>
+      <div id="sdgco-po-list" style="display:flex;flex-wrap:wrap;gap:8px;min-height:32px;"></div>
+    </div>
+
+    <!-- CO-PO weight matrix -->
+    <div style="margin-bottom:20px;border-top:1px solid var(--border);padding-top:16px;">
+      <p style="font-size:.875rem;font-weight:700;margin-bottom:4px;">CO–PO Mapping Weights</p>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:10px;">3 = Strong · 2 = Moderate · 1 = Low · 0 = No Mapping</p>
+      <div style="overflow-x:auto;">
+        <table id="sdgco-copo-table" class="po-map" style="width:auto;min-width:100%;"></table>
+      </div>
+    </div>
+
+    <!-- Target SDG + PO-SDG weights -->
+    <div style="margin-bottom:20px;border-top:1px solid var(--border);padding-top:16px;">
+      <p style="font-size:.875rem;font-weight:700;margin-bottom:12px;">Target SDG &amp; PO–SDG Weights</p>
+      <div style="max-width:260px;margin-bottom:14px;">
+        <label class="input-label">Target SDG</label>
+        <input type="text" id="sdgco-target-sdg" class="text-input" value="SDG 9" placeholder="e.g. SDG 9">
+      </div>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:8px;">PO mapping weights to the target SDG (3 = Strong, 2 = Moderate, 1 = Low, 0 = None):</p>
+      <div style="overflow-x:auto;">
+        <table id="sdgco-posdg-table" class="po-map" style="width:auto;min-width:100%;"></table>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goBack('sdgco-input')">← Back</button>
+      <button class="btn btn-primary" onclick="computeSdgCo()">Calculate Contributions →</button>
+    </div>
+    <div class="alert alert-error hidden" id="sdgco-input-err"></div>
+  </div>
+
+  <!-- Step 2 / 4: Results (editable preview) -->
+  <div id="sec-sdgco-result" class="card hidden">
+    <h2>CO → SDG Contribution Analysis</h2>
+    <p class="sub">Review the AI-generated analysis. Edit the target SDG or any contribution score, then recalculate before downloading.</p>
+
+    <!-- Editable target SDG -->
+    <div style="margin-bottom:20px;">
+      <label style="font-size:.875rem;font-weight:700;display:block;margin-bottom:6px;">Target SDG</label>
+      <input type="text" id="sdgco-result-sdg" class="text-input"
+             placeholder="e.g. SDG 9 — Industry, Innovation &amp; Infrastructure"
+             style="max-width:460px;" oninput="_sdgCoUpdateInterpretation()">
+    </div>
+
+    <!-- Editable contribution table -->
+    <div style="margin-bottom:20px;border-top:1px solid var(--border);padding-top:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <p style="font-size:.875rem;font-weight:700;margin:0;">CO Contribution Breakdown</p>
+        <button class="ctrl-btn" id="btn-sdgco-recalc" onclick="recalculateSdgCo()">Recalculate %</button>
+      </div>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:10px;">Type any SDG in the field above to attribute these scores to it. Edit scores manually — percentages update live. Click <strong>Recalculate %</strong> to refresh totals and interpretation.</p>
+      <div style="overflow-x:auto;">
+        <table class="po-map" style="width:100%;">
+          <thead><tr>
+            <th style="text-align:left;padding:8px 12px;font-size:.8rem;white-space:nowrap;">CO</th>
+            <th style="text-align:left;padding:8px 12px;font-size:.8rem;">Statement</th>
+            <th style="text-align:center;padding:8px 12px;font-size:.8rem;white-space:nowrap;">Score (0–3)</th>
+            <th style="text-align:center;padding:8px 12px;font-size:.8rem;white-space:nowrap;">Share (%)</th>
+          </tr></thead>
+          <tbody id="sdgco-result-tbody"></tbody>
+          <tfoot>
+            <tr style="border-top:2px solid var(--border);font-weight:800;">
+              <td colspan="2" style="padding:8px 12px;">Total</td>
+              <td id="sdgco-total-score" style="padding:8px 12px;text-align:center;">—</td>
+              <td style="padding:8px 12px;text-align:center;">100%</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Interpretation -->
+    <div style="background:rgba(6,182,212,.07);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:20px;">
+      <p style="font-size:.875rem;font-weight:700;margin-bottom:6px;">Interpretation</p>
+      <div id="sdgco-interp-text" style="font-size:.85rem;color:var(--text);line-height:1.65;"></div>
+    </div>
+
+    <p style="font-size:.85rem;font-weight:600;color:var(--muted);margin-bottom:10px;">Export format</p>
+    <div class="format-grid">
+      <div class="fmt-card" data-sdgcofmt="txt"  onclick="pickSdgCoFmt('txt')">
+        <div class="fmt-icon">📝</div><div class="fmt-label">Text</div>
+      </div>
+      <div class="fmt-card selected" data-sdgcofmt="docx" onclick="pickSdgCoFmt('docx')">
+        <div class="fmt-icon">📘</div><div class="fmt-label">Word</div>
+      </div>
+      <div class="fmt-card" data-sdgcofmt="pdf"  onclick="pickSdgCoFmt('pdf')">
+        <div class="fmt-icon">📕</div><div class="fmt-label">PDF</div>
+      </div>
+    </div>
+    <div class="actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" onclick="showSection('sdgco-cos'); setStepBar(_sdgCoCosStepN());">← Back</button>
+      <button class="btn btn-primary" id="btn-sdgco-download" onclick="downloadSdgCo()">⬇ Download</button>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
+    </div>
+    <div class="alert alert-error hidden" id="sdgco-result-err"></div>
+  </div>

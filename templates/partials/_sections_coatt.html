@@ -1,0 +1,120 @@
+  <!-- ── MODE 9: CO Attainment ───────────────────────────────────────────── -->
+
+  <!-- Step 1: Course Outcomes -->
+  <div id="sec-coatt-cos" class="card hidden">
+    <h2>CO Attainment <span style="font-size:.75rem;font-weight:500;color:var(--muted);margin-left:8px;">AI Estimation</span></h2>
+    <p class="sub">Upload an existing CO file, or auto-generate Course Outcomes from your syllabus.</p>
+
+    <!-- Source tabs -->
+    <div id="coatt-tab-bar" style="display:flex;gap:8px;margin-bottom:18px;">
+      <button class="ctrl-btn" id="coatt-cotab-upload" onclick="switchCoAttTab('upload')" style="padding:6px 14px;font-size:.82rem;">Upload CO file</button>
+      <button class="ctrl-btn" id="coatt-cotab-auto"   onclick="switchCoAttTab('auto')"   style="padding:6px 14px;font-size:.82rem;">Auto-generate from syllabus</button>
+    </div>
+
+    <!-- Auto-generate panel -->
+    <div id="coatt-autogen-panel" class="hidden">
+      <button class="btn btn-primary" id="btn-coatt-gen-cos" onclick="generateCosForCoAtt()" style="margin-bottom:14px;">Generate COs →</button>
+      <div class="uni-progress hidden" id="coatt-cos-progress">
+        <span class="uni-progress-label">Generating COs…</span>
+        <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+      </div>
+      <div class="stream-output hidden" id="coatt-cos-stream" style="max-height:200px;"></div>
+    </div>
+
+    <!-- Upload panel -->
+    <div id="coatt-upload-panel">
+      <div class="upload-zone" id="coatt-co-upload-zone" style="padding:28px 16px;">
+        <div class="upload-icon" style="font-size:2rem;">📈</div>
+        <h3 style="font-size:.9rem;">Drop your CO file here</h3>
+        <p>or click to browse — TXT · DOCX · PDF</p>
+        <input type="file" id="coatt-co-file-input" accept=".txt,.docx,.doc,.pdf">
+      </div>
+      <div class="uni-progress hidden" id="coatt-co-upload-loading">
+        <span class="uni-progress-label">Parsing CO file…</span>
+        <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+      </div>
+    </div>
+
+    <!-- CO review -->
+    <div id="coatt-cos-review" class="hidden" style="margin-top:18px;">
+      <div id="coatt-cos-list" style="border:1px solid var(--border);border-radius:8px;overflow:hidden;"></div>
+      <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:.8rem;color:var(--muted);font-weight:600;">Download COs:</span>
+        <button class="ctrl-btn" onclick="downloadCoAttCos('txt')">TXT</button>
+        <button class="ctrl-btn" onclick="downloadCoAttCos('docx')">DOCX</button>
+        <button class="ctrl-btn" onclick="downloadCoAttCos('pdf')">PDF</button>
+        <button class="ctrl-btn hidden" id="btn-coatt-regen" onclick="regenSelectedCoAtt()" style="margin-left:8px;" title="Check individual COs to re-generate only those, or click with none checked to re-generate all">↻ Re-generate</button>
+      </div>
+    </div>
+
+    <!-- Attainment thresholds -->
+    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
+      <p style="font-size:.875rem;font-weight:700;margin-bottom:4px;">Attainment Thresholds</p>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">Set the percentage cut-offs for each attainment level.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="po-input-hint">≥</span>
+          <input type="number" id="coatt-t1" class="text-input" value="70" min="1" max="100" step="1" style="width:68px;">
+          <span class="po-input-hint">% → Level 3</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="po-input-hint">≥</span>
+          <input type="number" id="coatt-t2" class="text-input" value="60" min="1" max="100" step="1" style="width:68px;">
+          <span class="po-input-hint">% → Level 2</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="po-input-hint">≥</span>
+          <input type="number" id="coatt-t3" class="text-input" value="50" min="1" max="100" step="1" style="width:68px;">
+          <span class="po-input-hint">% → Level 1</span>
+        </div>
+        <span class="po-input-hint">Below → Level 0</span>
+      </div>
+    </div>
+
+    <div class="uni-progress hidden" id="coatt-gen-loading" style="margin-top:14px;">
+      <span class="uni-progress-label">Estimating CO attainment…</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+    </div>
+
+    <div class="actions" style="margin-top:18px;">
+      <button class="btn btn-ghost" onclick="goBack('coatt-cos')">← Back</button>
+      <button class="btn btn-primary" id="btn-coatt-proceed" disabled onclick="generateCoAttainment()">Calculate Attainment →</button>
+    </div>
+    <div class="alert alert-error hidden" id="coatt-cos-err"></div>
+  </div>
+
+  <!-- Step 2: Results -->
+  <div id="sec-coatt-result" class="card hidden">
+    <h2>CO &amp; PO Attainment Results</h2>
+    <p class="sub" id="coatt-result-sub"></p>
+
+    <div style="margin-bottom:20px;">
+      <p style="font-size:.875rem;font-weight:700;margin-bottom:8px;">CO Attainment</p>
+      <div id="coatt-co-wrap" style="overflow-x:auto;"></div>
+    </div>
+
+    <div style="margin-bottom:20px;border-top:1px solid var(--border);padding-top:16px;">
+      <p style="font-size:.875rem;font-weight:700;margin-bottom:8px;">PO Attainment</p>
+      <div id="coatt-po-wrap" style="overflow-x:auto;"></div>
+    </div>
+
+    <p style="font-size:.85rem;font-weight:600;color:var(--muted);margin-bottom:10px;">Export format</p>
+    <div class="format-grid">
+      <div class="fmt-card" data-coattfmt="txt"  onclick="pickCoAttFmt('txt')">
+        <div class="fmt-icon">📝</div><div class="fmt-label">Text</div>
+      </div>
+      <div class="fmt-card selected" data-coattfmt="docx" onclick="pickCoAttFmt('docx')">
+        <div class="fmt-icon">📘</div><div class="fmt-label">Word</div>
+      </div>
+      <div class="fmt-card" data-coattfmt="pdf"  onclick="pickCoAttFmt('pdf')">
+        <div class="fmt-icon">📕</div><div class="fmt-label">PDF</div>
+      </div>
+    </div>
+    <div class="actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" onclick="goBack('coatt-result')">← Back</button>
+      <button class="btn btn-primary" id="btn-coatt-download" onclick="downloadCoAtt()">⬇ Download</button>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
+    </div>
+    <div class="alert alert-error hidden" id="coatt-result-err"></div>
+  </div>

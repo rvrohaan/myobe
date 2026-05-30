@@ -1,0 +1,56 @@
+# Environment & secrets
+.env
+
+# User data (stored on persistent volume in production)
+users.json
+reset_tokens.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.Python
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Claude Code editor settings
+.claude/
+
+# Sample / test output files (not part of the app)
+*.mp4
+*.xls
+*.xlsx
+cssyll*
+FULL.pdf
+test_output.pdf
+LabQpaper.docx
+Assignement.docx
+Sample-*.pdf
+Sem-*.pdf
+Sem-*.txt
+TEACHING\ DIARY*.docx
+TEACHING\ DIARY*.pdf
+Course\ Lesson\ Plan*.docx
+Course\ Lesson\ Plan*.pdf
+AI\(6\)MP\(5\).docx
+"UG syllabus*"
+Notes*.pdf
+PO-elements.pdf
+Procedure\ for\ CO\ Attainment.docx
+Requirements\ Document*
+Method-2*
+23CS5AEAST*
