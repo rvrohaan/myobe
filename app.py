@@ -6,6 +6,7 @@ import time
 import secrets
 import tempfile
 import smtplib
+import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import wraps
@@ -331,7 +332,8 @@ def _send_reset_email(to_email: str, reset_url: str) -> bool:
                 s.login(user, pwd)
                 s.send_message(msg)
         return True
-    except Exception:
+    except Exception as e:
+        app.logger.error("SMTP error: %s", e)
         return False
 
 
@@ -3033,7 +3035,7 @@ def forgot_password():
             tokens[token] = {"username": match, "expires": time.time() + 3600}
             _save_tokens(tokens)
             reset_url = url_for("reset_password", token=token, _external=True)
-            _send_reset_email(email, reset_url)
+            threading.Thread(target=_send_reset_email, args=(email, reset_url), daemon=True).start()
         # Always show the same message  -  don't reveal whether the email exists
         message = ("If an account with that email exists, we've sent a reset link. "
                    "Check your inbox (and spam folder).")
