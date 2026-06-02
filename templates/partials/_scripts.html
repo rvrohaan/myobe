@@ -72,10 +72,14 @@ function setStepBar(n) {
   const bar  = document.getElementById('steps-bar');
   bar.classList.toggle('steps-compact', defs.length <= 3);
   bar.innerHTML = defs.map((label, i) => {
-    const idx  = i + 1;
-    const cls  = idx < n ? 'done' : idx === n ? 'active' : '';
-    const dot  = idx < n ? '✓' : idx;
-    return `<div class="step ${cls}"><div class="step-dot">${dot}</div><span class="step-label">${label}</span></div>`;
+    const idx       = i + 1;
+    const cls       = idx < n ? 'done' : idx === n ? 'active' : '';
+    const dot       = idx < n ? '✓' : idx;
+    const isLast    = i === defs.length - 1;
+    // Connector state mirrors the step it follows (done if the step after it is active or done)
+    const connCls   = idx < n ? 'done' : idx === n ? 'active' : '';
+    const connector = isLast ? '' : `<div class="step-connector ${connCls}"></div>`;
+    return `<div class="step ${cls}"><div class="step-dot">${dot}</div><span class="step-label">${label}</span></div>${connector}`;
   }).join('');
 }
 
@@ -99,7 +103,6 @@ function selectMode(mode) {
     showSection('po-upload'); setStepBar(1);
   } else {
     showSection('upload-qb'); setStepBar(1);
-    switchQPTab('qbfile');   // initialise tab state
   }
 }
 
@@ -111,17 +114,18 @@ const ALL_SECS = [
   'po-upload','po-config','po-generating','po-result',
 ];
 function showSection(name) {
-  ALL_SECS.forEach(s => document.getElementById(`sec-${s}`).classList.add('hidden'));
+  ALL_SECS.forEach(s => document.getElementById(`sec-${s}`)?.classList.add('hidden'));
   const el = document.getElementById(`sec-${name}`);
   el.classList.remove('hidden');
   el.classList.remove('animate-in');
   void el.offsetWidth;
   el.classList.add('animate-in');
-  document.querySelector('.container').classList.toggle('wide', name === 'paper-preview');
+  document.querySelector('.container').classList.toggle('wide', name === 'paper-preview' || name === 'm1-preview');
 }
 
 function goBack(fromSec) {
-  if (fromSec === 'courses')              { showSection('upload');            setStepBar(1); }
+  if (fromSec === 'aio-co-upload')        { showSection('courses');           setStepBar(2); }
+  else if (fromSec === 'courses')         { showSection('upload');            setStepBar(1); }
   else if (fromSec === 'review')          { showSection('courses');           setStepBar(2); }
   else if (fromSec === 'export')          { showSection('review');            setStepBar(4); }
   else if (fromSec === 'configure-qbank') { showSection('courses');           setStepBar(2); }
@@ -153,38 +157,28 @@ function startOver() {
     poMapFmt: 'docx', poMapRows: [], poMapCourse: '', poMapTitle: '',
     poCustomPos: [], poConfiguredKeys: null,
   });
-  document.getElementById('file-input').value    = '';
-  document.getElementById('qb-file-input').value = '';
-  document.getElementById('co-file-input').value = '';
-  document.getElementById('upload-err').classList.add('hidden');
-  document.getElementById('upload-loading').classList.add('hidden');
-  document.getElementById('qb-upload-err').classList.add('hidden');
-  document.getElementById('qb-upload-loading').classList.add('hidden');
-  document.getElementById('co-upload-err').classList.add('hidden');
-  document.getElementById('co-upload-loading').classList.add('hidden');
-  document.getElementById('co-review-qbank').classList.add('hidden');
-  document.getElementById('co-qb-stream').classList.add('hidden');
-  document.getElementById('co-qb-progress').classList.add('hidden');
-  document.getElementById('qps-phase-upload').classList.remove('hidden');
-  document.getElementById('qps-phase-config').classList.add('hidden');
-  document.getElementById('qps-phase-generating').classList.add('hidden');
-  document.getElementById('qps-syl-input').value = '';
-  document.getElementById('tpl-phase-upload').classList.remove('hidden');
-  document.getElementById('tpl-phase-slots').classList.add('hidden');
-  document.getElementById('tpl-file-input').value = '';
-  document.getElementById('tpl-slot-grid').innerHTML = '';
-  document.getElementById('po-file-input').value = '';
-  document.getElementById('po-upload-err').classList.add('hidden');
-  document.getElementById('po-upload-loading').classList.add('hidden');
-  document.getElementById('po-co-preview').classList.add('hidden');
-  document.getElementById('po-upload-actions').classList.add('hidden');
-  document.getElementById('po-co-cards').innerHTML = '';
-  document.getElementById('po-custom-list').innerHTML = '';
-  document.getElementById('po-checklist').innerHTML = '';
-  document.getElementById('btn-course-next').disabled = true;
-  document.getElementById('steps-bar').classList.add('hidden');
-  ALL_SECS.forEach(s => document.getElementById(`sec-${s}`).classList.add('hidden'));
-  document.getElementById('sec-mode-select').classList.remove('hidden');
+  const _g = id => document.getElementById(id);  // shorthand with null-safety built into callers
+  const _h = id => _g(id)?.classList.add('hidden');
+  const _u = id => _g(id)?.classList.remove('hidden');
+  const _v = id => { const e = _g(id); if (e) e.value = ''; };
+  const _i = id => { const e = _g(id); if (e) e.innerHTML = ''; };
+
+  _v('file-input'); _v('qb-file-input'); _v('co-file-input');
+  _h('upload-err'); _h('upload-loading');
+  _h('qb-upload-err'); _h('qb-upload-loading');
+  _h('co-upload-err'); _h('co-upload-loading');
+  _h('co-review-qbank'); _h('co-qb-stream'); _h('co-qb-progress');
+  _u('qps-phase-upload'); _h('qps-phase-config'); _h('qps-phase-generating');
+  _v('qps-syl-input');
+  _u('tpl-phase-upload'); _h('tpl-phase-slots'); _v('tpl-file-input'); _i('tpl-slot-grid');
+  _v('po-file-input');
+  _h('po-upload-err'); _h('po-upload-loading');
+  _h('po-co-preview'); _h('po-upload-actions');
+  _i('po-co-cards'); _i('po-custom-list'); _i('po-checklist');
+  const btnNext = _g('btn-course-next'); if (btnNext) btnNext.disabled = true;
+  _h('steps-bar');
+  ALL_SECS.forEach(s => _g(`sec-${s}`)?.classList.add('hidden'));
+  _u('sec-mode-select');
 }
 
 /* ── Token badge helpers ─────────────────────────────────────────────────── */
@@ -378,16 +372,28 @@ function startGeneration() {
     if (d.done) {
       es.close();
       clearInterval(_statusInterval);
-      spinner.classList.add('hidden');
       refreshTokenBadge();
+
+      // Animate to 100 % and show "Done!" before navigating
+      const _fill = spinner.querySelector('.uni-progress-fill');
+      if (_fill) {
+        _fill.classList.remove('is-indeterminate');
+        _fill.style.position = ''; _fill.style.left = '';
+        _fill.style.transition = 'width .25s ease';
+        _fill.style.width = '100%';
+      }
+      if (_statusEl) _statusEl.textContent = 'Done!';
+
       setTimeout(() => {
+        spinner.classList.add('hidden');
+        if (_fill) { _fill.style.width = '0%'; _fill.style.transition = ''; _fill.classList.add('is-indeterminate'); }
         parseResult(S.rawResult);
         renderReview();
         showSection('review'); setStepBar(4);
         showToast(`${S.coStmts.length} Course Outcomes generated for ${S.selected}!`, 'success', 4000);
         savePrefs();
         saveHistory('cos');
-      }, 400);
+      }, 650);
     }
   };
   es.onerror = function() {
@@ -701,6 +707,14 @@ function startQBankGeneration() {
     out.scrollTop = out.scrollHeight;
   });
 
+  const _qbLabel = document.getElementById('qb-gen-status-label');
+  const _qbFill  = document.getElementById('qb-progress-fill');
+
+  function _qbSetProgress(pct, label) {
+    if (_qbFill)  _qbFill.style.width  = Math.min(pct, 100) + '%';
+    if (_qbLabel && label) _qbLabel.textContent = label;
+  }
+
   es.onmessage = function(e) {
     const d = JSON.parse(e.data);
 
@@ -713,15 +727,24 @@ function startQBankGeneration() {
       if (d.num_units) totalUnits = d.num_units;
       out.innerHTML += `\n<span class="log-info">▸ ${esc(d.message)}</span>`;
       out.scrollTop = out.scrollHeight;
-      // update progress bar
-      if (d.stage === 'unit' && totalUnits > 0) {
-        const pct = Math.round(((d.unit_idx - 1) / totalUnits) * 100);
-        document.getElementById('qb-progress-fill').style.width = pct + '%';
+      // Update label and progress fill for each stage
+      if (d.stage === 'cos')         _qbSetProgress(5,  d.message);
+      else if (d.stage === 'cos_done')  _qbSetProgress(12, d.message);
+      else if (d.stage === 'units')     _qbSetProgress(15, d.message);
+      else if (d.stage === 'units_done') {
+        totalUnits = d.num_units || totalUnits;
+        _qbSetProgress(18, d.message);
+      } else if (d.stage === 'unit' && totalUnits > 0) {
+        const pct = 20 + Math.round(((d.unit_idx - 1) / totalUnits) * 75);
+        _qbSetProgress(pct, d.message);
+      } else if (d.stage === 'unit_assign' || d.stage === 'unit_quiz') {
+        // minor sub-steps within a unit — nudge label but keep fill steady
+        if (_qbLabel) _qbLabel.textContent = d.message;
       }
     }
     if (d.type === 'unit_done') {
-      const pct = Math.round((d.unit_idx / totalUnits) * 100);
-      document.getElementById('qb-progress-fill').style.width = pct + '%';
+      const pct = 20 + Math.round((d.unit_idx / totalUnits) * 75);
+      _qbSetProgress(pct, `Unit ${d.unit_idx} of ${totalUnits} complete`);
       out.innerHTML += `\n<span class="log-ok">  ✓ ${esc(d.unit)} done</span>`;
       out.scrollTop = out.scrollHeight;
     }
@@ -731,7 +754,7 @@ function startQBankGeneration() {
     if (d.type === 'done') {
       es.close();
       refreshTokenBadge();
-      document.getElementById('qb-progress-fill').style.width = '100%';
+      _qbSetProgress(100, 'Done!');
       const isLab = d.is_lab || S.isLabCourse;
       const doneLabel = isLab ? '✓ Lab Question Bank ready — moving to export…' : '✓ Question Bank ready — moving to export…';
       out.innerHTML += `\n\n<span class="log-ok" style="font-weight:700">${doneLabel}</span>`;
@@ -819,153 +842,6 @@ function downloadQBankCos(fmt) {
   .catch(e => showErr('co-sel-err', e.message));
 }
 
-/* ── MODE 3: Source tab switcher ─────────────────────────────────────────── */
-function switchQPTab(tab) {
-  S.qpTab = tab;
-  document.getElementById('qp-qbfile-panel').classList.toggle('hidden',   tab !== 'qbfile');
-  document.getElementById('qp-syllabus-panel').classList.toggle('hidden', tab !== 'syllabus');
-  ['qptab-qbfile','qptab-syllabus'].forEach(id => {
-    const isActive = id === `qptab-${tab}`;
-    document.getElementById(id).style.borderColor = isActive ? 'var(--primary)' : '';
-    document.getElementById(id).style.color        = isActive ? 'var(--primary)' : '';
-  });
-}
-
-/* ── MODE 3: Syllabus path ───────────────────────────────────────────────── */
-const qpsSylZone  = document.getElementById('qps-syl-zone');
-const qpsSylInput = document.getElementById('qps-syl-input');
-qpsSylZone.addEventListener('click', () => qpsSylInput.click());
-qpsSylZone.addEventListener('dragover',  e => { e.preventDefault(); qpsSylZone.classList.add('drag-over'); });
-qpsSylZone.addEventListener('dragleave', ()  => qpsSylZone.classList.remove('drag-over'));
-qpsSylZone.addEventListener('drop', e => {
-  e.preventDefault(); qpsSylZone.classList.remove('drag-over');
-  if (e.dataTransfer.files[0]) handleQPSSylFile(e.dataTransfer.files[0]);
-});
-qpsSylInput.addEventListener('change', () => { if (qpsSylInput.files[0]) handleQPSSylFile(qpsSylInput.files[0]); });
-
-document.getElementById('qps-course-search').addEventListener('input', function() { renderQPSCourses(this.value); });
-
-function handleQPSSylFile(file) {
-  const ext = file.name.split('.').pop().toLowerCase();
-  if (!['pdf','docx','doc','txt'].includes(ext)) {
-    showErr('qps-upload-err', `Unsupported type ".${ext}". Use PDF, DOCX, or TXT.`); return;
-  }
-  document.getElementById('qps-upload-err').classList.add('hidden');
-  qpsSylZone.style.pointerEvents = 'none';
-  const fd = new FormData();
-  fd.append('file', file);
-  _xhrUpload('/upload', fd, {
-    progressId: 'qps-upload-loading', uploadLabel: 'Uploading syllabus…',
-    processMs: 9000, processLabels: ['Extracting text…', 'Detecting courses…', 'Almost ready…'],
-    onSuccess: d => {
-      qpsSylZone.style.pointerEvents = '';
-      S.qpsCourses  = d.courses; S.qpsSelected = null;
-      document.getElementById('qps-btn-gen').disabled = true;
-      renderQPSCourses('');
-      document.getElementById('qps-phase-upload').classList.add('hidden');
-      document.getElementById('qps-phase-config').classList.remove('hidden');
-    },
-    onError: m => { qpsSylZone.style.pointerEvents = ''; showErr('qps-upload-err', m); },
-  });
-}
-
-function renderQPSCourses(q) {
-  const q2   = q.toLowerCase();
-  const list = q2
-    ? S.qpsCourses.filter(c => c.code.toLowerCase().includes(q2) || c.title.toLowerCase().includes(q2))
-    : S.qpsCourses;
-  document.getElementById('qps-course-list').innerHTML = list.map(c => `
-    <div class="course-item ${S.qpsSelected === c.code ? 'selected' : ''}"
-         onclick="pickQPSCourse('${esc(c.code)}')">
-      <span class="course-code">${esc(c.code)}</span>
-      <span class="course-title">${esc(c.title)}</span>
-      ${c.semester ? `<span class="sem-badge">Sem ${c.semester}</span>` : ''}
-    </div>`).join('');
-}
-
-function pickQPSCourse(code) {
-  S.qpsSelected = code;
-  renderQPSCourses(document.getElementById('qps-course-search').value);
-  document.getElementById('qps-btn-gen').disabled = false;
-}
-
-function qpsGenerate() {
-  if (!S.qpsSelected) return;
-  const n2 = +document.getElementById('qps-n2').value;
-  const n5 = +document.getElementById('qps-n5').value;
-  const n10= +document.getElementById('qps-n10').value;
-  const na = +document.getElementById('qps-nassign').value;
-  const nq = +document.getElementById('qps-nquiz').value;
-
-  document.getElementById('qps-phase-config').classList.add('hidden');
-  document.getElementById('qps-phase-generating').classList.remove('hidden');
-  const out = document.getElementById('qps-stream-out');
-  out.innerHTML = '';
-  document.getElementById('qps-progress-fill').style.width = '0%';
-
-  const c = S.qpsCourses.find(x => x.code === S.qpsSelected);
-  document.getElementById('qps-gen-label').textContent =
-    `Generating Question Bank for ${S.qpsSelected}: ${c ? c.title : ''}…`;
-
-  const params = new URLSearchParams({
-    code: S.qpsSelected, n2, n5, n10, n_assign: na, n_quiz: nq,
-    // no selected_cos → auto-generate all COs
-  });
-  const es = new EventSource(`/generate_qbank?${params}`);
-  let totalUnits = 0;
-
-  function _qpsRestoreUI(msg) {
-    showErr('qps-gen-err', msg);
-    document.getElementById('qps-phase-config').classList.remove('hidden');
-    document.getElementById('qps-phase-generating').classList.add('hidden');
-  }
-
-  _addSSETimeout(es, 150_000, () =>
-    _qpsRestoreUI('Timed out — check your connection and try again.'));
-
-  es.onmessage = function(e) {
-    const d = JSON.parse(e.data);
-    if (d.type === 'error') {
-      es.close();
-      _qpsRestoreUI(d.message);
-      return;
-    }
-    if (d.type === 'status') {
-      if (d.num_units) totalUnits = d.num_units;
-      out.innerHTML += `\n<span class="log-info">▸ ${esc(d.message)}</span>`;
-      out.scrollTop = out.scrollHeight;
-      if (d.stage === 'unit' && totalUnits > 0)
-        document.getElementById('qps-progress-fill').style.width =
-          Math.round(((d.unit_idx - 1) / totalUnits) * 100) + '%';
-    }
-    if (d.type === 'unit_done') {
-      document.getElementById('qps-progress-fill').style.width =
-        Math.round((d.unit_idx / totalUnits) * 100) + '%';
-      out.innerHTML += `\n<span class="log-ok">  ✓ ${esc(d.unit)} done</span>`;
-      out.scrollTop = out.scrollHeight;
-    }
-    if (d.type === 'done') {
-      es.close();
-      refreshTokenBadge();
-      document.getElementById('qps-progress-fill').style.width = '100%';
-      out.innerHTML += `\n<span class="log-ok" style="font-weight:700">✓ Done — preparing preview…</span>`;
-      out.scrollTop = out.scrollHeight;
-      fetch('/parse_generated_qbank', { method: 'POST' })
-        .then(r => r.json())
-        .then(d2 => {
-          if (d2.error) { showErr('qps-gen-err', d2.error); return; }
-          S.qbData = d2;
-          renderQBPreview(d2);
-          showSection('preview-qb'); setStepQP(2);
-        })
-        .catch(e2 => showErr('qps-gen-err', 'Failed to prepare preview: ' + e2.message));
-    }
-  };
-  es.onerror = function() {
-    es.close();
-    _qpsRestoreUI('Connection lost — check your internet and try again.');
-  };
-}
 
 /* ── MODE 3: Upload QB ───────────────────────────────────────────────────── */
 const qbZone  = document.getElementById('upload-qb-zone');
@@ -1072,6 +948,11 @@ function pickPtype(ptype) {
       practical: 'Select experiments to include', viva: 'Select experiments for viva',
     }[ptype] || 'Pick questions';
     document.getElementById('assign-quiz-picker-heading').textContent = hdg;
+    if (labType) {
+      renderLabTemplates(ptype);
+    } else {
+      document.getElementById('lab-tpl-section').classList.add('hidden');
+    }
     S.assignSelection = null;
     S.quizSelection   = null;
     S.labSelection    = null;
@@ -1084,6 +965,110 @@ function pickPtype(ptype) {
   }
 }
 
+function renderLabTemplates(ptype) {
+  const section = document.getElementById('lab-tpl-section');
+  const grid    = document.getElementById('lab-tpl-grid');
+  if (!section || !grid) return;
+
+  const TEMPLATES = ptype === 'practical'
+    ? [
+        { id: 'lab-all',      icon: '🧪', label: 'Full Pool',
+          desc: 'All experiments listed — student draws one (spot exam format)' },
+        { id: 'lab-per-unit', icon: '📋', label: 'One Per Unit',
+          desc: 'One representative experiment per unit for balanced coverage' },
+        { id: 'lab-spot-5',   icon: '🎯', label: 'Spot-5',
+          desc: 'Five experiments across all units for spot practical test' },
+      ]
+    : [
+        { id: 'viva-all',      icon: '🎤', label: 'Full Viva',
+          desc: 'Viva questions drawn from all available experiments' },
+        { id: 'viva-per-unit', icon: '📚', label: 'Unit-wise',
+          desc: 'One experiment\'s viva per unit — covers all modules' },
+        { id: 'viva-quick',    icon: '⚡', label: 'Quick Viva',
+          desc: '3–4 key experiments for a focused short viva' },
+      ];
+
+  grid.innerHTML = TEMPLATES.map(t => `
+    <div class="tpl-sel-card lab-tpl-card" data-tpl="${t.id}" onclick="applyLabTemplate('${t.id}')">
+      <div class="tpl-sel-icon">${t.icon}</div>
+      <div class="tpl-sel-name">${t.label}</div>
+      <div class="tpl-sel-desc">${t.desc}</div>
+    </div>`).join('');
+
+  section.classList.remove('hidden');
+}
+
+async function applyLabTemplate(templateId) {
+  if (!S.qbData) return;
+
+  document.querySelectorAll('.lab-tpl-card').forEach(el =>
+    el.classList.toggle('selected', el.dataset.tpl === templateId));
+
+  if (!S.qListCache) {
+    try {
+      const r = await fetch('/get_question_list');
+      if (!r.ok) throw new Error('Failed');
+      S.qListCache = await r.json();
+    } catch(e) {
+      showToast('Could not load experiments.', 'error');
+      return;
+    }
+  }
+
+  const exps = S.qListCache.experiments || [];
+  if (!exps.length) return;
+
+  let sel;
+  switch (templateId) {
+    case 'lab-all':
+      sel = exps.map(e => e.idx);
+      break;
+
+    case 'lab-per-unit': {
+      const seen = new Set();
+      sel = [];
+      for (const e of exps) if (!seen.has(e.unit)) { seen.add(e.unit); sel.push(e.idx); }
+      break;
+    }
+
+    case 'lab-spot-5':
+      sel = exps.slice(0, 5).map(e => e.idx);
+      break;
+
+    case 'viva-all':
+      sel = exps.filter(e => e.has_viva).map(e => e.idx);
+      if (!sel.length) sel = exps.map(e => e.idx);
+      break;
+
+    case 'viva-per-unit': {
+      const seen = new Set();
+      sel = [];
+      for (const e of exps) if (!seen.has(e.unit) && e.has_viva) { seen.add(e.unit); sel.push(e.idx); }
+      if (!sel.length) {
+        const seen2 = new Set();
+        for (const e of exps) if (!seen2.has(e.unit)) { seen2.add(e.unit); sel.push(e.idx); }
+      }
+      break;
+    }
+
+    case 'viva-quick': {
+      const withViva = exps.filter(e => e.has_viva);
+      sel = (withViva.length ? withViva : exps).slice(0, 4).map(e => e.idx);
+      break;
+    }
+
+    default:
+      sel = exps.map(e => e.idx);
+  }
+
+  S.labSelection = sel;
+
+  // Refresh picker if already open; always update the count badge
+  const panel = document.getElementById('aq-picker-panel');
+  if (!panel.classList.contains('hidden')) renderAssignQuizPicker();
+  updateAQPickerSelCount();
+}
+
 function renderPartsConfig() {
   if (!S.qbData) return;
   S.partSelections     = {2: null, 5: null, 10: null};
@@ -1091,11 +1076,17 @@ function renderPartsConfig() {
   S.partSlots          = null;
   S.partSlotOpenPicker = -1;
 
-  const TEMPLATES = [
-    { id: 'be-standard', label: 'B.E. Standard', icon: '🏛️', desc: '5 units · 2×10m · with OR' },
-    { id: 'pg-mixed',    label: 'PG / Mixed',    icon: '📘', desc: '10m + 5m + 5m per question'  },
-    { id: 'pg-short',    label: 'PG Short',      icon: '📝', desc: '4×5m sub-questions per unit' },
-  ];
+  const TEMPLATES = S.paperPtype === 'internal'
+    ? [
+        { id: 'cia-standard', label: 'CIE Standard', icon: '🏛️', desc: '5×2m + 2×10m · 30 marks' },
+        { id: 'cia-module',   label: 'Module-wise',  icon: '📚', desc: '3 of 6×10m with OR · 30 marks' },
+        { id: 'cia-mixed',    label: 'Mixed 30',     icon: '📝', desc: '5×2m + 2×5m + 1×10m · 30 marks' },
+      ]
+    : [
+        { id: 'be-standard', label: 'B.E. Standard', icon: '🏛️', desc: '5 units · 2×10m · with OR' },
+        { id: 'pg-mixed',    label: 'PG / Mixed',    icon: '📘', desc: '10m + 5m + 5m per question'  },
+        { id: 'pg-short',    label: 'PG Short',      icon: '📝', desc: '4×5m sub-questions per unit' },
+      ];
 
   const tplCards = TEMPLATES.map(tpl => `
     <div class="tpl-sel-card" data-tpl="${tpl.id}" onclick="applyPaperTemplate('${tpl.id}')">
@@ -1117,6 +1108,14 @@ function renderPartsConfig() {
     <div id="parts-slot-area" style="margin-top:14px;"></div>`;
 }
 
+// CIA (Internal Assessment 30-mark) preset configurations
+// n = questions to include, any = answer any X of n (omit if answer all)
+const _CIA_PRESETS = {
+  'cia-standard': { n2: 5,          n10: 2          },   // 5×2+2×10 = 30
+  'cia-module':   {          n10: 6, any10: 3        },   // answer any 3 of 6 10m = 30
+  'cia-mixed':    { n2: 5,  n5: 2,  n10: 1          },   // 5×2+2×5+1×10 = 30
+};
+
 async function applyPaperTemplate(tplId) {
   if (!S.qbData) return;
   S.paperTemplate      = tplId;
@@ -1127,6 +1126,62 @@ async function applyPaperTemplate(tplId) {
     el.classList.toggle('selected', el.dataset.tpl === tplId));
 
   const area = document.getElementById('parts-slot-area');
+
+  // Internal assessment presets — render custom form then pre-fill values
+  if (_CIA_PRESETS[tplId]) {
+    const preset = _CIA_PRESETS[tplId];
+    const t      = S.qbData.totals;
+
+    // Render the custom form (reuse custom path, then override template ID)
+    const parts = [
+      { marks: 2,  label: 'PART A', avail: +t['2']  || 0, name: '2-mark'  },
+      { marks: 5,  label: 'PART B', avail: +t['5']  || 0, name: '5-mark'  },
+      { marks: 10, label: 'PART C', avail: +t['10'] || 0, name: '10-mark' },
+    ].filter(p => p.avail > 0);
+
+    area.innerHTML = parts.map(p => `
+      <div class="part-row" id="part-row-${p.marks}">
+        <div class="part-hdr">${p.name} Questions  <span style="font-weight:400;color:var(--muted)">(${p.avail} available)</span></div>
+        <div class="field">
+          <label>Questions to include</label>
+          <input type="number" id="part-n-${p.marks}" value="" min="0" max="${p.avail}" oninput="onPartCountChange(${p.marks})">
+          <div class="avail-hint">${p.avail} available</div>
+        </div>
+        <div class="field">
+          <label>Answer any X of included</label>
+          <input type="number" id="part-any-${p.marks}" value="" min="1" max="${p.avail}">
+          <div class="avail-hint">Leave blank = answer all</div>
+        </div>
+        <div class="field">
+          <label>Section label</label>
+          <input type="text" id="part-lbl-${p.marks}" value="${p.label}">
+          <div class="avail-hint">&nbsp;</div>
+        </div>
+        <div class="picker-toggle">
+          <button type="button" onclick="toggleQPicker(${p.marks})">
+            <span id="picker-icon-${p.marks}">▶</span> Pick specific questions
+          </button>
+          <span class="picker-sel-count" id="picker-count-${p.marks}"></span>
+        </div>
+        <div class="picker-panel hidden" id="picker-panel-${p.marks}">
+          <div style="font-size:.7rem;color:var(--muted);margin-bottom:6px;">
+            Check which questions to include. Unchecking all reverts to count-based selection.
+          </div>
+          <div id="picker-list-${p.marks}">Loading…</div>
+        </div>
+      </div>`).join('');
+
+    // Pre-fill preset values (capped to what's available)
+    const _setField = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val) el.value = val;
+    };
+    if (preset.n2)   _setField('part-n-2',   Math.min(preset.n2,   +t['2']  || 0));
+    if (preset.n5)   _setField('part-n-5',   Math.min(preset.n5,   +t['5']  || 0));
+    if (preset.n10)  _setField('part-n-10',  Math.min(preset.n10,  +t['10'] || 0));
+    if (preset.any10) _setField('part-any-10', preset.any10);
+    return;
+  }
 
   if (tplId === 'custom') {
     const t = S.qbData.totals;
@@ -1773,7 +1828,7 @@ function _startFakeProgress(id, estimatedMs, labels) {
   const fill = el.querySelector('.uni-progress-fill');
   const lbl  = el.querySelector('.uni-progress-label');
   if (!fill) return;
-  fill.classList.remove('is-indeterminate');
+  fill.classList.remove('is-indeterminate', 'is-forward');   // kill CSS animation so JS owns width
   fill.style.position = ''; fill.style.left = '';
   fill.style.transition = 'width .25s ease';
   fill.style.width = '3%';
@@ -1802,7 +1857,11 @@ function _stopFakeProgress(id, then) {
   if (!el) { if (then) then(); return; }
   const fill = el.querySelector('.uni-progress-fill');
   const lbl  = el.querySelector('.uni-progress-label');
-  if (fill) { fill.style.transition = 'width .25s ease'; fill.style.width = '100%'; }
+  if (fill) {
+    fill.classList.remove('is-forward', 'is-indeterminate');  // ensure CSS animation is gone
+    fill.style.transition = 'width .25s ease';
+    fill.style.width = '100%';
+  }
   if (lbl)  lbl.textContent = 'Done!';
   setTimeout(() => {
     el.classList.add('hidden');
@@ -1818,7 +1877,7 @@ function _xhrUpload(url, formData, opts) {
   const fill = el && el.querySelector('.uni-progress-fill');
   const lbl  = el && el.querySelector('.uni-progress-label');
   if (el)   { el.classList.remove('hidden'); }
-  if (fill) { fill.classList.remove('is-indeterminate'); fill.style.position = ''; fill.style.left = ''; fill.style.transition = 'width .2s ease'; fill.style.width = '0%'; }
+  if (fill) { fill.classList.remove('is-indeterminate', 'is-forward'); fill.style.position = ''; fill.style.left = ''; fill.style.transition = 'width .2s ease'; fill.style.width = '0%'; }
   if (lbl)  { lbl.textContent = uploadLabel || 'Uploading…'; }
 
   let processTimer = null;
@@ -5139,9 +5198,258 @@ function downloadCoAtt() {
 
 /* ── MODE 10: All in One ─────────────────────────────────────────────────── */
 
-ALL_SECS.push('aio-select', 'aio-run', 'aio-done');
-STEP_DEFS['allinone'] = ['Upload', 'Select Course', 'Select Tools', 'Generate', 'Done'];
-STEP_MAP['allinone']  = { 'upload': 1, 'courses': 2, 'aio-select': 3, 'aio-run': 4, 'aio-done': 5 };
+ALL_SECS.push('aio-select', 'aio-run', 'aio-done', 'aio-co-upload', 'm1-preview', 'm3-preview', 'm4-preview');
+STEP_DEFS['allinone'] = ['Upload', 'Select Course', 'Generate', 'Done'];
+STEP_MAP['allinone']  = { 'upload': 1, 'courses': 2, 'aio-select': 2, 'aio-run': 3, 'aio-done': 4 };
+
+/* ── Module routing helpers ──────────────────────────────────────────────── */
+// Tool IDs to pre-select when "Generate All in Module X" is triggered
+const MODULE_TOOLS = {
+  'module1': ['cos', 'qbank'],
+  'module2': ['cos', 'qbank'],   // QB generation from syllabus path
+  'module3': ['cos', 'lessonplan', 'teachingdiary'],
+  'module4': ['pomap', 'coatt', 'sdgco', 'sdgpo'],
+};
+
+// Override token costs where the total includes steps outside AIO_TOOLS
+const MODULE_COSTS = {
+  'module1': 6,   // CO(1) + QB(3) + Report(2)
+  'module2': 4,   // CO(1) + QB(3) — paper composed separately for 2 tokens
+  'module3': 7,   // CO(1) + LP(3) + TD(3)
+};
+
+// Non-null while a module "Generate All" flow is in progress; cleared after use
+let _aioModulePreselect = null;
+// Tracks which module triggered the current flow (for Back button from upload screen)
+let _aioFromModule = null;
+// Pre-loaded COs to inject into _aio.cos when moduleGenerateAll initialises (Module 3/4 Option A)
+let _aioInitialCos = null;
+// True while Module 3 Option A (syllabus + CO upload) flow is active
+let _m3OptionA = false;
+// True while Module 4 Option A (syllabus + CO upload) flow is active
+let _m4OptionA = false;
+
+function _hideModuleSubs() {
+  ['module1', 'module2', 'module3', 'module4'].forEach(id => {
+    const el = document.getElementById('sec-' + id);
+    if (el) el.classList.add('hidden');
+  });
+}
+
+function showModuleSub(moduleId) {
+  document.getElementById('sec-mode-select').classList.add('hidden');
+  document.getElementById('steps-bar').classList.add('hidden');
+  _hideModuleSubs();
+  const el = document.getElementById('sec-' + moduleId);
+  if (!el) return;
+  el.classList.remove('hidden');
+  el.classList.remove('animate-in');
+  void el.offsetWidth;
+  el.classList.add('animate-in');
+  // Populate accurate token cost from AIO_TOOLS definitions
+  _updateModuleTokenCost(moduleId);
+}
+
+function _updateModuleTokenCost(moduleId) {
+  const tokens = MODULE_COSTS[moduleId] !== undefined
+    ? MODULE_COSTS[moduleId]
+    : AIO_TOOLS.filter(t => (MODULE_TOOLS[moduleId] || []).includes(t.id)).reduce((s, t) => s + t.tokens, 0);
+  const el = document.getElementById('mod-token-cost-' + moduleId);
+  if (el) el.textContent = tokens + ' token' + (tokens !== 1 ? 's' : '');
+}
+
+function moduleGoBack(moduleId) {
+  _hideModuleSubs();
+  const modeEl = document.getElementById('sec-mode-select');
+  modeEl.classList.remove('hidden');
+  modeEl.classList.remove('animate-in');
+  void modeEl.offsetWidth;
+  modeEl.classList.add('animate-in');
+}
+
+// ── Module 3 two-option helpers ───────────────────────────────────────────────
+let _m3UploadedCos = [];
+
+async function m3UploadCoFile(input) {
+  const file    = input.files[0];
+  const statusEl = document.getElementById('m3-co-status');
+  const loadEl   = document.getElementById('m3-co-loading');
+  const errEl    = document.getElementById('m3-co-err');
+  if (!file) return;
+
+  _m3UploadedCos = [];
+  statusEl.textContent = 'Uploading…';
+  loadEl.classList.remove('hidden');
+  errEl.classList.add('hidden');
+
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch('/upload_co_lp', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    _m3UploadedCos = d.cos || [];
+    statusEl.innerHTML = `<span style="color:#10b981;font-weight:700;">&#10003; ${_m3UploadedCos.length} COs loaded</span>`;
+  } catch(e) {
+    statusEl.textContent = 'Upload failed.';
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    loadEl.classList.add('hidden');
+  }
+}
+
+async function module3GenerateWithCo() {
+  document.getElementById('mod3-token-err').classList.add('hidden');
+  MODULE_TOOLS['module3'] = ['lessonplan', 'teachingdiary'];
+  MODULE_COSTS['module3'] = 6;
+  _m3OptionA    = true;
+  _aioInitialCos = null;  // COs collected in-flow after course selection
+  await moduleGenerateAll('module3');
+}
+
+async function module3GenerateSyllabusOnly() {
+  document.getElementById('mod3-token-err').classList.add('hidden');
+  MODULE_TOOLS['module3'] = ['cos', 'lessonplan', 'teachingdiary'];
+  MODULE_COSTS['module3'] = 7;
+  _m3OptionA    = false;
+  _aioInitialCos = null;
+  await moduleGenerateAll('module3');
+}
+
+async function module4GenerateWithCo() {
+  document.getElementById('mod4-token-err').classList.add('hidden');
+  MODULE_TOOLS['module4'] = ['pomap', 'coatt', 'poatt', 'sdgco', 'sdgpo'];
+  MODULE_COSTS['module4'] = 5;
+  _m4OptionA    = true;
+  _aioInitialCos = null;
+  await moduleGenerateAll('module4');
+}
+
+async function module4GenerateSyllabusOnly() {
+  document.getElementById('mod4-token-err').classList.add('hidden');
+  MODULE_TOOLS['module4'] = ['pomap', 'coatt', 'poatt', 'sdgco', 'sdgpo'];
+  MODULE_COSTS['module4'] = 6;
+  _m4OptionA    = false;
+  _aioInitialCos = null;
+  await moduleGenerateAll('module4');
+}
+
+// ── AIO Module 3 Option A: in-flow CO upload ──────────────────────────────────
+async function aioCoUploadFile(input) {
+  const file     = input.files[0];
+  const statusEl = document.getElementById('aio-co-upload-status');
+  const loadEl   = document.getElementById('aio-co-upload-loading');
+  const errEl    = document.getElementById('aio-co-upload-err');
+  const nextBtn  = document.getElementById('btn-aio-co-next');
+  if (!file) return;
+
+  _aio.cos = [];
+  nextBtn.disabled = true;
+  statusEl.textContent = 'Uploading…';
+  loadEl.classList.remove('hidden');
+  errEl.classList.add('hidden');
+
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch('/upload_co_lp', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    _aio.cos = (d.cos || []).map(c => ({ num: c.num, statement: c.statement }));
+    statusEl.innerHTML = `<span style="color:#10b981;font-weight:700;">&#10003; ${_aio.cos.length} COs loaded from <em>${esc(file.name)}</em></span>`;
+    nextBtn.disabled = false;
+  } catch(e) {
+    statusEl.textContent = 'Upload failed.';
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    loadEl.classList.add('hidden');
+  }
+}
+
+function aioCoNext() {
+  if (!_aio.cos.length) {
+    showErr('aio-co-upload-err', 'Please upload a CO file to continue.');
+    return;
+  }
+  _m3OptionA = false;
+  _m4OptionA = false;
+  aioStart();
+}
+
+async function moduleGenerateAll(moduleId) {
+  const tools = MODULE_TOOLS[moduleId] || [];
+  if (!tools.length) return;
+
+  // Upfront token check
+  const required = MODULE_COSTS[moduleId] !== undefined
+    ? MODULE_COSTS[moduleId]
+    : AIO_TOOLS.filter(t => tools.includes(t.id)).reduce((s, t) => s + t.tokens, 0);
+
+  const errEl = document.getElementById(`mod${moduleId.replace('module','')}-token-err`);
+  if (required > 0) {
+    try {
+      const r = await fetch('/api/token_balance');
+      if (r.ok) {
+        const d = await r.json();
+        updateTokenBadge(d.tokens);
+        if (d.tokens < required) {
+          if (errEl) {
+            errEl.textContent =
+              `Not enough tokens — this requires ${required} tokens but your balance is ${d.tokens}. ` +
+              `Please top up in Settings.`;
+            errEl.classList.remove('hidden');
+          }
+          return;
+        }
+      }
+    } catch(_) {}
+  }
+  if (errEl) errEl.classList.add('hidden');
+
+  _aioFromModule = moduleId;   // remember so Back from upload returns here
+  _hideModuleSubs();
+  S.mode = 'allinone';
+  _aioModulePreselect = tools;
+  _aio = { selected: new Set(tools), queue: [], queueStep: 0, cos: _aioInitialCos || [], results: {}, previews: {}, expanded: false };
+  _aioInitialCos = null;
+
+  document.getElementById('sec-mode-select').classList.add('hidden');
+  document.getElementById('steps-bar').classList.remove('hidden');
+  document.getElementById('cos-slider-row').classList.add('hidden');
+  document.getElementById('btn-course-next-label').textContent = 'Next →';
+  showSection('upload'); setStepBar(1);
+}
+
+async function module2ComposePaper() {
+  const errEl   = document.getElementById('mod2-token-err');
+  const required = 2;
+  try {
+    const r = await fetch('/api/token_balance');
+    if (r.ok) {
+      const d = await r.json();
+      updateTokenBadge(d.tokens);
+      if (d.tokens < required) {
+        if (errEl) {
+          errEl.textContent =
+            `Not enough tokens — composing a paper requires ${required} tokens but your balance is ${d.tokens}. ` +
+            `Please top up in Settings.`;
+          errEl.classList.remove('hidden');
+        }
+        return;
+      }
+    }
+  } catch(_) {}
+  if (errEl) errEl.classList.add('hidden');
+  selectMode('qpaper');
+}
+
+async function module2GenerateQB() {
+  MODULE_TOOLS['module2'] = ['cos', 'qbank'];
+  MODULE_COSTS['module2'] = 4;
+  await moduleGenerateAll('module2');
+}
 
 const AIO_TOOLS = [
   { id: 'cos',           label: 'Course Outcomes',        icon: '🎯', tokens: 1, canEdit: true,  canRegen: true,
@@ -5160,10 +5468,12 @@ const AIO_TOOLS = [
     desc: 'Calculate how Programme Outcomes contribute to UN SDGs' },
   { id: 'coatt',         label: 'CO Attainment',         icon: '📈', tokens: 1, canEdit: false, canRegen: true,
     desc: 'AI-estimated CO attainment levels and PO attainment' },
+  { id: 'poatt',         label: 'PO Attainment',         icon: '📊', tokens: 1, canEdit: false, canRegen: true,
+    desc: 'NBA-standard PO attainment levels with ATR for below-threshold POs' },
 ];
 
 // Tools that require COs to exist before they can run
-const _AIO_CO_DEPS = new Set(['qbank', 'pomap', 'lessonplan', 'teachingdiary', 'sdgco', 'coatt']);
+const _AIO_CO_DEPS = new Set(['qbank', 'pomap', 'lessonplan', 'teachingdiary', 'sdgco', 'coatt', 'poatt']);
 
 let _aio = {
   selected: new Set(),
@@ -5179,8 +5489,16 @@ let _aio = {
 (function() {
   const _orig = selectMode;
   selectMode = function(mode) {
+    // Always hide module sub-screens before entering any flow
+    _hideModuleSubs();
+
+    if (mode === 'module1' || mode === 'module2' || mode === 'module3' || mode === 'module4') {
+      showModuleSub(mode);
+      return;
+    }
     if (mode === 'allinone') {
       S.mode = 'allinone';
+      _aioModulePreselect = null;
       _aio = { selected: new Set(), queue: [], queueStep: 0, cos: [], results: {}, previews: {}, expanded: false };
       document.getElementById('sec-mode-select').classList.add('hidden');
       document.getElementById('steps-bar').classList.remove('hidden');
@@ -5199,7 +5517,27 @@ let _aio = {
   courseNext = function() {
     if (S.mode === 'allinone') {
       if (!S.selected) return;
-      _aioShowSelectScreen();
+      if (_aioModulePreselect) {
+        // Module "Generate All" — pre-selected tools, skip tool-selection screen
+        _aio.selected = new Set(_aioModulePreselect);
+        _aioModulePreselect = null;
+      }
+      if (_m3OptionA || _m4OptionA) {
+        // Option A: ask user to upload CO file before generation
+        // Re-entrant: works on first Next AND after pressing Back from CO upload screen
+        const statusEl = document.getElementById('aio-co-upload-status');
+        if (statusEl && !_aio.cos.length) {
+          statusEl.textContent = 'No file selected — choose a TXT, DOCX, or PDF file.';
+          document.getElementById('btn-aio-co-next').disabled = true;
+          const inp = document.getElementById('aio-co-file-input');
+          if (inp) inp.value = '';
+        }
+        document.getElementById('aio-co-upload-err').classList.add('hidden');
+        showSection('aio-co-upload'); setStepBar(2);
+        return;
+      }
+      if (!_aio.selected.size) { _aioShowSelectScreen(); return; }
+      aioStart();
       return;
     }
     _orig();
@@ -5221,8 +5559,30 @@ let _aio = {
   startOver = function() {
     _orig();
     _aio = { selected: new Set(), queue: [], queueStep: 0, cos: [], results: {}, previews: {}, expanded: false };
+    _aioModulePreselect = null;
+    _aioFromModule      = null;
+    _m3OptionA = false;
+    _m4OptionA = false;
+    _aioPomapConfiguredPos = null;
+    _aioPomapCustomPos     = [];
+    _aioSdgCoSelected      = null;
+    _aioCoAttThresholds    = { t1: 70, t2: 60, t3: 50 };
+    _aioPoAttTarget        = 60;
+    _aioCurrentRichTool    = null;
+    _hideModuleSubs();
   };
 })();
+
+// Back from sec-upload: if we entered from a module sub-screen, return there;
+// otherwise just reset to the mode-select grid.
+function _aioGoBackFromUpload() {
+  const fromModule = _aioFromModule;
+  startOver();                                 // resets state, shows sec-mode-select
+  if (fromModule) {
+    document.getElementById('sec-mode-select').classList.add('hidden');
+    showModuleSub(fromModule);                 // show the originating module sub-screen
+  }
+}
 
 // ── Tool selection screen ─────────────────────────────────────────────────────
 function _aioShowSelectScreen() {
@@ -5255,7 +5615,7 @@ function _aioShowSelectScreen() {
   }).catch(() => {});
 
   _aioUpdateStartBtn();
-  showSection('aio-select'); setStepBar(3);
+  showSection('aio-select'); setStepBar(2);
 }
 
 function _aioToolToggle(cb) {
@@ -5275,8 +5635,8 @@ function _aioToolToggle(cb) {
 function _aioUpdateStartBtn() {
   const selected = [..._aio.selected];
   const toolTokens = AIO_TOOLS.filter(t => selected.includes(t.id)).reduce((s, t) => s + t.tokens, 0);
-  // CO generation is auto-added (1 token) if CO-dependent tools are selected but cos is not
-  const autoAddCos = selected.some(id => _AIO_CO_DEPS.has(id)) && !selected.includes('cos');
+  // CO generation is auto-added (1 token) if CO-dependent tools are selected but cos is not and no COs pre-loaded
+  const autoAddCos = _aio.cos.length === 0 && selected.some(id => _AIO_CO_DEPS.has(id)) && !selected.includes('cos');
   const est = toolTokens + (autoAddCos ? 1 : 0);
   document.getElementById('aio-est-tokens').textContent = est;
   document.getElementById('btn-aio-start').disabled = _aio.selected.size === 0;
@@ -5287,11 +5647,12 @@ function aioStart() {
   if (_aio.selected.size === 0) return;
 
   // Build ordered queue: cos first if needed, then the rest in AIO_TOOLS order
-  const toolOrder = AIO_TOOLS.map(t => t.id);
-  const needsCos  = [..._aio.selected].some(id => _AIO_CO_DEPS.has(id));
-  const queue     = [];
+  const toolOrder       = AIO_TOOLS.map(t => t.id);
+  const hasCosPreloaded = _aio.cos.length > 0;  // Option A: COs uploaded by user
+  const needsCos        = !hasCosPreloaded && [..._aio.selected].some(id => _AIO_CO_DEPS.has(id));
+  const queue           = [];
 
-  // CO always first if it's selected or required
+  // CO always first if selected or required (but not if COs are already loaded)
   if (_aio.selected.has('cos') || needsCos) {
     queue.push('cos');
   }
@@ -5301,11 +5662,11 @@ function aioStart() {
 
   _aio.queue     = queue;
   _aio.queueStep = 0;
-  _aio.cos       = [];
+  if (!hasCosPreloaded) _aio.cos = [];  // preserve pre-loaded COs
   _aio.results   = {};
   _aio.previews  = {};
 
-  showSection('aio-run'); setStepBar(4);
+  showSection('aio-run'); setStepBar(3);
   _aioRunStep();
 }
 
@@ -5326,7 +5687,22 @@ function _aioRunStep() {
 
   // Reset UI state
   document.getElementById('aio-preview-wrap').classList.add('hidden');
-  document.getElementById('aio-run-progress').classList.remove('hidden');
+  const _progEl   = document.getElementById('aio-run-progress');
+  const _progFill = _progEl.querySelector('.uni-progress-fill');
+  const _progLbl  = _progEl.querySelector('.uni-progress-label');
+  if (_progLbl)  _progLbl.textContent = 'Generating…';
+  if (_progFill) {
+    _progFill.classList.remove('is-indeterminate', 'is-forward');
+    _progFill.style.width      = '';
+    _progFill.style.transition = '';
+    _progFill.style.position   = '';
+    _progFill.style.left       = '';
+    _progFill.style.background = '';
+    // Force reflow so the animation restarts fresh
+    void _progFill.offsetWidth;
+    _progFill.classList.add('is-forward');
+  }
+  _progEl.classList.remove('hidden');
   document.getElementById('aio-run-stream').classList.add('hidden');
   document.getElementById('aio-run-stream').innerHTML = '';
   document.getElementById('aio-run-loading').classList.add('hidden');
@@ -5334,8 +5710,6 @@ function _aioRunStep() {
   document.getElementById('aio-edit-wrap').classList.add('hidden');
   _aio.expanded = false;
   document.getElementById('btn-aio-expand').textContent = 'Expand';
-
-  _aioUpdatePills();
 
   // Dispatch to per-tool generator
   switch (toolId) {
@@ -5347,6 +5721,7 @@ function _aioRunStep() {
     case 'sdgco':         _aioRunSdgCo(); break;
     case 'sdgpo':         _aioRunSdgPo(); break;
     case 'coatt':         _aioRunCoAtt(); break;
+    case 'poatt':         _aioRunPoAtt(); break;
   }
 }
 
@@ -5355,17 +5730,47 @@ function _aioOnDone(toolId, previewText, resultData) {
   _aio.previews[toolId] = previewText;
   if (resultData !== undefined) _aio.results[toolId] = resultData;
 
-  _aioUpdatePills();
-
   // Show preview
   document.getElementById('aio-run-progress').classList.add('hidden');
   document.getElementById('aio-run-loading').classList.add('hidden');
   document.getElementById('aio-run-stream').classList.add('hidden');
 
-  const box = document.getElementById('aio-preview-box');
-  box.textContent      = previewText;
-  box.style.maxHeight  = '200px';
-  box.style.display    = '';
+  const box         = document.getElementById('aio-preview-box');
+  const tableWrap   = document.getElementById('aio-pomap-table-wrap');
+  const pomapAdjust = document.getElementById('aio-pomap-adjust');
+  const richEl      = document.getElementById('aio-rich-preview');
+  const toolAdjust  = document.getElementById('aio-tool-adjust');
+  const isPomap     = toolId === 'pomap';
+  const isRich      = ['sdgco', 'sdgpo', 'coatt', 'poatt'].includes(toolId);
+
+  // Reset all specialised containers, then show the right one
+  box.style.display = 'none';
+  tableWrap.classList.add('hidden');
+  pomapAdjust.classList.add('hidden');
+  richEl.classList.add('hidden');
+  toolAdjust.classList.add('hidden');
+
+  if (isPomap) {
+    tableWrap.style.maxHeight = '280px';
+    tableWrap.classList.remove('hidden');
+    _renderAioPomapTable(resultData || []);
+    pomapAdjust.classList.remove('hidden');
+    _aioInitPomapChecklist(resultData || []);
+  } else if (isRich) {
+    richEl.style.maxHeight = '280px';
+    richEl.classList.remove('hidden');
+    richEl.innerHTML = _aioRenderRichTool(toolId, resultData || {});
+    if (toolId !== 'sdgpo') {
+      toolAdjust.classList.remove('hidden');
+      _aioCurrentRichTool = toolId;
+      _aioSetupToolAdjust(toolId, resultData || {});
+    }
+  } else {
+    box.textContent     = previewText;
+    box.style.maxHeight = '200px';
+    box.style.display   = '';
+  }
+
   document.getElementById('btn-aio-expand').style.display = '';
   document.getElementById('aio-preview-actions').style.display = '';
   document.getElementById('aio-preview-wrap').classList.remove('hidden');
@@ -5389,7 +5794,10 @@ function _aioOnDone(toolId, previewText, resultData) {
 // ── Preview expand / collapse ─────────────────────────────────────────────────
 function aioToggleExpand() {
   _aio.expanded = !_aio.expanded;
-  document.getElementById('aio-preview-box').style.maxHeight = _aio.expanded ? '2000px' : '200px';
+  const tableH = _aio.expanded ? '2000px' : '280px';
+  document.getElementById('aio-preview-box').style.maxHeight        = _aio.expanded ? '2000px' : '200px';
+  document.getElementById('aio-pomap-table-wrap').style.maxHeight   = tableH;
+  document.getElementById('aio-rich-preview').style.maxHeight       = tableH;
   document.getElementById('btn-aio-expand').textContent = _aio.expanded ? 'Collapse' : 'Expand';
 }
 
@@ -5550,19 +5958,6 @@ function aioSkip() {
 
 function aioRegen() { _aioRunStep(); }
 
-// ── Step pills ────────────────────────────────────────────────────────────────
-function _aioUpdatePills() {
-  const pills = document.getElementById('aio-step-pills');
-  pills.innerHTML = _aio.queue.map((id, i) => {
-    const tool   = AIO_TOOLS.find(t => t.id === id);
-    const isDone = i < _aio.queueStep;
-    const isCur  = i === _aio.queueStep;
-    const bg     = isDone ? '#10b981' : isCur ? 'var(--primary)' : 'var(--border)';
-    const color  = (isDone || isCur) ? '#fff' : 'var(--muted)';
-    const label  = isDone ? `✓ ${tool.label}` : `${tool.icon} ${tool.label}`;
-    return `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:99px;font-size:.74rem;font-weight:700;background:${bg};color:${color};opacity:${isDone || isCur ? 1 : 0.55};">${label}</span>`;
-  }).join('');
-}
 
 // ── CO parser helper ──────────────────────────────────────────────────────────
 function _parseAioCos(text) {
@@ -5653,8 +6048,9 @@ function _aioRunCos() {
       const preview = _aio.cos.length
         ? _aio.cos.map(c => `CO${c.num}: ${c.statement}`).join('\n')
         : raw.trim();
-      _stopFakeProgress('aio-run-progress');
-      _aioOnDone('cos', preview);
+      // Pass _aioOnDone as callback so "Done!" animation (650ms) completes before
+      // the progress bar is hidden by _aioOnDone
+      _stopFakeProgress('aio-run-progress', () => _aioOnDone('cos', preview));
     }
   };
   es.onerror = () => {
@@ -5665,9 +6061,30 @@ function _aioRunCos() {
 
 // Question Bank
 async function _aioRunQbank() {
-  const streamEl = document.getElementById('aio-run-stream');
-  streamEl.classList.remove('hidden');
-  const statusLines = [];
+  // Use the same growing-fill progress bar style as CO generation
+  const progEl   = document.getElementById('aio-run-progress');
+  const progFill = progEl.querySelector('.uni-progress-fill');
+  const progLbl  = progEl.querySelector('.uni-progress-label');
+
+  // Switch from indeterminate to real-fill mode
+  if (progFill) {
+    progFill.classList.remove('is-indeterminate', 'is-forward');
+    progFill.style.position   = '';
+    progFill.style.left       = '';
+    progFill.style.transition = 'width .5s ease';
+    progFill.style.width      = '5%';
+  }
+  if (progLbl) progLbl.textContent = 'Preparing Question Bank…';
+
+  // Keep stream hidden — progress label carries status instead
+  document.getElementById('aio-run-stream').classList.add('hidden');
+
+  // Helper to update fill and label without animation jank
+  let _numUnits = 0;
+  function _setProgress(pct, label) {
+    if (progFill) progFill.style.width = Math.min(pct, 92) + '%';
+    if (progLbl && label) progLbl.textContent = label;
+  }
 
   // Sync session so QBank can use AIO-generated COs via current_result
   if (_aio.cos.length) {
@@ -5675,6 +6092,7 @@ async function _aioRunQbank() {
       showErr('aio-run-err', 'Session setup failed: ' + e.message); return;
     }
   }
+  _setProgress(8, 'Building unit plan…');
 
   const params = new URLSearchParams({
     code: S.selected || '', n2: 4, n5: 4, n10: 4, n_assign: 2, n_quiz: 5, n_exp: 3,
@@ -5693,63 +6111,255 @@ async function _aioRunQbank() {
     const d = JSON.parse(ev.data);
     if (d.type === 'error') {
       es.close(); _qbTimeout();
-      document.getElementById('aio-run-progress').classList.add('hidden');
+      progEl.classList.add('hidden');
       showErr('aio-run-err', d.message);
       return;
     }
     if (d.type === 'status') {
-      statusLines.push(d.message);
-      streamEl.textContent = statusLines.join('\n');
-      streamEl.scrollTop = streamEl.scrollHeight;
+      if (d.stage === 'cos')        _setProgress(10, d.message);
+      else if (d.stage === 'cos_done') _setProgress(15, d.message);
+      else if (d.stage === 'units')    _setProgress(18, d.message);
+      else if (d.stage === 'units_done') {
+        _numUnits = d.num_units || 1;
+        _setProgress(20, d.message);
+      } else if (d.stage === 'unit' && _numUnits > 0) {
+        // Spread remaining 72% across units (20% → 92%)
+        const pct = 20 + ((d.unit_idx - 1) / _numUnits) * 72;
+        _setProgress(pct, d.message);
+      }
+    }
+    if (d.type === 'unit_done' && _numUnits > 0) {
+      const pct = 20 + (d.unit_idx / _numUnits) * 72;
+      _setProgress(pct, `Unit ${d.unit_idx} of ${_numUnits} complete`);
     }
     if (d.type === 'done') {
       es.close(); _qbTimeout();
-      document.getElementById('aio-run-progress').classList.add('hidden');
-      const summary = `Question Bank generated successfully.\n${d.num_units || 0} unit(s) processed.\n\nDownload from the Done screen at the end of the pipeline.`;
-      _aioOnDone('qbank', summary);
+      // Animate to 100% then hide, matching _stopFakeProgress behaviour
+      if (progFill) {
+        progFill.classList.remove('is-forward', 'is-indeterminate');
+        progFill.style.transition = 'width .25s ease';
+        progFill.style.width = '100%';
+      }
+      if (progLbl)  progLbl.textContent = 'Done!';
+      setTimeout(() => {
+        progEl.classList.add('hidden');
+        if (progFill) { progFill.style.width = '0%'; progFill.style.transition = ''; }
+        const summary = `Question Bank generated successfully.\n${d.num_units || 0} unit(s) processed.\n\nDownload from the Done screen at the end of the pipeline.`;
+        _aioOnDone('qbank', summary);
+      }, 650);
     }
   };
   es.onerror = () => {
     es.close(); _qbTimeout();
-    document.getElementById('aio-run-progress').classList.add('hidden');
+    progEl.classList.add('hidden');
     showErr('aio-run-err', 'Connection error generating Question Bank. Try regenerating.');
   };
 }
 
+// ── AIO CO-PO Mapping helpers ─────────────────────────────────────────────────
+
+// Stores PO selection applied via the AIO adjust panel (null = use all default POs)
+let _aioPomapConfiguredPos = null;
+// Tracks custom PO entries for the AIO adjust panel
+let _aioPomapCustomPos = [];
+
+function _activeAioPomapKeys(rows) {
+  const STD = {'PO1':0,'PO2':1,'PO3':2,'PO4':3,'PO5':4,'PO6':5,
+               'PO7':6,'PO8':7,'PO9':8,'PO10':9,'PO11':10,'PO12':11};
+  const _sort = keys => [...keys].sort((a, b) => {
+    const oa = STD[a] ?? 999, ob = STD[b] ?? 999;
+    return oa !== ob ? oa - ob : a.localeCompare(b);
+  });
+  if (_aioPomapConfiguredPos) {
+    const keys = [
+      ...(_aioPomapConfiguredPos.selected_standard || []),
+      ...(_aioPomapConfiguredPos.custom_pos || []).map(cp => cp.key).filter(Boolean),
+    ];
+    if (keys.length) return _sort(keys);
+  }
+  // Auto: show only POs with at least one non-zero score
+  const seen = new Set(), all = [];
+  rows.forEach(r => Object.keys(r.scores || {}).forEach(k => { if (!seen.has(k)) { seen.add(k); all.push(k); } }));
+  const active = _sort(all).filter(k => rows.some(r => (r.scores[k] || 0) > 0));
+  return active.length ? active : _sort(all);
+}
+
+function _renderAioPomapTable(rows) {
+  const pos = _activeAioPomapKeys(rows);
+  const hdrCells = pos.map(k => `<th>${k}</th>`).join('');
+  const dataRows = rows.map(r => {
+    const cells = pos.map(k => {
+      const v = r.scores[k] || 0;
+      const cls = v === 3 ? 'score-3' : v === 2 ? 'score-2' : v === 1 ? 'score-1' : 'score-0';
+      return `<td class="${cls}">${v || '–'}</td>`;
+    }).join('');
+    return `<tr><td class="co-label">${esc(r.co || '')}</td>${cells}</tr>`;
+  }).join('');
+
+  document.getElementById('aio-pomap-inline-map').innerHTML =
+    `<table class="po-map-table">
+       <thead><tr><th class="co-hdr">CO \\ PO</th>${hdrCells}</tr></thead>
+       <tbody>${dataRows}</tbody>
+     </table>`;
+
+  // Summary bar
+  let m3=0, m2=0, m1=0, m0=0;
+  rows.forEach(r => pos.forEach(k => {
+    const v = r.scores[k] || 0;
+    if (v===3) m3++; else if (v===2) m2++; else if (v===1) m1++; else m0++;
+  }));
+  const parts = [];
+  if (m3) parts.push(`<strong>Strong (3):</strong> ${m3}`);
+  if (m2) parts.push(`<strong>Moderate (2):</strong> ${m2}`);
+  if (m1) parts.push(`<strong>Minor (1):</strong> ${m1}`);
+  parts.push(`None: ${m0}`);
+  const sumEl = document.getElementById('aio-pomap-summary');
+  sumEl.innerHTML = parts.join(' &nbsp;·&nbsp; ');
+  sumEl.classList.remove('hidden');
+}
+
+function _aioInitPomapChecklist(rows) {
+  // Determine which keys are currently active to pre-check them
+  const activeKeys = new Set(_activeAioPomapKeys(rows));
+  document.getElementById('aio-po-checklist').innerHTML =
+    STANDARD_POS.map(po => `
+      <label class="po-check-row">
+        <input type="checkbox" id="aio-pochk-${po.key}" ${activeKeys.has(po.key) ? 'checked' : ''}>
+        <span class="po-key-badge">${po.key}</span>
+        <div class="po-check-info">
+          <div class="po-check-name">${po.name}</div>
+          <div class="po-check-desc">${po.desc}</div>
+        </div>
+      </label>`).join('');
+  // Restore any previously added custom POs
+  const list = document.getElementById('aio-po-custom-list');
+  list.innerHTML = '';
+  _aioPomapCustomPos = (_aioPomapConfiguredPos?.custom_pos || []).map(cp => ({ ...cp }));
+  _aioPomapCustomPos.forEach((_, i) => _renderAioCustomPoRow(i));
+}
+
+function aioPoSelectAll(checked) {
+  STANDARD_POS.forEach(po => {
+    const el = document.getElementById(`aio-pochk-${po.key}`);
+    if (el) el.checked = checked;
+  });
+}
+
+function _renderAioCustomPoRow(idx) {
+  const cp  = _aioPomapCustomPos[idx];
+  const div = document.createElement('div');
+  div.className = 'po-custom-row';
+  div.id = `aio-po-custom-${idx}`;
+  div.innerHTML =
+    `<input type="text" placeholder="e.g. PSO1" maxlength="12" value="${esc(cp.key || '')}"
+       oninput="_aioPomapCustomPos[${idx}].key=this.value.trim().toUpperCase()">
+     <input type="text" placeholder="Name" value="${esc(cp.name || '')}"
+       oninput="_aioPomapCustomPos[${idx}].name=this.value.trim()">
+     <input type="text" placeholder="Description (optional)" value="${esc(cp.desc || '')}"
+       oninput="_aioPomapCustomPos[${idx}].desc=this.value.trim()">
+     <button class="po-custom-del" onclick="removeAioPo(${idx})" title="Remove">&times;</button>`;
+  document.getElementById('aio-po-custom-list').appendChild(div);
+}
+
+function addAioPo() {
+  const idx = _aioPomapCustomPos.length;
+  _aioPomapCustomPos.push({ key: '', name: '', desc: '' });
+  _renderAioCustomPoRow(idx);
+}
+
+function removeAioPo(idx) {
+  _aioPomapCustomPos[idx] = null;
+  const el = document.getElementById(`aio-po-custom-${idx}`);
+  if (el) el.remove();
+}
+
+async function _aioApplyPoConfig(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Applying…'; }
+  document.getElementById('aio-po-err').classList.add('hidden');
+
+  const selected_standard = STANDARD_POS
+    .filter(po => { const el = document.getElementById(`aio-pochk-${po.key}`); return el && el.checked; })
+    .map(po => po.key);
+  const custom_pos = (_aioPomapCustomPos || [])
+    .filter(cp => cp && cp.key && cp.name)
+    .map(cp => ({ key: cp.key, name: cp.name, desc: cp.desc || '' }));
+
+  if (selected_standard.length + custom_pos.length === 0) {
+    showErr('aio-po-err', 'Select at least one Programme Outcome.');
+    if (btn) { btn.disabled = false; btn.textContent = '↺ Apply & Regenerate'; }
+    return;
+  }
+
+  _aioPomapConfiguredPos = { selected_standard, custom_pos };
+
+  try {
+    const r = await fetch('/configure_po_mapping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selected_standard, custom_pos }),
+    });
+    const d = await r.json();
+    if (d.error) {
+      showErr('aio-po-err', d.error);
+      if (btn) { btn.disabled = false; btn.textContent = '↺ Apply & Regenerate'; }
+      return;
+    }
+  } catch(e) {
+    showErr('aio-po-err', 'Failed: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '↺ Apply & Regenerate'; }
+    return;
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = '↺ Apply & Regenerate'; }
+  // Close the details and regenerate
+  document.getElementById('aio-po-details').removeAttribute('open');
+  document.getElementById('aio-po-arrow').textContent = '▶';
+  aioRegen();
+}
+
 // CO–PO Mapping
 async function _aioRunPomap() {
-  const progressEl  = document.getElementById('aio-run-progress');
-  const loadingEl   = document.getElementById('aio-run-loading');
-  const loadingLabel = document.getElementById('aio-run-loading-label');
-
   try { await _aioPrepare(); } catch(e) {
     showErr('aio-run-err', 'Session setup failed: ' + e.message); return;
   }
 
-  progressEl.classList.add('hidden');
-  loadingEl.classList.remove('hidden');
-  loadingLabel.textContent = 'Generating CO–PO mapping… (may take 30–60 s)';
+  // Re-apply custom PO configuration if the user adjusted it via the adjust panel
+  // (_aioPrepare resets pomap_pos to null, so we must restore it here)
+  if (_aioPomapConfiguredPos) {
+    try {
+      await fetch('/configure_po_mapping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(_aioPomapConfiguredPos),
+      });
+    } catch(_) {}
+  }
+
+  _startFakeProgress('aio-run-progress', 45000, [
+    'Reading Course Outcomes…', 'Mapping CO to PO1–PO6…',
+    'Mapping CO to PO7–PO12…', 'Calibrating 3/2/1/0 scores…', 'Finalising mapping table…',
+  ]);
 
   const es = new EventSource('/generate_po_mapping');
   const _pmTimeout = _addSSETimeout(es, 100000, () => {
-    loadingEl.classList.add('hidden');
+    _stopFakeProgress('aio-run-progress');
     showErr('aio-run-err', 'PO Mapping timed out. Try regenerating.');
   });
 
   es.onmessage = ev => {
     const d = JSON.parse(ev.data);
     if (d.error) {
-      es.close(); _pmTimeout(); loadingEl.classList.add('hidden');
+      es.close(); _pmTimeout(); _stopFakeProgress('aio-run-progress');
       showErr('aio-run-err', d.error); return;
     }
     if (d.done) {
-      es.close(); _pmTimeout(); loadingEl.classList.add('hidden');
+      es.close(); _pmTimeout();
       const preview = _buildPomapPreview(d.rows || []);
-      _aioOnDone('pomap', preview, d.rows || []);
+      _stopFakeProgress('aio-run-progress', () => _aioOnDone('pomap', preview, d.rows || []));
     }
   };
   es.onerror = () => {
-    es.close(); _pmTimeout(); loadingEl.classList.add('hidden');
+    es.close(); _pmTimeout(); _stopFakeProgress('aio-run-progress');
     showErr('aio-run-err', 'Connection error generating PO Mapping. Try regenerating.');
   };
 }
@@ -5880,93 +6490,397 @@ function _buildTdPreview(data) {
   ].filter(Boolean).join('\n');
 }
 
-// CO → SDG Contribution
-async function _aioRunSdgCo() {
-  const progressEl  = document.getElementById('aio-run-progress');
-  const loadingEl   = document.getElementById('aio-run-loading');
-  progressEl.classList.add('hidden');
+// ── AIO rich-tool display helpers ─────────────────────────────────────────────
 
+// Per-tool config stored for Apply & Regenerate
+let _aioCoAttThresholds  = { t1: 70, t2: 60, t3: 50 };
+let _aioPoAttTarget      = 60;
+let _aioCurrentRichTool  = null;
+
+function _aioRenderRichTool(toolId, d) {
+  switch(toolId) {
+    case 'sdgco':  return _aioHtmlSdgCo(d);
+    case 'sdgpo':  return _aioHtmlSdgPo(d);
+    case 'coatt':  return _aioHtmlCoAtt(d);
+    case 'poatt':  return _aioHtmlPoAtt(d);
+    default:       return '';
+  }
+}
+
+function _aioHtmlSdgCo(d) {
+  // Matrix format (all SDGs)
+  if (d.matrix) {
+    const sdgs     = d.sdgs || [];
+    const cos      = d.cos  || [];
+    const matrix   = d.matrix;
+    const top      = d.top_sdgs || [];
+    const shortLbl = s => s.replace(/ — .*/,'');   // "SDG 1 — No Poverty" → "SDG 1"
+
+    let h = `<div style="padding:14px 16px;">`;
+
+    // Top SDGs summary chips
+    if (top.length) {
+      h += `<div style="margin-bottom:10px;font-size:.75rem;">
+        <span style="font-weight:700;color:var(--muted);">Top SDGs: </span>`;
+      h += top.slice(0, 6).map(s => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;background:rgba(16,185,129,.12);color:#059669;border-radius:999px;font-size:.72rem;font-weight:700;">${esc(shortLbl(s))}</span>`).join('');
+      h += `</div>`;
+    }
+
+    // Matrix table (scrollable)
+    h += `<div class="po-map-wrap" style="margin:0;">
+      <table class="po-map-table">
+        <thead><tr>
+          <th class="co-hdr">CO \\ SDG</th>`;
+    sdgs.forEach(s => {
+      h += `<th title="${esc(s)}">${esc(shortLbl(s))}</th>`;
+    });
+    h += `<th>Total</th></tr></thead><tbody>`;
+
+    cos.forEach(co => {
+      const row = matrix[co] || {};
+      h += `<tr><td class="co-label">${esc(co)}</td>`;
+      sdgs.forEach(s => {
+        const v = row[s] || 0;
+        const cls = v===3?'score-3':v===2?'score-2':v===1?'score-1':'score-0';
+        h += `<td class="${cls}">${v||'–'}</td>`;
+      });
+      h += `<td style="font-weight:700;background:#f0f4f8;">${d.co_totals[co]||0}</td></tr>`;
+    });
+
+    // SDG totals row
+    h += `<tr><td class="co-label" style="font-style:italic;">Total</td>`;
+    sdgs.forEach(s => {
+      const t = d.sdg_totals[s] || 0;
+      const cls = t > 0 ? 'score-2' : 'score-0';
+      h += `<td class="${cls}" style="font-size:.72rem;">${t||'–'}</td>`;
+    });
+    h += `<td></td></tr>`;
+
+    h += `</tbody></table></div></div>`;
+    return h;
+  }
+
+  // Legacy single-SDG fallback
+  const target = d.targetSdg || '—';
+  const cs = d.contributions || [];
+  let h = `<div style="padding:14px 16px;">`;
+  h += `<div style="font-size:.78rem;color:var(--muted);margin-bottom:10px;">Target SDG: <strong>${esc(target)}</strong></div>`;
+  h += `<table class="po-map-table"><thead><tr><th class="co-hdr">CO</th><th style="text-align:left;">Statement</th><th>Score</th><th>Share %</th></tr></thead><tbody>`;
+  cs.forEach(c => {
+    const cls = c.score >= 2 ? 'score-3' : c.score >= 1 ? 'score-2' : 'score-0';
+    const stmt = (c.statement || '').length > 55 ? c.statement.slice(0, 52) + '…' : (c.statement || '');
+    h += `<tr><td class="co-label">${esc(c.co)}</td><td style="text-align:left;font-size:.77rem;">${esc(stmt)}</td><td class="${cls}">${c.score}</td><td>${c.pct.toFixed(1)}%</td></tr>`;
+  });
+  h += `</tbody></table>`;
+  h += `<div style="font-size:.77rem;color:var(--muted);margin-top:8px;">Total score: ${d.total || 0}</div></div>`;
+  return h;
+}
+
+function _aioHtmlSdgPo(d) {
+  const comp   = typeof d.composite === 'number' ? d.composite : 0;
+  const interp = comp >= 85 ? 'Excellent' : comp >= 70 ? 'Strong' : comp >= 50 ? 'Moderate' : 'Weak';
+  const results = d.results || [];
+
+  // Sort: contributing SDGs first (desc), then zero ones
+  const sorted = [...results].sort((a, b) => b.contribution - a.contribution);
+  const active = sorted.filter(r => r.contribution > 0);
+  const zero   = sorted.filter(r => r.contribution === 0);
+
+  let h = `<div style="padding:14px 16px;">`;
+
+  // Composite SDG Index badge
+  h += `<div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;padding:10px 14px;
+             background:rgba(16,185,129,.08);border-radius:8px;border:1px solid rgba(16,185,129,.2);">
+    <div>
+      <div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Composite SDG Index</div>
+      <div style="font-size:1.45rem;font-weight:900;color:#059669;">${comp.toFixed(2)}%</div>
+    </div>
+    <div style="font-size:.82rem;color:var(--muted);">${esc(interp)}</div>
+    <div style="margin-left:auto;font-size:.75rem;color:var(--muted);">${active.length} / 17 SDGs covered</div>
+  </div>`;
+
+  h += `<table class="po-map-table">
+    <thead><tr>
+      <th class="co-hdr">SDG</th>
+      <th>Contribution %</th>
+      <th>Interpretation</th>
+    </tr></thead><tbody>`;
+
+  // Active SDGs first
+  active.forEach(r => {
+    const i   = r.interpretation || '';
+    const cls = i === 'Excellent' ? 'score-3' : i === 'Strong' ? 'score-2' : i === 'Moderate' ? 'score-1' : 'score-1';
+    h += `<tr><td class="co-label" style="font-size:.77rem;">${esc(r.sdg)}</td>
+              <td style="font-weight:600;">${r.contribution.toFixed(2)}%</td>
+              <td class="${cls}">${esc(i)}</td></tr>`;
+  });
+
+  // Zero-contribution SDGs (muted)
+  if (zero.length) {
+    h += `<tr><td colspan="3" style="font-size:.72rem;color:var(--muted);padding:6px 10px;text-align:center;background:#f8fafc;font-style:italic;">
+      ${zero.length} SDG${zero.length>1?'s':''} with no contribution (0%)
+    </td></tr>`;
+    zero.forEach(r => {
+      h += `<tr style="opacity:.45;"><td class="co-label" style="font-size:.75rem;">${esc(r.sdg)}</td>
+                <td>0.00%</td><td class="score-0">—</td></tr>`;
+    });
+  }
+
+  h += `</tbody></table></div>`;
+  return h;
+}
+
+function _aioHtmlCoAtt(d) {
+  const t = d.thresholds || {t1:70, t2:60, t3:50};
+  let h = `<div style="padding:14px 16px;">`;
+  h += `<div style="font-size:.73rem;color:var(--muted);margin-bottom:10px;">Level 3 ≥ ${t.t1}% &nbsp;&middot;&nbsp; Level 2 ≥ ${t.t2}% &nbsp;&middot;&nbsp; Level 1 ≥ ${t.t3}%</div>`;
+  h += `<div style="font-size:.82rem;font-weight:700;margin-bottom:6px;">CO Attainment</div>`;
+  h += `<table class="po-map-table"><thead><tr><th class="co-hdr">CO</th><th>Attainment %</th><th>Level</th></tr></thead><tbody>`;
+  (d.coResults || []).forEach(c => {
+    const cls = c.level===3?'score-3':c.level===2?'score-2':c.level===1?'score-1':'score-0';
+    h += `<tr><td class="co-label">${esc(c.co)}</td><td>${c.pct.toFixed(1)}%</td><td class="${cls}">${c.level}</td></tr>`;
+  });
+  h += `</tbody></table>`;
+  const pos = d.poResults || [];
+  if (pos.length) {
+    h += `<div style="font-size:.82rem;font-weight:700;margin:12px 0 6px;">PO Attainment</div>`;
+    h += `<table class="po-map-table"><thead><tr>`;
+    pos.forEach(p => { h += `<th>${esc(p.po)}</th>`; });
+    h += `</tr></thead><tbody><tr>`;
+    pos.forEach(p => {
+      const v = p.attainment || 0;
+      const cls = v>=2.5?'score-3':v>=1.5?'score-2':v>=0.5?'score-1':'score-0';
+      h += `<td class="${cls}">${v.toFixed(2)}</td>`;
+    });
+    h += `</tr></tbody></table>`;
+  }
+  h += `</div>`;
+  return h;
+}
+
+function _aioHtmlPoAtt(d) {
+  const pos = d.po_attainment || [];
+  const sum = d.summary || {};
+  let h = `<div style="padding:14px 16px;">`;
+  h += `<div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;font-size:.78rem;">
+    <span><strong>Mean:</strong> ${sum.mean_pct || 0}%</span>
+    <span><strong>Met target:</strong> ${sum.pos_meeting_target || 0}/${pos.length}</span>
+    <span style="color:var(--muted);">Target: ≥${sum.target_threshold || 60}%</span></div>`;
+  h += `<table class="po-map-table"><thead><tr><th class="co-hdr">PO</th><th style="text-align:left;">Name</th><th>Att %</th><th>Level</th><th>Target</th></tr></thead><tbody>`;
+  pos.forEach(p => {
+    const lc = p.level===3?'score-3':p.level===2?'score-2':p.level===1?'score-1':'score-0';
+    const tc = p.target_met ? 'score-3' : 'score-0';
+    h += `<tr><td class="co-label">${esc(p.po)}</td><td style="text-align:left;font-size:.77rem;">${esc(p.name)}</td><td>${p.pct.toFixed(1)}%</td><td class="${lc}">${p.level}</td><td class="${tc}">${p.target_met ? 'Met' : 'Below'}</td></tr>`;
+  });
+  h += `</tbody></table>`;
+  const atr = pos.filter(p => !p.target_met);
+  if (atr.length) {
+    h += `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+      <div style="font-size:.82rem;font-weight:700;margin-bottom:8px;">Action Taken Report</div>`;
+    atr.forEach(p => {
+      h += `<div style="font-size:.77rem;margin-bottom:6px;padding:6px 10px;background:rgba(239,68,68,.05);border-radius:6px;border-left:3px solid #ef4444;">
+        <strong>${esc(p.po)}</strong> <span style="color:var(--muted);">(${esc(p.name)})</span>: ${esc(p.atr || '')}
+      </div>`;
+    });
+    h += `</div>`;
+  }
+  h += `</div>`;
+  return h;
+}
+
+function aioSdgSelectAll(checked) {
+  _ALL_SDGS.forEach(s => {
+    const el = document.getElementById(`aio-sdgchk-${s.replace(/ /g,'_')}`);
+    if (el) el.checked = checked;
+  });
+}
+
+// Populate the generic tool-adjust panel for the current tool
+function _aioSetupToolAdjust(toolId, resultData) {
+  const label = document.getElementById('aio-tool-adjust-label');
+  const body  = document.getElementById('aio-tool-adjust-body');
+
+  if (toolId === 'sdgco') {
+    if (label) label.textContent = 'Filter SDGs to Include';
+    const selected = new Set(_aioSdgCoSelected || _ALL_SDGS);
+    body.innerHTML = `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+        <span style="font-size:.78rem;color:var(--muted);">Include:</span>
+        <button class="ctrl-btn" onclick="aioSdgSelectAll(true)">All 17</button>
+        <button class="ctrl-btn" onclick="aioSdgSelectAll(false)">None</button>
+      </div>
+      <div id="aio-sdg-checklist" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;max-height:220px;overflow-y:auto;padding-right:4px;margin-bottom:10px;">
+        ${_ALL_SDGS.map(s => `
+          <label style="display:flex;align-items:center;gap:7px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.78rem;">
+            <input type="checkbox" id="aio-sdgchk-${esc(s.replace(/ /g,'_'))}" ${selected.has(s)?'checked':''}
+              style="accent-color:var(--primary);width:13px;height:13px;flex-shrink:0;">
+            <span style="font-weight:700;color:var(--primary);min-width:38px;">${esc(s.split(' — ')[0])}</span>
+            <span style="color:var(--muted);font-size:.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.split(' — ')[1]||'')}</span>
+          </label>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btn-aio-tool-apply" onclick="_aioApplyToolConfig(this)"
+          style="font-size:.82rem;padding:7px 18px;">&#8635; Apply &amp; Regenerate</button>
+        <div class="alert alert-error hidden" id="aio-tool-err" style="margin:0;font-size:.8rem;flex:1;"></div>
+      </div>`;
+
+  } else if (toolId === 'coatt') {
+    if (label) label.textContent = 'Adjust Attainment Thresholds';
+    const {t1=70, t2=60, t3=50} = _aioCoAttThresholds;
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+        ${[['t1','Level 3 (Strong)',t1],['t2','Level 2 (Moderate)',t2],['t3','Level 1 (Low)',t3]].map(([k,lbl,v]) => `
+          <div>
+            <label style="font-size:.78rem;font-weight:600;display:block;margin-bottom:4px;">${lbl}</label>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <input id="aio-coatt-${k}" type="number" min="0" max="100" value="${v}"
+                style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:.83rem;background:var(--bg);color:var(--text);">
+              <span style="font-size:.8rem;color:var(--muted);">%</span>
+            </div>
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btn-aio-tool-apply" onclick="_aioApplyToolConfig(this)"
+          style="font-size:.82rem;padding:7px 18px;">&#8635; Apply &amp; Regenerate</button>
+        <div class="alert alert-error hidden" id="aio-tool-err" style="margin:0;font-size:.8rem;flex:1;"></div>
+      </div>`;
+
+  } else if (toolId === 'poatt') {
+    if (label) label.textContent = 'Adjust Target Threshold';
+    body.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+        <label style="font-size:.82rem;font-weight:600;">Target Threshold</label>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input id="aio-poatt-threshold" type="number" min="0" max="100" value="${_aioPoAttTarget}"
+            style="width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:.83rem;background:var(--bg);color:var(--text);">
+          <span style="font-size:.8rem;color:var(--muted);">% &nbsp;(POs scoring below this are flagged with ATR)</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btn-aio-tool-apply" onclick="_aioApplyToolConfig(this)"
+          style="font-size:.82rem;padding:7px 18px;">&#8635; Apply &amp; Regenerate</button>
+        <div class="alert alert-error hidden" id="aio-tool-err" style="margin:0;font-size:.8rem;flex:1;"></div>
+      </div>`;
+  }
+}
+
+function _aioApplyToolConfig(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Applying…'; }
+  const restore = () => { if (btn) { btn.disabled = false; btn.textContent = '↺ Apply & Regenerate'; } };
+
+  if (_aioCurrentRichTool === 'sdgco') {
+    const checked = _ALL_SDGS.filter(s => {
+      const el = document.getElementById(`aio-sdgchk-${s.replace(/ /g,'_')}`);
+      return el && el.checked;
+    });
+    if (!checked.length) { showErr('aio-tool-err', 'Select at least one SDG.'); restore(); return; }
+    _aioSdgCoSelected = checked.length === _ALL_SDGS.length ? null : checked;
+
+  } else if (_aioCurrentRichTool === 'coatt') {
+    const t1 = parseFloat(document.getElementById('aio-coatt-t1').value);
+    const t2 = parseFloat(document.getElementById('aio-coatt-t2').value);
+    const t3 = parseFloat(document.getElementById('aio-coatt-t3').value);
+    if ([t1,t2,t3].some(v => isNaN(v)||v<0||v>100)) { showErr('aio-tool-err', 'Thresholds must be 0–100.'); restore(); return; }
+    if (!(t1 > t2 && t2 > t3)) { showErr('aio-tool-err', 'Level 3 > Level 2 > Level 1 required.'); restore(); return; }
+    _aioCoAttThresholds = { t1, t2, t3 };
+
+  } else if (_aioCurrentRichTool === 'poatt') {
+    const thr = parseFloat(document.getElementById('aio-poatt-threshold').value);
+    if (isNaN(thr) || thr < 0 || thr > 100) { showErr('aio-tool-err', 'Threshold must be 0–100.'); restore(); return; }
+    _aioPoAttTarget = thr;
+  }
+
+  restore();
+  document.getElementById('aio-tool-details').removeAttribute('open');
+  document.getElementById('aio-tool-arrow').textContent = '▶';
+  aioRegen();
+}
+
+// CO → SDG Contribution (all SDGs matrix)
+// _aioSdgCoSelected = null means use all 17 SDGs
+let _aioSdgCoSelected = null;
+
+async function _aioRunSdgCo() {
   if (!_aio.cos.length) {
     showErr('aio-run-err', 'No COs available — ensure Course Outcomes is included in your selection.');
     return;
   }
 
-  loadingEl.classList.remove('hidden');
-  document.getElementById('aio-run-loading-label').textContent = 'Analysing CO → SDG contributions…';
+  _startFakeProgress('aio-run-progress', 28000, [
+    'Reading Course Outcomes…', 'Mapping COs to UN SDGs…',
+    'Rating SDG 1–6…', 'Rating SDG 7–12…', 'Rating SDG 13–17…', 'Building contribution matrix…',
+  ]);
 
-  const cos = _aio.cos.map(c => ({ name: `CO${c.num}`, statement: c.statement }));
+  const cos      = _aio.cos.map(c => ({ name: `CO${c.num}`, statement: c.statement }));
+  const sdg_list = _aioSdgCoSelected || null;   // null = all 17
   try {
-    const r = await fetch('/generate_sdg_co_contributions', {
+    const r = await fetch('/generate_sdg_co_all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cos, course: S.selected || '' }),
+      body: JSON.stringify({ cos, course: S.selected || '', sdg_list }),
     });
     const d = await r.json();
-    loadingEl.classList.add('hidden');
-    if (d.error) { showErr('aio-run-err', d.error); return; }
-    _aioOnDone('sdgco', _buildSdgCoPreview(d), d);
+    if (d.error) { _stopFakeProgress('aio-run-progress'); showErr('aio-run-err', d.error); return; }
+    _stopFakeProgress('aio-run-progress', () => _aioOnDone('sdgco', _buildSdgCoPreview(d), d));
   } catch(e) {
-    loadingEl.classList.add('hidden');
+    _stopFakeProgress('aio-run-progress');
     showErr('aio-run-err', 'Failed: ' + e.message);
   }
 }
 
 function _buildSdgCoPreview(d) {
+  if (d.matrix) {
+    // All-SDG matrix format
+    const top = (d.top_sdgs || []).slice(0, 5).join(', ') || '—';
+    const cos = d.cos || [];
+    let txt = `CO → SDG Contribution Matrix\n${cos.length} Course Outcomes × ${(d.sdgs||[]).length} SDGs\n\n`;
+    txt += `Top contributing SDGs:\n  ${top}\n\n`;
+    txt += `CO totals:\n`;
+    cos.forEach(co => { txt += `  ${co}: ${d.co_totals[co] || 0}\n`; });
+    return txt;
+  }
+  // Legacy single-SDG format (fallback)
   const contribs = d.contributions || [];
   let txt = `CO → SDG Contribution\nTarget: ${d.targetSdg || '—'}\n\n`;
   txt += `${'CO'.padEnd(6)}  ${'Score'.padEnd(7)}  Share\n${'─'.repeat(24)}\n`;
-  contribs.forEach(c => {
-    txt += `${c.co.padEnd(6)}  ${String(c.score).padEnd(7)}  ${c.pct.toFixed(1)}%\n`;
-  });
+  contribs.forEach(c => { txt += `${c.co.padEnd(6)}  ${String(c.score).padEnd(7)}  ${c.pct.toFixed(1)}%\n`; });
   txt += `${'─'.repeat(24)}\nTotal score: ${d.total}`;
   return txt;
 }
 
 // PO → SDG Contribution
+// PO → SDG Contribution (all 17 SDGs)
 async function _aioRunSdgPo() {
-  const progressEl = document.getElementById('aio-run-progress');
-  const loadingEl  = document.getElementById('aio-run-loading');
-  progressEl.classList.add('hidden');
-  loadingEl.classList.remove('hidden');
-  document.getElementById('aio-run-loading-label').textContent = 'Analysing PO → SDG contributions…';
+  _startFakeProgress('aio-run-progress', 32000, [
+    'Reading syllabus…', 'Estimating PO attainment levels…',
+    'Rating POs against SDG 1–6…', 'Rating POs against SDG 7–12…',
+    'Rating POs against SDG 13–17…', 'Computing Composite SDG Index…',
+  ]);
 
   try {
-    const r = await fetch('/generate_sdg_po_auto', {
+    const r = await fetch('/generate_sdg_po_all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ course: S.selected || '' }),
     });
     const d = await r.json();
-    loadingEl.classList.add('hidden');
-    if (d.error) { showErr('aio-run-err', d.error); return; }
-
-    // Compute contributions (same logic as the SDG-PO mode)
-    const pos  = d.pos  || [];
-    const sdgs = d.sdgs_selected || [];
-    const wAll = d.weights_all   || {};
-    const _interp = v => v >= 85 ? 'Excellent' : v >= 70 ? 'Strong' : v >= 50 ? 'Moderate' : 'Weak';
-
-    const results = sdgs.map(sdgLabel => {
-      const wts = wAll[sdgLabel] || {};
-      let num = 0, den = 0;
-      pos.forEach(po => { const w = parseFloat(wts[po.name] || 0); num += po.attainment * w; den += w; });
-      const contribution = den > 0 ? Math.round(num / den * 100) / 100 : 0;
-      return { sdg: sdgLabel, contribution, interpretation: _interp(contribution) };
-    });
-    const composite = results.length
-      ? Math.round(results.reduce((s, r) => s + r.contribution, 0) / results.length * 100) / 100 : 0;
-
-    const resultData = { pos, sdgs, results, composite };
-    _aioOnDone('sdgpo', _buildSdgPoPreview(resultData), resultData);
+    if (d.error) { _stopFakeProgress('aio-run-progress'); showErr('aio-run-err', d.error); return; }
+    // Backend returns pre-computed {pos, results, composite}
+    _stopFakeProgress('aio-run-progress', () => _aioOnDone('sdgpo', _buildSdgPoPreview(d), d));
   } catch(e) {
-    loadingEl.classList.add('hidden');
+    _stopFakeProgress('aio-run-progress');
     showErr('aio-run-err', 'Failed: ' + e.message);
   }
 }
 
 function _buildSdgPoPreview(d) {
-  let txt = `PO → SDG Contribution\nComposite SDG Index: ${d.composite.toFixed(2)}%\n\n`;
-  (d.results || []).forEach(r => {
+  const results = d.results || [];
+  const comp = typeof d.composite === 'number' ? d.composite : 0;
+  const top = results.filter(r => r.contribution >= 50).slice(0, 3).map(r => r.sdg.split(' — ')[0]).join(', ');
+  let txt = `PO → SDG Contribution  (all 17 SDGs)\nComposite SDG Index: ${comp.toFixed(2)}%\n`;
+  if (top) txt += `Strongest: ${top}\n`;
+  txt += '\n';
+  results.forEach(r => {
     txt += `${r.sdg.padEnd(48)}  ${r.contribution.toFixed(2)}%  (${r.interpretation})\n`;
   });
   return txt;
@@ -5974,31 +6888,29 @@ function _buildSdgPoPreview(d) {
 
 // CO Attainment
 async function _aioRunCoAtt() {
-  const progressEl = document.getElementById('aio-run-progress');
-  const loadingEl  = document.getElementById('aio-run-loading');
-  progressEl.classList.add('hidden');
-
   if (!_aio.cos.length) {
     showErr('aio-run-err', 'No COs available — ensure Course Outcomes is included in your selection.');
     return;
   }
 
-  loadingEl.classList.remove('hidden');
-  document.getElementById('aio-run-loading-label').textContent = 'Estimating CO attainment…';
+  _startFakeProgress('aio-run-progress', 15000, [
+    'Reading Course Outcomes…', 'Estimating CO attainment %…',
+    'Rating CO-PO contributions…', 'Computing PO attainment levels…',
+  ]);
 
   const cos = _aio.cos.map(c => ({ name: `CO${c.num}`, statement: c.statement }));
   try {
     const r = await fetch('/generate_co_attainment_ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cos, course: S.selected || '', t1: 70, t2: 60, t3: 50 }),
+      body: JSON.stringify({ cos, course: S.selected || '',
+        t1: _aioCoAttThresholds.t1, t2: _aioCoAttThresholds.t2, t3: _aioCoAttThresholds.t3 }),
     });
     const d = await r.json();
-    loadingEl.classList.add('hidden');
-    if (d.error) { showErr('aio-run-err', d.error); return; }
-    _aioOnDone('coatt', _buildCoAttPreview(d), d);
+    if (d.error) { _stopFakeProgress('aio-run-progress'); showErr('aio-run-err', d.error); return; }
+    _stopFakeProgress('aio-run-progress', () => _aioOnDone('coatt', _buildCoAttPreview(d), d));
   } catch(e) {
-    loadingEl.classList.add('hidden');
+    _stopFakeProgress('aio-run-progress');
     showErr('aio-run-err', 'Failed: ' + e.message);
   }
 }
@@ -6016,17 +6928,172 @@ function _buildCoAttPreview(d) {
   return txt;
 }
 
+// PO Attainment
+async function _aioRunPoAtt() {
+  if (!_aio.cos.length) {
+    showErr('aio-run-err', 'No COs available — ensure Course Outcomes is included in your selection.');
+    return;
+  }
+
+  _startFakeProgress('aio-run-progress', 20000, [
+    'Loading CO-PO mapping…', 'Computing weighted PO attainment…',
+    'Evaluating attainment levels…', 'Generating ATR recommendations…',
+  ]);
+
+  const cos        = _aio.cos.map(c => ({ name: `CO${c.num}`, statement: c.statement }));
+  const pomapRows  = _aio.results['pomap'] || [];
+  const coResults  = (_aio.results['coatt'] || {}).coResults || [];
+
+  try {
+    const r = await fetch('/generate_po_attainment_ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cos, course: S.selected || '',
+        pomap_rows: pomapRows,
+        co_results: coResults,
+        target_threshold: _aioPoAttTarget,
+      }),
+    });
+    const d = await r.json();
+    if (d.error) { _stopFakeProgress('aio-run-progress'); showErr('aio-run-err', d.error); return; }
+    _stopFakeProgress('aio-run-progress', () => _aioOnDone('poatt', _buildPoAttPreview(d), d));
+  } catch(e) {
+    _stopFakeProgress('aio-run-progress');
+    showErr('aio-run-err', 'Failed: ' + e.message);
+  }
+}
+
+function _buildPoAttPreview(d) {
+  const pos = d.po_attainment || [];
+  const sum = d.summary || {};
+  let txt = `PO Attainment  (NBA Method)\n\n`;
+  txt += `${'PO'.padEnd(6)}  ${'Name'.padEnd(32)}  ${'Att%'.padEnd(7)}  Lvl  Target\n${'─'.repeat(60)}\n`;
+  pos.forEach(p => {
+    txt += `${p.po.padEnd(6)}  ${p.name.slice(0,32).padEnd(32)}  ${p.pct.toFixed(1).padEnd(7)}  ${p.level}    ${p.target_met ? 'Met' : 'Below'}\n`;
+  });
+  txt += `\nMean: ${sum.mean_pct || 0}%   Met: ${sum.pos_meeting_target || 0}/${pos.length}`;
+  const atrRows = pos.filter(p => !p.target_met);
+  if (atrRows.length) {
+    txt += '\n\nAction Taken Report:\n';
+    atrRows.forEach(p => { txt += `  ${p.po}: ${p.atr}\n`; });
+  }
+  return txt;
+}
+
 // ── Done screen ───────────────────────────────────────────────────────────────
 function _aioShowDone() {
-  setStepBar(5);
+  setStepBar(4);
   const completed = _aio.queue.filter(id => _aio.previews[id] !== undefined);
+
+  // Detect module completions
+  const isModule1Done = completed.includes('cos') && completed.includes('qbank') && completed.length === 2;
+  const isModule3Done = completed.includes('lessonplan') && completed.includes('teachingdiary');
+  const isModule4Done = completed.includes('pomap') && completed.includes('coatt') &&
+                        completed.includes('sdgco') && completed.includes('sdgpo');
 
   document.getElementById('aio-done-sub').textContent =
     completed.length
       ? `${completed.length} document(s) generated. Download each one below.`
       : 'No documents were generated.';
 
-  document.getElementById('aio-done-list').innerHTML = completed.map(toolId => {
+  // Module 1 comprehensive report button
+  const mod1Block = isModule1Done ? `
+    <div style="border:2px solid #6366f1;border-radius:14px;padding:18px 20px;
+                background:linear-gradient(135deg,rgba(99,102,241,.07),rgba(139,92,246,.07));
+                margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span style="font-size:1.8rem;flex-shrink:0;">📑</span>
+        <div style="flex:1;min-width:180px;">
+          <p style="font-weight:800;font-size:.97rem;margin:0 0 4px;color:var(--text);">
+            Module 1 Comprehensive Report
+          </p>
+          <p style="font-size:.77rem;color:var(--muted);margin:0;line-height:1.5;">
+            Single document containing all 11 Module-1 deliverables: CO Generation, Question Bank,
+            Sample Paper, Bloom's Compliance, CO Coverage, Difficulty Analysis, Scenario Analysis,
+            QQI, Marks Distribution, OBE/NBA Compliance &amp; Accreditation Readiness Dashboard.
+          </p>
+          <p style="font-size:.72rem;color:#6366f1;font-weight:700;margin:6px 0 0;">
+            Edit before downloading in TXT, DOCX or PDF
+          </p>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button onclick="_previewModule1Report(this)" class="ctrl-btn"
+            style="font-size:.82rem;padding:7px 18px;font-weight:700;background:linear-gradient(90deg,#6366f1,#8b5cf6);color:#fff;border-color:transparent;">
+            Preview &amp; Edit →
+          </button>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:.77rem;color:var(--muted);margin:4px 0 14px;">
+      — or download individual files below —
+    </div>` : '';
+
+  // Module 3 comprehensive report button
+  const mod3Block = isModule3Done ? `
+    <div style="border:2px solid #e11d48;border-radius:14px;padding:18px 20px;
+                background:linear-gradient(135deg,rgba(225,29,72,.06),rgba(251,113,133,.07));
+                margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span style="font-size:1.8rem;flex-shrink:0;">📋</span>
+        <div style="flex:1;min-width:180px;">
+          <p style="font-weight:800;font-size:.97rem;margin:0 0 4px;color:var(--text);">
+            Module 3 Comprehensive Report
+          </p>
+          <p style="font-size:.77rem;color:var(--muted);margin:0;line-height:1.5;">
+            11-section Course Delivery report: CO &amp; Bloom's analysis, CO-PO-SDG alignment,
+            session coverage matrix, teaching method distribution, TD analytics, SDG &amp; AI integration,
+            NBA/NAAC compliance checklist and Readiness Dashboard.
+          </p>
+          <p style="font-size:.72rem;color:#e11d48;font-weight:700;margin:6px 0 0;">
+            Edit before downloading in TXT, DOCX or PDF
+          </p>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button onclick="_previewModule3Report(this)" class="ctrl-btn"
+            style="font-size:.82rem;padding:7px 18px;font-weight:700;background:linear-gradient(90deg,#e11d48,#fb7185);color:#fff;border-color:transparent;">
+            Preview &amp; Edit &#8594;
+          </button>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:.77rem;color:var(--muted);margin:4px 0 14px;">
+      &#8212; or download individual files below &#8212;
+    </div>` : '';
+
+  // Module 4 comprehensive report button
+  const mod4Block = isModule4Done ? `
+    <div style="border:2px solid #059669;border-radius:14px;padding:18px 20px;
+                background:linear-gradient(135deg,rgba(5,150,105,.06),rgba(52,211,153,.07));
+                margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span style="font-size:1.8rem;flex-shrink:0;">&#128202;</span>
+        <div style="flex:1;min-width:180px;">
+          <p style="font-weight:800;font-size:.97rem;margin:0 0 4px;color:var(--text);">
+            Module 4 Comprehensive Assessment Report
+          </p>
+          <p style="font-size:.77rem;color:var(--muted);margin:0;line-height:1.5;">
+            11-section Assessment report: CO-PO Mapping, CO Attainment, PO Attainment,
+            CO&#8594;SDG &amp; PO&#8594;SDG contributions, Composite SDG Index, NBA/NAAC compliance checklist
+            and Assessment Readiness Dashboard.
+          </p>
+          <p style="font-size:.72rem;color:#059669;font-weight:700;margin:6px 0 0;">
+            Edit before downloading in TXT, DOCX or PDF
+          </p>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button onclick="_previewModule4Report(this)" class="ctrl-btn"
+            style="font-size:.82rem;padding:7px 18px;font-weight:700;background:linear-gradient(90deg,#059669,#34d399);color:#fff;border-color:transparent;">
+            Preview &amp; Edit &#8594;
+          </button>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:.77rem;color:var(--muted);margin:4px 0 14px;">
+      &#8212; or download individual files below &#8212;
+    </div>` : '';
+
+  document.getElementById('aio-done-list').innerHTML = mod1Block + mod3Block + mod4Block + completed.map(toolId => {
     const tool = AIO_TOOLS.find(t => t.id === toolId);
     return `
       <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;flex-wrap:wrap;">
@@ -6046,6 +7113,676 @@ function _aioShowDone() {
   showSection('aio-done');
 }
 
+async function _previewModule1Report(clickedBtn) {
+  if (clickedBtn) { clickedBtn.disabled = true; clickedBtn.textContent = 'Generating…'; }
+
+  try {
+    const r = await fetch('/generate_module1_report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fmt: 'docx' }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d.error || 'Report generation failed.', 'error');
+      return;
+    }
+    const blob = await r.blob();
+    const html = await _docxBlobToHtml(blob);
+    document.getElementById('m1-report-preview-div').innerHTML = html;
+    pickM1Fmt('docx');
+    _m1SavedRange = null;
+    _m1UndoData   = null;
+    document.getElementById('m1-ai-status').textContent = 'Select any text in the report, then click "Rephrase Selection".';
+    document.getElementById('m1-rephrase-output').innerHTML = '';
+    document.getElementById('m1-undo-bar').style.display = 'none';
+    refreshTokenBadge();
+    showSection('m1-preview');
+  } catch (e) {
+    showToast('Preview failed: ' + e.message, 'error');
+  } finally {
+    if (clickedBtn) { clickedBtn.disabled = false; clickedBtn.textContent = 'Preview & Edit →'; }
+  }
+}
+
+function pickM1Fmt(fmt) {
+  S.m1PreviewFmt = fmt;
+  document.querySelectorAll('[data-m1fmt]').forEach(c => {
+    c.classList.toggle('selected', c.dataset.m1fmt === fmt);
+  });
+}
+
+function toggleM1AiPanel() {
+  const panel = document.getElementById('m1-ai-panel');
+  const icon  = document.getElementById('m1-ai-panel-toggle');
+  const open  = !panel.classList.contains('collapsed');
+  panel.classList.toggle('collapsed', open);
+  if (icon) icon.textContent = open ? '▶' : '◀';
+}
+
+let _m1SavedRange  = null;
+let _m1UndoData    = null;
+let _m1RephraseVal = '';
+
+async function _m1Rephrase() {
+  const sel  = window.getSelection();
+  const text = sel ? sel.toString().trim() : '';
+
+  if (!text || text.length < 5) {
+    document.getElementById('m1-ai-status').textContent = 'Select some text in the report first.';
+    return;
+  }
+
+  // Save range so Apply can restore it after the button click clears focus
+  if (sel.rangeCount > 0) _m1SavedRange = sel.getRangeAt(0).cloneRange();
+
+  const btn = document.getElementById('m1-rephrase-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Rephrasing…'; }
+  document.getElementById('m1-ai-status').textContent = 'Rephrasing…';
+  document.getElementById('m1-rephrase-output').innerHTML = '';
+
+  try {
+    const r = await fetch('/ai_rephrase', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ question_text: text }),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    _m1RephraseVal = d.rephrased;
+    document.getElementById('m1-rephrase-output').innerHTML =
+      `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;font-size:.82rem;line-height:1.5;">${esc(_m1RephraseVal)}</div>` +
+      `<button class="btn btn-primary" style="width:100%;font-size:.78rem;justify-content:center;" onclick="_m1ApplyRephrase()">Apply to Report</button>`;
+    document.getElementById('m1-ai-status').textContent = 'Rephrased version ready — click Apply to insert.';
+    refreshTokenBadge();
+  } catch (e) {
+    document.getElementById('m1-ai-status').textContent = 'Error: ' + e.message;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Rephrase Selection'; }
+  }
+}
+
+function _m1ApplyRephrase() {
+  if (!_m1SavedRange || !_m1RephraseVal) return;
+  const div = document.getElementById('m1-report-preview-div');
+  // Save entire div HTML for undo
+  _m1UndoData = div.innerHTML;
+  // Restore selection and replace
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(_m1SavedRange);
+  const range = sel.getRangeAt(0);
+  range.deleteContents();
+  range.insertNode(document.createTextNode(_m1RephraseVal));
+  sel.removeAllRanges();
+  _m1SavedRange  = null;
+  _m1RephraseVal = '';
+  document.getElementById('m1-rephrase-output').innerHTML = '';
+  document.getElementById('m1-ai-status').textContent = 'Applied. Select more text to continue editing.';
+  document.getElementById('m1-undo-bar').style.display = '';
+}
+
+function _m1UndoRephrase() {
+  if (_m1UndoData === null) return;
+  document.getElementById('m1-report-preview-div').innerHTML = _m1UndoData;
+  _m1UndoData = null;
+  document.getElementById('m1-undo-bar').style.display = 'none';
+  document.getElementById('m1-ai-status').textContent = 'Undo complete.';
+}
+
+let _m1AiAnswerRange    = null;
+let _m1AiAnswerText     = '';
+let _m1AiSelectedText   = '';   // original selected text saved when Ask AI is clicked
+
+async function _m1AskAI() {
+  const question = (document.getElementById('m1-ai-question').value || '').trim();
+  if (!question) {
+    document.getElementById('m1-ai-status').textContent = 'Please type a question first.';
+    return;
+  }
+
+  // Save selection: used as context AND as the target for Apply
+  const sel   = window.getSelection();
+  const div   = document.getElementById('m1-report-preview-div');
+  const inDiv = sel && sel.rangeCount > 0 && div.contains(sel.getRangeAt(0).startContainer);
+  _m1AiSelectedText = inDiv ? (sel.toString().trim()) : '';
+  _m1AiAnswerRange  = inDiv ? sel.getRangeAt(0).cloneRange() : null;
+  _m1AiAnswerText   = '';
+
+  const btn = document.getElementById('m1-ask-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Thinking…'; }
+  document.getElementById('m1-ai-status').textContent = 'Thinking…';
+  document.getElementById('m1-ai-answer').innerHTML = '';
+
+  try {
+    const r = await fetch('/m1_report_ai_suggest', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ question, context: _m1AiSelectedText }),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    _m1AiAnswerText = d.answer;
+
+    const hasSelection = !!_m1AiSelectedText;
+    const applyBtn = hasSelection
+      ? `<button class="btn btn-primary"
+                 id="m1-apply-btn"
+                 style="width:100%;margin-top:8px;font-size:.78rem;padding:7px 0;justify-content:center;"
+                 onclick="_m1ApplyToReport()">✏ Apply to Selected Section</button>`
+      : `<p style="font-size:.74rem;color:var(--muted);margin-top:8px;text-align:center;">
+           Tip: select a section in the report before asking to enable "Apply".
+         </p>`;
+
+    document.getElementById('m1-ai-answer').innerHTML =
+      `<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;
+                   padding:10px 11px;font-size:.81rem;line-height:1.65;margin-top:6px;
+                   white-space:pre-wrap;word-break:break-word;">${esc(d.answer)}</div>` +
+      applyBtn;
+    document.getElementById('m1-ai-status').textContent = '';
+    refreshTokenBadge();
+  } catch (e) {
+    document.getElementById('m1-ai-status').textContent = 'Error: ' + e.message;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Ask AI →'; }
+  }
+}
+
+async function _m1ApplyToReport() {
+  if (!_m1AiAnswerText || !_m1AiSelectedText) return;
+
+  const applyBtn = document.getElementById('m1-apply-btn');
+  if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Rewriting…'; }
+  document.getElementById('m1-ai-status').textContent = 'Rewriting section…';
+
+  try {
+    const r = await fetch('/m1_report_apply_suggestion', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ original: _m1AiSelectedText, advice: _m1AiAnswerText }),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+
+    const div = document.getElementById('m1-report-preview-div');
+    _m1UndoData = div.innerHTML;   // snapshot for undo
+
+    // Restore selection and replace with rewritten content
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(_m1AiAnswerRange);
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+
+    // Insert rewritten text, preserving line breaks as <br>
+    const frag = document.createDocumentFragment();
+    d.rewritten.split('\n').forEach((line, i) => {
+      if (i > 0) frag.appendChild(document.createElement('br'));
+      frag.appendChild(document.createTextNode(line));
+    });
+    range.insertNode(frag);
+    sel.removeAllRanges();
+
+    _m1AiAnswerRange  = null;
+    _m1AiSelectedText = '';
+    document.getElementById('m1-undo-bar').style.display = '';
+    document.getElementById('m1-ai-status').textContent = 'Done. Review the changes, then download.';
+    document.getElementById('m1-ai-answer').innerHTML =
+      '<div style="color:#15803d;font-size:.8rem;padding:6px 0;text-align:center;">✓ Section rewritten successfully.</div>';
+  } catch (e) {
+    document.getElementById('m1-ai-status').textContent = 'Error: ' + e.message;
+    if (applyBtn) { applyBtn.disabled = false; applyBtn.textContent = '✏ Apply to Selected Section'; }
+  }
+}
+
+async function downloadM1Report() {
+  const btn    = document.getElementById('btn-dl-m1-report');
+  const errDiv = document.getElementById('m1-preview-err');
+  errDiv.classList.add('hidden');
+  btn.disabled = true;
+  btn.textContent = 'Downloading…';
+  _startFakeProgress('dl-m1-progress', 5000, ['Generating document…', 'Formatting…', 'Almost ready…']);
+
+  const div = document.getElementById('m1-report-preview-div');
+  const fmt = S.m1PreviewFmt || 'docx';
+
+  const url     = fmt === 'txt' ? '/download_paper_from_text' : '/download_paper_from_html';
+  const payload = fmt === 'txt'
+    ? { text: div.innerText, fmt, label: 'Report', filename: 'Module1' }
+    : { html: div.innerHTML, fmt, label: 'Report', filename: 'Module1' };
+
+  try {
+    const r = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || 'Download failed');
+    }
+    const blob   = await r.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a      = document.createElement('a');
+    a.href = objUrl;
+    a.download = `Module1_Report.${fmt}`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(objUrl); a.remove(); }, 2000);
+  } catch (e) {
+    showErr('m1-preview-err', e.message);
+  } finally {
+    _stopFakeProgress('dl-m1-progress');
+    btn.disabled = false;
+    btn.textContent = '⬇ Download Report';
+  }
+}
+
+// ── Module 3 Report functions ─────────────────────────────────────────────────
+
+let _m3SavedRange  = null;
+let _m3RephraseVal = null;
+let _m3UndoData    = null;
+
+async function _previewModule3Report(clickedBtn) {
+  if (clickedBtn) { clickedBtn.disabled = true; clickedBtn.textContent = 'Generating…'; }
+  try {
+    const r = await fetch('/generate_module3_report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fmt: 'docx' }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d.error || 'Report generation failed.', 'error');
+      if (clickedBtn) { clickedBtn.disabled = false; clickedBtn.textContent = 'Preview & Edit →'; }
+      return;
+    }
+    const blob = await r.blob();
+    const html = await _docxBlobToHtml(blob);
+    document.getElementById('m3-report-preview-div').innerHTML = html;
+    pickM3Fmt('docx');
+    _m3SavedRange = null;
+    _m3UndoData   = null;
+    _m3RephraseVal = null;
+    document.getElementById('m3-ai-status').textContent = 'Select any text in the report, then click "Rephrase Selection".';
+    document.getElementById('m3-rephrase-output').innerHTML = '';
+    document.getElementById('m3-undo-bar').style.display = 'none';
+    refreshTokenBadge();
+    showSection('m3-preview');
+    document.querySelector('.container').classList.add('wide');
+  } catch(e) {
+    showToast('Report error: ' + e.message, 'error');
+    if (clickedBtn) { clickedBtn.disabled = false; clickedBtn.textContent = 'Preview & Edit →'; }
+  }
+}
+
+function pickM3Fmt(fmt) {
+  S.m3PreviewFmt = fmt;
+  document.querySelectorAll('[data-m3fmt]').forEach(el => {
+    el.classList.toggle('selected', el.dataset.m3fmt === fmt);
+  });
+}
+
+function toggleM3AiPanel() {
+  const panel   = document.getElementById('m3-ai-panel');
+  const toggle  = document.getElementById('m3-ai-panel-toggle');
+  const isOpen  = !panel.classList.contains('collapsed');
+  panel.classList.toggle('collapsed', isOpen);
+  if (toggle) toggle.textContent = isOpen ? '▶' : '◄';
+}
+
+async function _m3Rephrase() {
+  const btn      = document.getElementById('m3-rephrase-btn');
+  const statusEl = document.getElementById('m3-ai-status');
+  const outputEl = document.getElementById('m3-rephrase-output');
+
+  const sel  = window.getSelection();
+  const text = sel ? sel.toString().trim() : '';
+  if (!text || text.length < 5) {
+    statusEl.textContent = 'Select some text in the report first.';
+    return;
+  }
+  const div   = document.getElementById('m3-report-preview-div');
+  const inDiv = sel.rangeCount > 0 && div.contains(sel.getRangeAt(0).startContainer);
+  if (!inDiv) { statusEl.textContent = 'Select text inside the report.'; return; }
+  _m3SavedRange = sel.getRangeAt(0).cloneRange();
+
+  btn.disabled = true;
+  statusEl.innerHTML = '<span class="ai-spin">↻</span> Rephrasing…';
+  outputEl.innerHTML = '';
+  try {
+    const r = await fetch('/m1_report_apply_suggestion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ original: text, advice: 'Improve clarity, precision, and academic tone for an NBA/NAAC report.' }),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    _m3RephraseVal = d.rewritten;
+    statusEl.textContent = 'Click Apply to replace the selection.';
+    outputEl.innerHTML = `
+      <div style="border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:.8rem;line-height:1.5;margin-top:6px;background:rgba(225,29,72,.04);">
+        ${esc(_m3RephraseVal)}
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button class="btn btn-primary" style="font-size:.75rem;padding:4px 12px;background:#e11d48;border-color:#e11d48;" onclick="_m3ApplyRephrase()">Apply</button>
+        <button class="btn btn-ghost"   style="font-size:.75rem;padding:4px 12px;" onclick="_m3RephraseVal=null;document.getElementById('m3-rephrase-output').innerHTML='';document.getElementById('m3-ai-status').textContent='Discarded.';">Discard</button>
+      </div>`;
+  } catch(e) {
+    statusEl.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    refreshTokenBadge();
+  }
+}
+
+function _m3ApplyRephrase() {
+  if (!_m3SavedRange || !_m3RephraseVal) return;
+  const div = document.getElementById('m3-report-preview-div');
+  _m3UndoData = div.innerHTML;
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(_m3SavedRange);
+  if (!document.execCommand('insertText', false, _m3RephraseVal)) {
+    _m3SavedRange.deleteContents();
+    _m3SavedRange.insertNode(document.createTextNode(_m3RephraseVal));
+  }
+  _m3RephraseVal = null;
+  document.getElementById('m3-rephrase-output').innerHTML = '';
+  document.getElementById('m3-ai-status').textContent = 'Applied. Use Undo to revert.';
+  document.getElementById('m3-undo-bar').style.display = '';
+}
+
+function _m3UndoRephrase() {
+  if (_m3UndoData === null) return;
+  document.getElementById('m3-report-preview-div').innerHTML = _m3UndoData;
+  _m3UndoData = null;
+  document.getElementById('m3-undo-bar').style.display = 'none';
+  document.getElementById('m3-ai-status').textContent = 'Undo complete.';
+}
+
+async function _m3AskAI() {
+  const question = (document.getElementById('m3-ai-question').value || '').trim();
+  const statusEl = document.getElementById('m3-ai-status');
+  const answerEl = document.getElementById('m3-ai-answer');
+  const btn      = document.getElementById('m3-ask-btn');
+  if (!question) { statusEl.textContent = 'Type a question first.'; return; }
+
+  const sel   = window.getSelection();
+  const div   = document.getElementById('m3-report-preview-div');
+  const inDiv = sel && sel.rangeCount > 0 && div.contains(sel.getRangeAt(0).startContainer);
+  const ctx   = inDiv ? sel.toString().trim() : '';
+
+  btn.disabled = true;
+  statusEl.innerHTML = '<span class="ai-spin">↻</span> Thinking…';
+  answerEl.innerHTML = '';
+  try {
+    const r = await fetch('/m1_report_ai_suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, context: ctx }),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    statusEl.textContent = 'Answer:';
+    answerEl.innerHTML = `<div style="border:1px solid var(--border);border-radius:6px;padding:9px 11px;font-size:.8rem;line-height:1.55;margin-top:6px;white-space:pre-wrap;">${esc(d.answer)}</div>`;
+  } catch(e) {
+    statusEl.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    refreshTokenBadge();
+  }
+}
+
+async function downloadM3Report() {
+  const btn    = document.getElementById('btn-dl-m3-report');
+  const errDiv = document.getElementById('m3-preview-err');
+  errDiv.classList.add('hidden');
+  btn.disabled = true;
+  btn.textContent = 'Downloading…';
+  _startFakeProgress('dl-m3-progress', 5000, ['Generating document…', 'Formatting…', 'Almost ready…']);
+
+  const div = document.getElementById('m3-report-preview-div');
+  const fmt = S.m3PreviewFmt || 'docx';
+
+  const url     = fmt === 'txt' ? '/download_paper_from_text' : '/download_paper_from_html';
+  const payload = fmt === 'txt'
+    ? { text: div.innerText, fmt, label: 'Report', filename: 'Module3' }
+    : { html: div.innerHTML, fmt, label: 'Report', filename: 'Module3' };
+
+  try {
+    const r = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || 'Download failed');
+    }
+    const blob   = await r.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a      = document.createElement('a');
+    a.href = objUrl;
+    a.download = `Module3_Report.${fmt}`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(objUrl); a.remove(); }, 2000);
+  } catch(e) {
+    showErr('m3-preview-err', e.message);
+  } finally {
+    _stopFakeProgress('dl-m3-progress');
+    btn.disabled = false;
+    btn.textContent = '⬇ Download Report';
+  }
+}
+
+// ── Module 4 Report preview / download ───────────────────────────────────────
+
+let _m4SavedRange  = null;
+let _m4RephraseVal = null;
+let _m4UndoData    = null;
+
+async function _previewModule4Report(clickedBtn) {
+  if (clickedBtn) { clickedBtn.disabled = true; clickedBtn.textContent = 'Generating…'; }
+  try {
+    const r = await fetch('/generate_module4_report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fmt: 'docx',
+        course: S.selected || '',
+        pomap_rows: _aio.results['pomap'] || [],
+        coatt:      _aio.results['coatt'] || {},
+        poatt:      _aio.results['poatt'] || {},
+        sdgco:      _aio.results['sdgco'] || {},
+        sdgpo:      _aio.results['sdgpo'] || {},
+      }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      showToast(d.error || 'Report generation failed.', 'error');
+      return;
+    }
+    const blob = await r.blob();
+    const html = await _docxBlobToHtml(blob);
+    document.getElementById('m4-report-preview-div').innerHTML = html;
+    pickM4Fmt('docx');
+    _m4SavedRange = null;
+    _m4UndoData   = null;
+    _m4RephraseVal = null;
+    document.getElementById('m4-ai-status').textContent = 'Select any text in the report, then click "Rephrase Selection".';
+    document.getElementById('m4-rephrase-output').innerHTML = '';
+    showSection('m4-preview');
+  } catch(e) {
+    showToast('Failed: ' + e.message, 'error');
+  } finally {
+    if (clickedBtn) { clickedBtn.disabled = false; clickedBtn.textContent = 'Preview & Edit →'; }
+  }
+}
+
+function pickM4Fmt(fmt) {
+  S.m4PreviewFmt = fmt;
+  document.querySelectorAll('[data-m4fmt]').forEach(el => {
+    el.classList.toggle('selected', el.dataset.m4fmt === fmt);
+  });
+}
+
+function toggleM4AiPanel() {
+  const panel   = document.getElementById('m4-ai-panel');
+  const toggle  = document.getElementById('m4-ai-panel-toggle');
+  const isOpen  = !panel.classList.contains('collapsed');
+  panel.classList.toggle('collapsed', isOpen);
+  if (toggle) toggle.textContent = isOpen ? '▶' : '◄';
+}
+
+async function _m4Rephrase() {
+  const btn      = document.getElementById('m4-rephrase-btn');
+  const statusEl = document.getElementById('m4-ai-status');
+  const outputEl = document.getElementById('m4-rephrase-output');
+
+  const sel  = window.getSelection();
+  const text = sel ? sel.toString().trim() : '';
+  if (!text || text.length < 5) {
+    statusEl.textContent = 'Select some text in the report first.';
+    return;
+  }
+  const div   = document.getElementById('m4-report-preview-div');
+  const inDiv = sel.rangeCount > 0 && div.contains(sel.getRangeAt(0).startContainer);
+  if (!inDiv) { statusEl.textContent = 'Select text inside the report.'; return; }
+  _m4SavedRange = sel.getRangeAt(0).cloneRange();
+
+  btn.disabled = true;
+  statusEl.innerHTML = '<span class="ai-spin">↻</span> Rephrasing…';
+  outputEl.innerHTML = '';
+  try {
+    const r = await fetch('/m1_report_apply_suggestion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ original: text, advice: 'Improve clarity, precision, and academic tone for an NBA/NAAC assessment report.' }),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    _m4RephraseVal = d.rewritten;
+    statusEl.textContent = 'Click Apply to replace the selection.';
+    outputEl.innerHTML = `
+      <div style="border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:.8rem;line-height:1.5;margin-top:6px;background:rgba(5,150,105,.04);">
+        ${esc(_m4RephraseVal)}
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button class="btn btn-primary" style="font-size:.75rem;padding:4px 12px;background:#059669;border-color:#059669;" onclick="_m4ApplyRephrase()">Apply</button>
+        <button class="btn btn-ghost"   style="font-size:.75rem;padding:4px 12px;" onclick="_m4RephraseVal=null;document.getElementById('m4-rephrase-output').innerHTML='';document.getElementById('m4-ai-status').textContent='Discarded.';">Discard</button>
+      </div>`;
+  } catch(e) {
+    statusEl.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    refreshTokenBadge();
+  }
+}
+
+function _m4ApplyRephrase() {
+  if (!_m4SavedRange || !_m4RephraseVal) return;
+  const div = document.getElementById('m4-report-preview-div');
+  _m4UndoData = div.innerHTML;
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(_m4SavedRange);
+  if (!document.execCommand('insertText', false, _m4RephraseVal)) {
+    _m4SavedRange.deleteContents();
+    _m4SavedRange.insertNode(document.createTextNode(_m4RephraseVal));
+  }
+  _m4RephraseVal = null;
+  document.getElementById('m4-rephrase-output').innerHTML = '';
+  document.getElementById('m4-ai-status').textContent = 'Applied. Use Undo to revert.';
+  document.getElementById('m4-undo-bar').style.display = '';
+}
+
+function _m4UndoRephrase() {
+  if (_m4UndoData === null) return;
+  document.getElementById('m4-report-preview-div').innerHTML = _m4UndoData;
+  _m4UndoData = null;
+  document.getElementById('m4-undo-bar').style.display = 'none';
+  document.getElementById('m4-ai-status').textContent = 'Undo complete.';
+}
+
+async function _m4AskAI() {
+  const question = (document.getElementById('m4-ai-question').value || '').trim();
+  const statusEl = document.getElementById('m4-ai-status');
+  const answerEl = document.getElementById('m4-ai-answer');
+  const btn      = document.getElementById('m4-ask-btn');
+  if (!question) { statusEl.textContent = 'Type a question first.'; return; }
+
+  const sel   = window.getSelection();
+  const div   = document.getElementById('m4-report-preview-div');
+  const inDiv = sel && sel.rangeCount > 0 && div.contains(sel.getRangeAt(0).startContainer);
+  const ctx   = inDiv ? sel.toString().trim() : '';
+
+  btn.disabled = true;
+  statusEl.innerHTML = '<span class="ai-spin">↻</span> Thinking…';
+  answerEl.innerHTML = '';
+  try {
+    const r = await fetch('/m1_report_ai_suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, context: ctx }),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    statusEl.textContent = 'Answer:';
+    answerEl.innerHTML = `<div style="border:1px solid var(--border);border-radius:6px;padding:9px 11px;font-size:.8rem;line-height:1.55;margin-top:6px;white-space:pre-wrap;">${esc(d.answer)}</div>`;
+  } catch(e) {
+    statusEl.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    refreshTokenBadge();
+  }
+}
+
+async function downloadM4Report() {
+  const btn    = document.getElementById('btn-dl-m4-report');
+  const errDiv = document.getElementById('m4-preview-err');
+  errDiv.classList.add('hidden');
+  btn.disabled = true;
+  btn.textContent = 'Downloading…';
+  _startFakeProgress('dl-m4-progress', 5000, ['Generating document…', 'Formatting…', 'Almost ready…']);
+
+  const div = document.getElementById('m4-report-preview-div');
+  const fmt = S.m4PreviewFmt || 'docx';
+
+  const url     = fmt === 'txt' ? '/download_paper_from_text' : '/download_paper_from_html';
+  const payload = fmt === 'txt'
+    ? { text: div.innerText, fmt, label: 'Report', filename: 'Module4' }
+    : { html: div.innerHTML, fmt, label: 'Report', filename: 'Module4' };
+
+  try {
+    const r = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || 'Download failed');
+    }
+    const blob   = await r.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a      = document.createElement('a');
+    a.href = objUrl;
+    a.download = `Module4_Report.${fmt}`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(objUrl); a.remove(); }, 2000);
+  } catch(e) {
+    showErr('m4-preview-err', e.message);
+  } finally {
+    _stopFakeProgress('dl-m4-progress');
+    btn.disabled = false;
+    btn.textContent = '⬇ Download Report';
+  }
+}
+
 async function _aioDownload(toolId, fmt) {
   const code = S.selected || '';
   let url, bodyData;
@@ -6063,12 +7800,23 @@ async function _aioDownload(toolId, fmt) {
       url = '/export_lp'; bodyData = { fmt }; break;
     case 'teachingdiary':
       url = '/export_td'; bodyData = { fmt }; break;
-    case 'sdgco':
-      url = '/export_sdg_co'; bodyData = { fmt, data: _aio.results[toolId] }; break;
+    case 'sdgco': {
+      const res = _aio.results[toolId] || {};
+      if (res.matrix) {
+        url = '/export_sdg_co_all';
+        bodyData = { fmt, data: { ...res, course: S.selected || '', courseTitle: '' } };
+      } else {
+        url = '/export_sdg_co';
+        bodyData = { fmt, data: res };
+      }
+      break;
+    }
     case 'sdgpo':
       url = '/export_sdg_po'; bodyData = { fmt, data: _aio.results[toolId] }; break;
     case 'coatt':
       url = '/export_co_attainment'; bodyData = { fmt, data: _aio.results[toolId] }; break;
+    case 'poatt':
+      url = '/export_po_attainment'; bodyData = { fmt, data: _aio.results[toolId] }; break;
     default: return;
   }
 

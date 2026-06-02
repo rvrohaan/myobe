@@ -123,8 +123,8 @@
     <h2 id="qb-gen-title">Generating Question Bank…</h2>
     <p class="sub" id="qb-gen-sub"></p>
     <div class="uni-progress" id="qb-gen-progress">
-      <span class="uni-progress-label" id="qb-gen-status-label">Generating Question Bank…</span>
-      <div class="uni-progress-track"><div class="uni-progress-fill" id="qb-progress-fill" style="width:0%"></div></div>
+      <span class="uni-progress-label" id="qb-gen-status-label">Generating Question Bank...</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill" id="qb-progress-fill" style="width:0%;transition:width .5s ease;"></div></div>
     </div>
     <div class="stream-output" id="qb-stream-out"></div>
   </div>
@@ -156,4 +156,82 @@
       <div class="uni-progress-track"><div class="uni-progress-fill"></div></div>
     </div>
     <div class="alert alert-error hidden" id="qb-exp-err"></div>
+  </div>
+
+  <!-- ── Module 1 Report Preview ──────────────────────────────────────────── -->
+  <div id="sec-m1-preview" class="card hidden">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <h2 style="margin:0;">Report Preview</h2>
+      <button class="btn btn-ghost" style="padding:4px 10px;font-size:.78rem;" onclick="toggleM1AiPanel()">AI Assistant</button>
+    </div>
+    <p class="sub">Review and edit the report. Select text to rephrase it, or ask the AI any question about the report — e.g. "How can I increase scenario coverage?"</p>
+
+    <div class="preview-layout">
+      <div id="m1-report-preview-div" contenteditable="true" spellcheck="false"></div>
+
+      <div class="ai-panel" id="m1-ai-panel">
+        <div class="ai-panel-header" onclick="toggleM1AiPanel()">
+          <span class="ai-panel-title">AI Assistant</span>
+          <span class="ai-panel-toggle" id="m1-ai-panel-toggle">◀</span>
+        </div>
+        <div class="ai-panel-body">
+
+          <!-- ── Edit section ── -->
+          <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Edit Content</div>
+          <button id="m1-rephrase-btn" class="btn btn-primary"
+            style="width:100%;font-size:.78rem;padding:6px 0;justify-content:center;"
+            onclick="_m1Rephrase()">Rephrase Selection</button>
+          <div id="m1-rephrase-output" style="margin-top:8px;"></div>
+          <div id="m1-undo-bar" style="display:none;margin-top:6px;">
+            <button class="btn btn-ghost"
+              style="width:100%;font-size:.75rem;padding:5px 0;text-align:center;border-color:#f59e0b;color:#92400e;background:#fffbeb;"
+              onclick="_m1UndoRephrase()">↩ Undo last change</button>
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px;">
+
+          <!-- ── Ask AI section ── -->
+          <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;">Ask AI</div>
+          <textarea id="m1-ai-question" rows="6"
+            placeholder="e.g. How can I increase scenario coverage? What Bloom's level should CO3 target? How do I improve QQI score?"
+            style="width:100%;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:.82rem;background:var(--bg);color:var(--text);resize:vertical;min-height:120px;font-family:inherit;outline:none;box-sizing:border-box;line-height:1.5;"
+            onkeydown="if(event.ctrlKey&&event.key==='Enter')_m1AskAI()"></textarea>
+          <div style="font-size:.7rem;color:var(--muted);margin:4px 0 7px;">
+            Select text for context · Ctrl+Enter to submit
+          </div>
+          <button id="m1-ask-btn" class="btn btn-ghost"
+            style="width:100%;font-size:.78rem;padding:6px 0;justify-content:center;border-color:var(--primary);color:var(--primary);"
+            onclick="_m1AskAI()">Ask AI →</button>
+
+          <div class="ai-status-msg" id="m1-ai-status" style="margin-top:8px;">Select text or type a question above.</div>
+          <div id="m1-ai-answer"></div>
+
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:.85rem;font-weight:600;color:var(--muted);margin-top:20px;margin-bottom:10px;">Download format</p>
+    <div class="format-grid">
+      <div class="fmt-card" data-m1fmt="txt"  onclick="pickM1Fmt('txt')">
+        <div class="fmt-icon">📝</div><div class="fmt-label">Text</div>
+      </div>
+      <div class="fmt-card selected" data-m1fmt="docx" onclick="pickM1Fmt('docx')">
+        <div class="fmt-icon">📘</div><div class="fmt-label">Word</div>
+      </div>
+      <div class="fmt-card" data-m1fmt="pdf"  onclick="pickM1Fmt('pdf')">
+        <div class="fmt-icon">📕</div><div class="fmt-label">PDF</div>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" onclick="showSection('aio-done');">← Back</button>
+      <span class="spacer"></span>
+      <button class="btn btn-primary" id="btn-dl-m1-report" onclick="downloadM1Report()">⬇ Download Report</button>
+      <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
+    </div>
+    <div class="uni-progress hidden" id="dl-m1-progress">
+      <span class="uni-progress-label">Generating document…</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill"></div></div>
+    </div>
+    <div class="alert alert-error hidden" id="m1-preview-err"></div>
   </div>

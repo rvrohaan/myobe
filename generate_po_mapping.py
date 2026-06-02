@@ -76,6 +76,305 @@ POS = [
 PO_KEYS = [p[0] for p in POS]   # ["PO1", ..., "PO12"]
 
 
+# ── Multi-college PO frameworks ───────────────────────────────────────────────
+# Each entry: (key, name, description_with_scoring_guide)
+
+POS_BY_TYPE = {
+
+    "engineering": POS,  # NBA standard (above)
+
+    "medical": [
+        ("PO1",  "Clinician",
+         "Diagnose and manage common and important health problems using sound clinical reasoning and evidence-based medicine. "
+         "1=Identifies symptoms; 2=Diagnoses and prescribes; 3=Manages complex cases independently."),
+        ("PO2",  "Communicator",
+         "Communicate effectively with patients, families, and the healthcare team — oral, written, and empathetic communication. "
+         "1=Basic communication; 2=Clear patient counselling; 3=Handles sensitive/complex communication."),
+        ("PO3",  "Life-long Learner",
+         "Engage in self-directed learning, critical appraisal of literature, and reflective practice throughout one's career. "
+         "1=Identifies learning needs; 2=Pursues evidence independently; 3=Mentors others and drives improvement."),
+        ("PO4",  "Researcher",
+         "Apply research methodology, critically evaluate medical literature, and contribute to evidence-based clinical practice. "
+         "1=Reads and understands research; 2=Applies evidence to practice; 3=Designs and conducts studies."),
+        ("PO5",  "Professional & Ethical Practitioner",
+         "Uphold professional ethics, patient rights, confidentiality, and responsibilities under NMC regulations. "
+         "1=Aware of codes; 2=Applies ethical reasoning in routine cases; 3=Advocates and resolves ethical dilemmas."),
+        ("PO6",  "Health System Leader",
+         "Understand health systems, health policy, team-based care, and contribute to improving healthcare delivery. "
+         "1=Aware of system roles; 2=Participates in team leadership; 3=Initiates quality improvement."),
+        ("PO7",  "Community Health Advocate",
+         "Apply principles of preventive medicine, public health, and social determinants to improve community health. "
+         "1=Understands preventive care; 2=Delivers community interventions; 3=Designs public health programs."),
+        ("PO8",  "Clinical & Procedural Skills",
+         "Perform core clinical examinations, procedures, and emergency interventions safely and competently. "
+         "1=Observes and assists; 2=Performs under supervision; 3=Performs independently and teaches others."),
+        ("PO9",  "Critical Thinking",
+         "Apply evidence-based reasoning to clinical decisions, interpret investigations, and manage uncertainty. "
+         "1=Uses protocols; 2=Applies EBM to routine decisions; 3=Synthesises evidence for complex situations."),
+        ("PO10", "Collaboration & Team Work",
+         "Function effectively in inter-professional healthcare teams, respecting roles and fostering shared goals. "
+         "1=Participates; 2=Contributes and coordinates; 3=Leads multidisciplinary teams."),
+        ("PO11", "Patient Safety & Quality",
+         "Identify and mitigate clinical risks, report adverse events, and champion a culture of safety. "
+         "1=Aware of safety protocols; 2=Applies safety checklists; 3=Leads safety initiatives."),
+        ("PO12", "Social Accountability",
+         "Practice medicine with awareness of social equity, cultural diversity, and responsibility to under-served populations. "
+         "1=Aware of disparities; 2=Adapts care to diverse patients; 3=Advocates for health equity."),
+    ],
+
+    "dental": [
+        ("PO1",  "Clinical Competence",
+         "Diagnose, treatment-plan, and execute dental procedures across preventive, restorative, surgical, and prosthodontic domains. "
+         "1=Observes and assists; 2=Performs under supervision; 3=Independent and complex case management."),
+        ("PO2",  "Oral Health Promotion",
+         "Educate patients and communities on oral hygiene, dietary habits, and preventive dentistry. "
+         "1=Provides basic OHI; 2=Tailors preventive plans; 3=Designs community oral health programs."),
+        ("PO3",  "Communication & Patient Management",
+         "Communicate clearly with patients, manage dental anxiety, and obtain informed consent. "
+         "1=Basic communication; 2=Counsels on treatment options; 3=Handles complex/anxious patients."),
+        ("PO4",  "Evidence-Based Practice & Research",
+         "Critically appraise dental literature and apply research findings to improve clinical outcomes. "
+         "1=Reads studies; 2=Applies evidence to practice; 3=Conducts and publishes research."),
+        ("PO5",  "Professional Ethics & Law",
+         "Uphold DCI regulations, patient confidentiality, informed consent, and ethical professional conduct. "
+         "1=Knows regulations; 2=Applies ethics in standard cases; 3=Resolves complex ethical issues."),
+        ("PO6",  "Public & Community Dentistry",
+         "Apply epidemiology, oral health policy, and screening programs to improve population-level oral health. "
+         "1=Understands public dental health; 2=Participates in camps/screening; 3=Leads community programs."),
+        ("PO7",  "Critical Thinking & Clinical Reasoning",
+         "Formulate differential diagnoses, investigate, and make evidence-informed clinical decisions. "
+         "1=Follows protocols; 2=Analyses cases; 3=Handles diagnostically complex cases."),
+        ("PO8",  "Dental Technology & Innovation",
+         "Use modern dental materials, digital dentistry tools (CAD/CAM, CBCT), and emerging technologies. "
+         "1=Uses standard materials; 2=Applies digital workflows; 3=Evaluates and adopts innovations."),
+        ("PO9",  "Practice Management & Leadership",
+         "Manage dental practice operations, staff, compliance, and quality assurance. "
+         "1=Aware of management concepts; 2=Manages routine operations; 3=Leads and grows practice."),
+        ("PO10", "Team Work & Collaboration",
+         "Work effectively in dental teams including dental hygienists, technicians, and specialists. "
+         "1=Participates; 2=Coordinates within team; 3=Leads inter-professional dental team."),
+        ("PO11", "Life-long Learning",
+         "Engage in CPD, self-assessment, and staying current with advances in dental science and technology. "
+         "1=Attends CME; 2=Self-directs learning; 3=Contributes to dental education."),
+        ("PO12", "Patient Safety & Infection Control",
+         "Follow sterilisation protocols, cross-infection prevention, and patient safety standards. "
+         "1=Knows protocols; 2=Implements consistently; 3=Audits and improves safety systems."),
+    ],
+
+    "law": [
+        ("PO1",  "Legal Knowledge",
+         "Demonstrate comprehensive knowledge of substantive and procedural law across core subjects. "
+         "1=Recalls rules and statutes; 2=Applies law to facts; 3=Analyses unsettled law and policy rationale."),
+        ("PO2",  "Legal Reasoning & Analysis",
+         "Identify legal issues, construct logical arguments, apply precedent, and reach reasoned conclusions. "
+         "1=Spot issues; 2=Analyse and argue both sides; 3=Critically synthesise complex multi-issue problems."),
+        ("PO3",  "Legal Research",
+         "Conduct primary and secondary legal research using databases, law reports, and academic sources. "
+         "1=Locates basic statutes; 2=Finds and summarises case law; 3=Independently researches novel legal issues."),
+        ("PO4",  "Legal Drafting & Writing",
+         "Draft precise, clear, and legally sound documents — pleadings, contracts, opinions, and briefs. "
+         "1=Drafts with guidance; 2=Prepares standard documents; 3=Drafts complex transactional or litigious documents."),
+        ("PO5",  "Advocacy & Communication",
+         "Deliver persuasive oral arguments, cross-examine witnesses, and present legal submissions effectively. "
+         "1=Basic presentation; 2=Constructs arguments; 3=Skilled court advocacy and negotiation."),
+        ("PO6",  "Client Counselling & ADR",
+         "Advise clients, manage expectations, and use mediation, arbitration, or negotiation to resolve disputes. "
+         "1=Interviews and listens; 2=Advises on legal options; 3=Leads ADR processes."),
+        ("PO7",  "Professional Ethics & Responsibility",
+         "Uphold BCI rules, duties to court, client confidentiality, and the rule of law. "
+         "1=Knows Bar rules; 2=Applies ethics in standard situations; 3=Navigates complex ethical conflicts."),
+        ("PO8",  "Social Justice & Access to Justice",
+         "Promote access to legal services, pro-bono work, and understand law's role in social equity. "
+         "1=Aware of access issues; 2=Participates in legal aid; 3=Advocates for systemic reform."),
+        ("PO9",  "Transactional & Business Law Skills",
+         "Structure transactions, negotiate contracts, advise on corporate, commercial, and financial law. "
+         "1=Understands basic commercial concepts; 2=Advises on standard transactions; 3=Leads complex M&A/transactions."),
+        ("PO10", "Leadership & Management",
+         "Manage legal practice or team, mentor junior lawyers, and contribute to law firm or organisational leadership. "
+         "1=Aware of management roles; 2=Coordinates within team; 3=Leads practice/organisation."),
+        ("PO11", "Technology & Legal Innovation",
+         "Use legal technology tools (LegalTech, e-discovery, AI), and adapt to digital legal practice. "
+         "1=Uses basic tools; 2=Applies legal tech in practice; 3=Evaluates and adopts emerging technologies."),
+        ("PO12", "Life-long Learning",
+         "Commit to CPD, stay updated on legislative changes, and contribute to legal scholarship. "
+         "1=Attends CLEs; 2=Self-directed learning; 3=Publishes or contributes to legal knowledge."),
+    ],
+
+    "pharmacy": [
+        ("PO1",  "Pharmaceutical Sciences Knowledge",
+         "Apply knowledge of pharmaceutical sciences including pharmaceutics, pharmacology, and medicinal chemistry. "
+         "1=Recalls concepts; 2=Applies to formulation/dispensing; 3=Solves complex pharmaceutical problems."),
+        ("PO2",  "Pharmaceutical Care & Patient Counselling",
+         "Provide patient-centred pharmaceutical care including drug therapy review, counselling, and adherence support. "
+         "1=Basic dispensing; 2=Counsels on drug use; 3=Manages complex pharmacotherapy cases."),
+        ("PO3",  "Drug Information & Clinical Pharmacology",
+         "Evaluate and communicate accurate drug information to patients and healthcare professionals. "
+         "1=Uses references; 2=Interprets and applies drug data; 3=Provides expert drug information."),
+        ("PO4",  "Pharmaceutical R&D & Formulation",
+         "Apply principles of drug formulation, drug delivery systems, and pharmaceutical product development. "
+         "1=Understands formulation basics; 2=Develops standard formulations; 3=Designs novel drug delivery."),
+        ("PO5",  "Quality Assurance & Regulatory Affairs",
+         "Apply GMP, GLP, ICH guidelines, and regulatory requirements to ensure drug safety and quality. "
+         "1=Knows quality standards; 2=Implements QA protocols; 3=Leads regulatory submissions."),
+        ("PO6",  "Communication & Interprofessional Collaboration",
+         "Communicate effectively with patients, prescribers, and healthcare teams in oral and written form. "
+         "1=Basic communication; 2=Collaborates in care team; 3=Leads inter-professional medication management."),
+        ("PO7",  "Professional Ethics & Law",
+         "Uphold Pharmacy Act, PCI regulations, drug laws, and professional ethical conduct. "
+         "1=Knows regulations; 2=Applies ethics in dispensing; 3=Navigates complex ethical issues."),
+        ("PO8",  "Public Health & Community Pharmacy",
+         "Contribute to public health through immunisation, health screening, disease prevention, and health education. "
+         "1=Aware of public health role; 2=Participates in health promotion; 3=Designs community pharmacy programs."),
+        ("PO9",  "Critical Thinking & Evidence-Based Practice",
+         "Evaluate clinical evidence and apply pharmacoeconomics to support rational drug use decisions. "
+         "1=Uses standard references; 2=Critically evaluates evidence; 3=Develops EBP recommendations."),
+        ("PO10", "Pharmacy Entrepreneurship & Management",
+         "Manage pharmacy operations, understand pharmacoeconomics, and develop entrepreneurial mindset. "
+         "1=Aware of business concepts; 2=Manages routine operations; 3=Develops and leads pharmacy business."),
+        ("PO11", "Pharmaceutical Technology & Automation",
+         "Use modern pharmaceutical manufacturing equipment, automation, and digital pharmacy tools. "
+         "1=Operates standard equipment; 2=Applies technology in practice; 3=Evaluates and implements innovations."),
+        ("PO12", "Life-long Learning",
+         "Commit to CPD, stay updated on pharmacotherapy advances, and contribute to pharmacy practice. "
+         "1=Attends CME; 2=Self-directed learning; 3=Mentors others and contributes to scholarship."),
+    ],
+
+    "management": [
+        ("PO1",  "Business & Management Knowledge",
+         "Apply core management concepts — strategy, marketing, finance, HR, operations — to business decisions. "
+         "1=Recalls frameworks; 2=Applies to cases; 3=Synthesises across domains for complex decisions."),
+        ("PO2",  "Critical Thinking & Problem Solving",
+         "Analyse business problems, evaluate alternatives, and make evidence-informed strategic decisions. "
+         "1=Identifies problems; 2=Analyses and recommends; 3=Designs innovative solutions under uncertainty."),
+        ("PO3",  "Communication & Presentation",
+         "Communicate business ideas effectively through reports, presentations, and digital media. "
+         "1=Basic presentation; 2=Clear business communication; 3=Persuasive executive-level communication."),
+        ("PO4",  "Leadership & Organisational Behaviour",
+         "Lead teams, manage change, and demonstrate interpersonal and motivational leadership skills. "
+         "1=Understands leadership theory; 2=Applies in team roles; 3=Leads change and inspires performance."),
+        ("PO5",  "Business Ethics & CSR",
+         "Apply ethical frameworks to business decisions, uphold corporate governance, and drive CSR initiatives. "
+         "1=Aware of ethics codes; 2=Applies in business scenarios; 3=Champions ethical leadership."),
+        ("PO6",  "Entrepreneurship & Innovation",
+         "Identify opportunities, develop business models, manage risk, and launch new ventures or products. "
+         "1=Understands entrepreneurship; 2=Develops business plan; 3=Launches and scales a venture."),
+        ("PO7",  "Global Business Perspective",
+         "Analyse international business environments, cross-cultural management, and global trade dynamics. "
+         "1=Aware of globalisation; 2=Analyses international markets; 3=Develops global business strategy."),
+        ("PO8",  "Quantitative & Financial Analysis",
+         "Apply statistical analysis, financial modelling, and data interpretation to business decisions. "
+         "1=Performs basic calculations; 2=Builds models; 3=Derives strategic insights from data."),
+        ("PO9",  "Digital Business & Technology",
+         "Leverage digital platforms, data analytics, and emerging technologies for business advantage. "
+         "1=Uses standard tools; 2=Applies analytics; 3=Designs digital business transformation."),
+        ("PO10", "Team Work & Collaboration",
+         "Work effectively in diverse and cross-functional teams, respecting differences and driving shared outcomes. "
+         "1=Participates; 2=Contributes and coordinates; 3=Leads diverse teams to outcomes."),
+        ("PO11", "Research & Applied Learning",
+         "Design and conduct business research, apply methodologies, and translate findings to practice. "
+         "1=Reads and summarises; 2=Conducts guided research; 3=Designs and publishes independent research."),
+        ("PO12", "Life-long Learning & Adaptability",
+         "Adapt to changing business environments, pursue continuous learning, and develop professionally. "
+         "1=Attends workshops; 2=Self-directed upskilling; 3=Leads learning culture in organisation."),
+    ],
+
+    "architecture": [
+        ("PO1",  "Design Thinking & Creativity",
+         "Generate, develop, and communicate innovative architectural design concepts for diverse programmes and contexts. "
+         "1=Follows briefs; 2=Develops original concepts; 3=Creates culturally and functionally complex designs."),
+        ("PO2",  "Building Technology & Construction",
+         "Apply knowledge of structural systems, building materials, and construction technology to design. "
+         "1=Identifies materials/systems; 2=Integrates technology into design; 3=Innovates with construction methods."),
+        ("PO3",  "Environmental Sustainability & Climate",
+         "Design for passive climate control, energy efficiency, green buildings, and sustainable urban development. "
+         "1=Aware of sustainability; 2=Applies green design; 3=Leads net-zero or bioclimatic projects."),
+        ("PO4",  "Architectural History & Theory",
+         "Analyse the historical, philosophical, and cultural context of architecture and apply critical theory to design. "
+         "1=Identifies styles/periods; 2=Analyses precedents; 3=Develops theory-informed design arguments."),
+        ("PO5",  "Structural Systems",
+         "Select and integrate appropriate structural systems in architectural design with awareness of loads and safety. "
+         "1=Identifies structural types; 2=Integrates structure in design; 3=Innovates with structural expression."),
+        ("PO6",  "Building Services & MEP",
+         "Integrate mechanical, electrical, plumbing, and fire safety systems into building design. "
+         "1=Aware of services; 2=Coordinates services in design; 3=Leads integrated building performance design."),
+        ("PO7",  "Urban Design & Planning",
+         "Understand urban morphology, land use, master planning, and contribute to equitable urban environments. "
+         "1=Reads urban context; 2=Designs at urban scale; 3=Leads urban regeneration projects."),
+        ("PO8",  "Professional Practice & Ethics",
+         "Uphold COA regulations, manage project delivery, contracts, client relations, and professional ethics. "
+         "1=Knows regulations; 2=Manages standard projects; 3=Leads complex multi-stakeholder projects."),
+        ("PO9",  "Representation & Communication",
+         "Produce architectural drawings, models, renders, and presentations that communicate design intent. "
+         "1=Manual and CAD drawing; 2=Advanced visualisation; 3=Compelling multi-media presentations."),
+        ("PO10", "Research & Critical Inquiry",
+         "Conduct architectural research, evaluate built work, and contribute to design knowledge. "
+         "1=Reads architectural literature; 2=Conducts guided research; 3=Publishes original research."),
+        ("PO11", "Inclusive & Accessible Design",
+         "Design spaces that are universally accessible, socially inclusive, and responsive to diverse user needs. "
+         "1=Aware of accessibility standards; 2=Applies inclusive design principles; 3=Champions universal design."),
+        ("PO12", "Life-long Learning & Professional Development",
+         "Engage in CPD, develop expertise in specialist areas, and contribute to architectural profession. "
+         "1=Attends seminars; 2=Self-directed specialisation; 3=Mentors and contributes to discourse."),
+    ],
+
+    "agriculture": [
+        ("PO1",  "Crop Production & Agronomy",
+         "Apply principles of crop science, agronomy, and soil science for sustainable food and fibre production. "
+         "1=Identifies crops and practices; 2=Plans crop production; 3=Optimises for productivity and sustainability."),
+        ("PO2",  "Soil, Water & Resource Management",
+         "Manage soil fertility, water resources, and land use for productive and sustainable agriculture. "
+         "1=Understands soil-water relations; 2=Implements conservation practices; 3=Designs watershed programs."),
+        ("PO3",  "Plant Protection & Pest Management",
+         "Diagnose and manage crop diseases, pests, and weeds using IPM and biocontrol strategies. "
+         "1=Identifies pests and diseases; 2=Applies control measures; 3=Designs IPM programs."),
+        ("PO4",  "Agricultural Engineering & Mechanisation",
+         "Apply farm machinery, irrigation technology, and post-harvest equipment to improve farm efficiency. "
+         "1=Operates machinery; 2=Selects and applies equipment; 3=Designs and evaluates mechanisation systems."),
+        ("PO5",  "Agricultural Economics & Farm Management",
+         "Apply economic principles, marketing, and financial management to farming and agribusiness. "
+         "1=Understands farm accounts; 2=Prepares farm plans; 3=Leads agribusiness ventures."),
+        ("PO6",  "Research Methods & Data Analysis",
+         "Design field experiments, analyse agricultural data, and interpret results for recommendation. "
+         "1=Assists in experiments; 2=Designs and conducts trials; 3=Publishes research findings."),
+        ("PO7",  "Sustainability & Environmental Stewardship",
+         "Adopt sustainable agricultural practices that conserve biodiversity, reduce emissions, and improve ecosystem services. "
+         "1=Aware of sustainability; 2=Applies sustainable practices; 3=Designs climate-resilient systems."),
+        ("PO8",  "Extension & Rural Communication",
+         "Transfer technology to farmers through extension services, demonstrations, and rural communication. "
+         "1=Communicates with farmers; 2=Organises demonstrations; 3=Leads extension programs."),
+        ("PO9",  "Post-Harvest Technology & Food Safety",
+         "Apply principles of post-harvest management, food processing, and quality assurance in agri-food chains. "
+         "1=Knows post-harvest basics; 2=Applies processing techniques; 3=Designs food safety systems."),
+        ("PO10", "Entrepreneurship & Agribusiness",
+         "Develop entrepreneurial skills to create value-added products, agri-startups, and rural enterprises. "
+         "1=Aware of agribusiness; 2=Develops business plan; 3=Launches and scales rural enterprise."),
+        ("PO11", "Digital Agriculture & Precision Farming",
+         "Use drones, IoT, remote sensing, and data analytics for precision agriculture and smart farming. "
+         "1=Uses basic digital tools; 2=Applies precision farming; 3=Designs smart agriculture systems."),
+        ("PO12", "Professional Ethics & Governance",
+         "Practice agriculture with integrity, follow ICAR regulations, and contribute to agricultural policy. "
+         "1=Knows regulatory framework; 2=Applies ethical practices; 3=Advocates for science-based policy."),
+    ],
+}
+
+# Mapping college_type → display metadata
+COLLEGE_TYPE_META = {
+    "engineering":   {"label": "Engineering",            "accreditation": "NBA/NAAC",   "short": "Engg"},
+    "medical":       {"label": "Medical",                "accreditation": "NMC",        "short": "Med"},
+    "dental":        {"label": "Dental",                 "accreditation": "DCI",        "short": "Dent"},
+    "law":           {"label": "Law",                    "accreditation": "BCI",        "short": "Law"},
+    "pharmacy":      {"label": "Pharmacy",               "accreditation": "PCI",        "short": "Pharm"},
+    "management":    {"label": "Management",             "accreditation": "AICTE/AACSB","short": "Mgmt"},
+    "architecture":  {"label": "Architecture & Planning","accreditation": "COA",        "short": "Arch"},
+    "agriculture":   {"label": "Agriculture & Allied",   "accreditation": "ICAR/ICAR",  "short": "Agri"},
+}
+
+
+def get_pos_for_type(college_type: str) -> list:
+    """Return the PO list for a given college type (defaults to engineering)."""
+    return POS_BY_TYPE.get(college_type or "engineering", POS)
+
+
 # ── CO / course parsing ───────────────────────────────────────────────────────
 
 def parse_cos_for_mapping(text: str) -> list[dict]:

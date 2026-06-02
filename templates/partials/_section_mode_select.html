@@ -35,58 +35,137 @@
     .greeting-stat strong { display: block; font-size: 1.3rem; font-weight: 800; color: #fff; }
     .greeting-stat span { font-size: .68rem; color: rgba(255,255,255,.45); text-transform: uppercase; letter-spacing: .05em; }
 
-    /* ── Mode grid ── */
-    .mode-select-card { margin-bottom: 20px; }
-    .mode-select-card h2 { font-size: 1.05rem; margin-bottom: 4px; }
-    .mode-grid {
+    /* ── Module grid (2×2) ── */
+    .module-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
     }
-    @media (max-width: 700px) { .mode-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 440px) { .mode-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { .module-grid { grid-template-columns: 1fr; } }
 
-    .mode-card {
+    .module-card {
       border: 1.5px solid var(--border);
-      border-radius: 14px;
-      padding: 22px 20px;
+      border-radius: 16px;
+      padding: 26px 22px 22px;
       cursor: pointer;
-      text-align: left;
       position: relative; overflow: hidden;
       background: var(--card);
       transition: transform .22s cubic-bezier(.2,.8,.4,1), box-shadow .22s, border-color .2s;
       animation: fadeInUp .32s ease both;
+      display: flex; flex-direction: column;
     }
-    .mode-card::after {
+    .module-card::after {
       content: '';
-      position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      position: absolute; bottom: 0; left: 0; right: 0; height: 4px;
       background: var(--mc-accent, var(--primary));
       transform: scaleX(0); transform-origin: left;
       transition: transform .25s cubic-bezier(.2,.8,.4,1);
     }
-    .mode-card:hover { transform: translateY(-5px); box-shadow: 0 12px 36px rgba(0,0,0,.1); border-color: rgba(99,102,241,.25); }
-    .mode-card:hover::after { transform: scaleX(1); }
+    .module-card:hover { transform: translateY(-6px); box-shadow: 0 14px 40px rgba(0,0,0,.13); border-color: rgba(99,102,241,.28); }
+    .module-card:hover::after { transform: scaleX(1); }
 
-    .mode-grid .mode-card:nth-child(1) { animation-delay: .04s; }
-    .mode-grid .mode-card:nth-child(2) { animation-delay: .09s; }
-    .mode-grid .mode-card:nth-child(3) { animation-delay: .14s; }
-    .mode-grid .mode-card:nth-child(4) { animation-delay: .19s; }
-    .mode-grid .mode-card:nth-child(5) { animation-delay: .24s; }
-    .mode-grid .mode-card:nth-child(6) { animation-delay: .29s; }
-    .mode-grid .mode-card:nth-child(7) { animation-delay: .34s; }
-    .mode-grid .mode-card:nth-child(8) { animation-delay: .39s; }
-    .mode-grid .mode-card:nth-child(9)  { animation-delay: .44s; }
-    .mode-grid .mode-card:nth-child(10) { animation-delay: .49s; }
-
-    .mode-icon-wrap {
-      width: 48px; height: 48px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.4rem; margin-bottom: 14px;
+    .module-number {
+      font-size: .64rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--mc-text, var(--primary));
       background: var(--mc-icon-bg, #ede9fe);
+      padding: 3px 10px; border-radius: 999px; display: inline-block; margin-bottom: 14px;
+      align-self: flex-start;
     }
-    .mode-title { font-size: .97rem; font-weight: 700; margin-bottom: 6px; color: var(--text); }
-    .mode-desc  { font-size: .78rem; color: var(--muted); line-height: 1.5; }
+    .module-icon { font-size: 2rem; margin-bottom: 10px; line-height: 1; }
+    .module-title { font-size: 1rem; font-weight: 800; margin-bottom: 8px; color: var(--text); line-height: 1.3; }
+    .module-desc  { font-size: .77rem; color: var(--muted); line-height: 1.55; margin-bottom: 14px; flex: 1; }
+    .module-features { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 16px; }
+    .module-feature-chip {
+      font-size: .67rem; font-weight: 600;
+      background: var(--mc-icon-bg, #ede9fe);
+      color: var(--mc-text, var(--primary));
+      padding: 3px 9px; border-radius: 999px;
+    }
+    .module-cta {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: .79rem; font-weight: 700;
+      color: var(--mc-text, var(--primary));
+      margin-top: auto;
+    }
 
+    /* ── Module sub-screen ── */
+    .module-sub-header {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .module-sub-back {
+      background: transparent; border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 6px 14px;
+      font-size: .8rem; font-weight: 600; cursor: pointer;
+      color: var(--text); transition: background .15s, border-color .15s; flex-shrink: 0;
+    }
+    .module-sub-back:hover { background: var(--border); border-color: transparent; }
+    .module-sub-title { font-size: 1.05rem; font-weight: 800; color: var(--text); }
+    .module-sub-tag {
+      font-size: .63rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--mc-text, var(--primary));
+      background: var(--mc-icon-bg, #ede9fe);
+      padding: 3px 10px; border-radius: 999px; margin-left: auto;
+    }
+
+    /* ── Generate All button ── */
+    .gen-all-btn {
+      display: flex; align-items: center; gap: 14px;
+      background: linear-gradient(135deg, var(--mc-bg1, #6366f1), var(--mc-bg2, #8b5cf6));
+      color: #fff; border-radius: 14px; padding: 16px 20px;
+      cursor: pointer; border: none; width: 100%; margin-bottom: 22px;
+      text-align: left; transition: opacity .15s, transform .15s;
+      box-shadow: 0 4px 18px rgba(0,0,0,.15);
+    }
+    .gen-all-btn:hover { opacity: .93; transform: translateY(-2px); }
+    .gen-all-icon  { font-size: 1.6rem; flex-shrink: 0; line-height: 1; }
+    .gen-all-text  { flex: 1; min-width: 0; }
+    .gen-all-label { font-weight: 800; font-size: .95rem; }
+    .gen-all-sub   { font-size: .74rem; opacity: .85; margin-top: 3px; line-height: 1.4; }
+    .gen-all-token {
+      background: rgba(255,255,255,.22); border-radius: 999px;
+      padding: 4px 12px; font-size: .72rem; font-weight: 700;
+      white-space: nowrap; flex-shrink: 0;
+    }
+
+    /* ── Module tool cards ── */
+    .module-tools-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    @media (max-width: 560px) { .module-tools-grid { grid-template-columns: 1fr; } }
+
+    .module-tool-card {
+      border: 1.5px solid var(--border);
+      border-radius: 12px; padding: 16px 15px;
+      cursor: pointer;
+      background: var(--card);
+      transition: border-color .18s, transform .18s, box-shadow .18s;
+      text-align: left; display: flex; flex-direction: column;
+    }
+    .module-tool-card:hover {
+      border-color: var(--mc-accent-color, #6366f1);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,.07);
+    }
+    .module-tool-icon  { font-size: 1.25rem; margin-bottom: 8px; line-height: 1; }
+    .module-tool-title { font-size: .87rem; font-weight: 700; margin-bottom: 4px; color: var(--text); }
+    .module-tool-desc  { font-size: .73rem; color: var(--muted); line-height: 1.45; flex: 1; }
+    .module-tool-tokens {
+      font-size: .67rem; background: rgba(99,102,241,.1);
+      color: var(--primary); padding: 2px 8px;
+      border-radius: 999px; font-weight: 700;
+      display: inline-block; margin-top: 10px; align-self: flex-start;
+    }
+
+    /* ── Section separator label ── */
+    .tools-section-label {
+      font-size: .8rem; font-weight: 700; color: var(--text);
+      margin-bottom: 10px; display: flex; align-items: center; gap: 10px;
+    }
+    .tools-section-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
   </style>
 
   <!-- ── Greeting banner ── -->
@@ -104,96 +183,224 @@
     </div>
   </div>
 
-  <!-- ── Tool selector ── -->
+  <!-- ── Module selector (top level) ── -->
   <div id="sec-mode-select" class="card animate-in">
-    <h2>What would you like to generate?</h2>
-    <p class="sub">Choose a task to get started. Each creates professional academic content from your syllabus.</p>
+    <h2>Select a Module</h2>
+    <p class="sub">Choose a module to get started. Each module groups related AI-powered academic tools.</p>
 
-    <div class="mode-grid">
+    <div class="module-grid">
 
-      <!-- CO Generator — always available -->
-      <div class="mode-card" onclick="selectMode('cos')"
-           style="--mc-accent:linear-gradient(90deg,#6366f1,#8b5cf6); --mc-icon-bg:#ede9fe;">
-        <div class="mode-icon-wrap">🎯</div>
-        <div class="mode-title">Course Outcomes</div>
-        <div class="mode-desc">Generate CO statements aligned to Bloom's taxonomy from a syllabus PDF or Word file.</div>
-      </div>
-
-      <!-- Question Bank -->
-      <div class="mode-card" onclick="selectMode('qbank')"
-           style="--mc-accent:linear-gradient(90deg,#0ea5e9,#38bdf8); --mc-icon-bg:#e0f2fe;">
-        <div class="mode-icon-wrap">📚</div>
-        <div class="mode-title">Question Bank</div>
-        <div class="mode-desc">Auto-generate 2-mark, 5-mark, 10-mark questions, assignments &amp; quizzes — organised by unit.</div>
-      </div>
-
-      <!-- Question Paper -->
-      <div class="mode-card" onclick="selectMode('qpaper')"
-           style="--mc-accent:linear-gradient(90deg,#f59e0b,#fbbf24); --mc-icon-bg:#fef3c7;">
-        <div class="mode-icon-wrap">📋</div>
-        <div class="mode-title">Question Paper</div>
-        <div class="mode-desc">Compose an Assignment, Quiz, Internal Assessment, or Final Exam from an existing question bank.</div>
-      </div>
-
-      <!-- CO–PO Mapping -->
-      <div class="mode-card" onclick="selectMode('pomap')"
-           style="--mc-accent:linear-gradient(90deg,#10b981,#34d399); --mc-icon-bg:#d1fae5;">
-        <div class="mode-icon-wrap">🗺️</div>
-        <div class="mode-title">CO–PO Mapping</div>
-        <div class="mode-desc">Generate an NBA-compliant CO–PO mapping table with 3/2/1/0 scores from your Course Outcomes file.</div>
-      </div>
-
-      <!-- Lesson Plan -->
-      <div class="mode-card" onclick="selectMode('lessonplan')"
-           style="--mc-accent:linear-gradient(90deg,#f43f5e,#fb7185); --mc-icon-bg:#ffe4e6;">
-        <div class="mode-icon-wrap">📅</div>
-        <div class="mode-title">Course Lesson Plan</div>
-        <div class="mode-desc">Generate a complete 13-section lesson plan with COs, CO-PO-SDG mapping, session delivery plan, and NBA/NAAC alignment.</div>
-      </div>
-
-      <!-- Teaching Diary -->
-      <div class="mode-card" onclick="selectMode('teachingdiary')"
-           style="--mc-accent:linear-gradient(90deg,#8b5cf6,#a78bfa); --mc-icon-bg:#ede9fe;">
-        <div class="mode-icon-wrap">📓</div>
-        <div class="mode-title">Teaching Diary</div>
-        <div class="mode-desc">Generate a full-semester teaching diary with session delivery plan, tutorial/lab diary, CO attainment, and NBA/NAAC evidence.</div>
-      </div>
-
-      <!-- CO → SDG Contribution -->
-      <div class="mode-card" onclick="selectMode('sdgco')"
-           style="--mc-accent:linear-gradient(90deg,#06b6d4,#22d3ee); --mc-icon-bg:#cffafe;">
-        <div class="mode-icon-wrap">📊</div>
-        <div class="mode-title">CO → SDG Contribution</div>
-        <div class="mode-desc">Analyse CO-level SDG contributions using the full CO→PO→SDG pipeline to identify key contributing outcomes.</div>
-      </div>
-
-      <!-- PO → SDG Contribution -->
-      <div class="mode-card" onclick="selectMode('sdgpo')"
-           style="--mc-accent:linear-gradient(90deg,#f97316,#fb923c); --mc-icon-bg:#ffedd5;">
-        <div class="mode-icon-wrap">🌍</div>
-        <div class="mode-title">PO → SDG Contribution</div>
-        <div class="mode-desc">Calculate how Programme Outcomes contribute to UN SDGs using weighted attainment scores and a Composite SDG Index.</div>
-      </div>
-
-      <!-- CO Attainment Calculator -->
-      <div class="mode-card" onclick="selectMode('coatt')"
-           style="--mc-accent:linear-gradient(90deg,#ec4899,#f472b6); --mc-icon-bg:#fce7f3;">
-        <div class="mode-icon-wrap">📈</div>
-        <div class="mode-title">CO Attainment</div>
-        <div class="mode-desc">Upload a Method-2 Tier-I CIE mark sheet (XLS/XLSX) to auto-calculate CO attainment levels and PO attainment via weighted average.</div>
-      </div>
-
-      <!-- All in One -->
-      <div class="mode-card" onclick="selectMode('allinone')"
-           style="--mc-accent:linear-gradient(90deg,#f43f5e,#ec4899,#8b5cf6); --mc-icon-bg:#fce7f3; grid-column: 1 / -1; display:flex; align-items:center; gap:20px;">
-        <div class="mode-icon-wrap" style="margin-bottom:0;flex-shrink:0;">⚡</div>
-        <div>
-          <div class="mode-title">All in One</div>
-          <div class="mode-desc">Generate all documents in sequence from a single syllabus — COs, Question Bank, CO-PO Mapping, Lesson Plan, Teaching Diary, SDG Contributions, and CO Attainment.</div>
+      <!-- Module 1: CO Generation + Question Bank -->
+      <div class="module-card" onclick="selectMode('module1')"
+           style="--mc-accent:linear-gradient(90deg,#6366f1,#8b5cf6); --mc-icon-bg:#ede9fe; --mc-text:#6366f1; animation-delay:.04s">
+        <div class="module-number">Module 1</div>
+        <div class="module-icon">📝</div>
+        <div class="module-title">AI-Powered Question Paper</div>
+        <div class="module-desc">Generate Bloom's-aligned COs and an intelligent question bank from your syllabus, with CO coverage, QQI scoring and OBE/NBA compliance reports.</div>
+        <div class="module-features">
+          <span class="module-feature-chip">CO Generation</span>
+          <span class="module-feature-chip">Question Bank</span>
+          <span class="module-feature-chip">Bloom's Taxonomy</span>
+          <span class="module-feature-chip">OBE/NBA/NAAC</span>
         </div>
+        <span class="module-cta">Explore Tools →</span>
+      </div>
+
+      <!-- Module 2: Question Paper (compose from QB) -->
+      <div class="module-card" onclick="selectMode('module2')"
+           style="--mc-accent:linear-gradient(90deg,#0ea5e9,#38bdf8); --mc-icon-bg:#e0f2fe; --mc-text:#0284c7; animation-delay:.09s">
+        <div class="module-number">Module 2</div>
+        <div class="module-icon">📋</div>
+        <div class="module-title">Smart Question Paper Generation</div>
+        <div class="module-desc">Compose Assignment, Quiz, Internal Assessment, or Final Exam papers from an existing question bank — with CO-tag filtering and editable preview.</div>
+        <div class="module-features">
+          <span class="module-feature-chip">Question Paper</span>
+          <span class="module-feature-chip">Assignment</span>
+          <span class="module-feature-chip">Quiz</span>
+          <span class="module-feature-chip">Internal / Final Exam</span>
+        </div>
+        <span class="module-cta">Explore Tools →</span>
+      </div>
+
+      <!-- Module 3: Course Delivery -->
+      <div class="module-card" onclick="selectMode('module3')"
+           style="--mc-accent:linear-gradient(90deg,#f43f5e,#fb7185); --mc-icon-bg:#ffe4e6; --mc-text:#e11d48; animation-delay:.14s">
+        <div class="module-number">Module 3</div>
+        <div class="module-icon">📅</div>
+        <div class="module-title">AI-Powered Course Delivery Management System</div>
+        <div class="module-desc">Plan and track course delivery with AI-generated lesson plans and full-semester teaching diaries with CO-PO-SDG alignment.</div>
+        <div class="module-features">
+          <span class="module-feature-chip">Lesson Plan</span>
+          <span class="module-feature-chip">Teaching Diary</span>
+          <span class="module-feature-chip">HoD Monitoring</span>
+          <span class="module-feature-chip">Analytics</span>
+        </div>
+        <span class="module-cta">Explore Tools →</span>
+      </div>
+
+      <!-- Module 4: Assessment Methods -->
+      <div class="module-card" onclick="selectMode('module4')"
+           style="--mc-accent:linear-gradient(90deg,#10b981,#34d399); --mc-icon-bg:#d1fae5; --mc-text:#059669; animation-delay:.19s">
+        <div class="module-number">Module 4</div>
+        <div class="module-icon">📊</div>
+        <div class="module-title">AI-Powered Assessment Methods</div>
+        <div class="module-desc">Calculate CO-PO mapping, CO attainment, and SDG contributions for NBA/NAAC/NEP accreditation with ATR reports and visual graphs.</div>
+        <div class="module-features">
+          <span class="module-feature-chip">CO-PO-PSO Mapping</span>
+          <span class="module-feature-chip">CO Attainment</span>
+          <span class="module-feature-chip">SDG Contributions</span>
+          <span class="module-feature-chip">ATR Reports</span>
+        </div>
+        <span class="module-cta">Explore Tools →</span>
       </div>
 
     </div>
+  </div>
+
+  <!-- ── Module 1 Sub-screen: CO Generation + Question Bank ───────────────── -->
+  <div id="sec-module1" class="card hidden">
+    <div class="module-sub-header" style="--mc-icon-bg:#ede9fe; --mc-text:#6366f1;">
+      <button class="module-sub-back" onclick="moduleGoBack('module1')">← Back</button>
+      <span class="module-sub-title">AI-Powered CO Generation + Question Bank</span>
+      <span class="module-sub-tag">Module 1</span>
+    </div>
+
+    <div class="alert alert-error hidden" id="mod1-token-err"
+         style="margin-bottom:12px;font-size:.85rem;"></div>
+
+    <button class="gen-all-btn" onclick="moduleGenerateAll('module1')"
+            style="--mc-bg1:#6366f1; --mc-bg2:#8b5cf6;">
+      <span class="gen-all-icon">⚡</span>
+      <div class="gen-all-text">
+        <div class="gen-all-label">Generate All in Module 1</div>
+        <div class="gen-all-sub">Auto-generate Bloom's taxonomy-aligned COs + complete Question Bank, then download the comprehensive 11-section report — Sample Paper, Bloom's Compliance, CO Coverage, Difficulty Analysis, Scenario Analysis, QQI, Marks Distribution, OBE/NBA Compliance &amp; Accreditation Readiness Dashboard. All in one click.</div>
+      </div>
+      <span class="gen-all-token" id="mod-token-cost-module1">6 tokens</span>
+    </button>
+  </div>
+
+  <!-- ── Module 2 Sub-screen: Question Paper ──────────────────────────────── -->
+  <div id="sec-module2" class="card hidden">
+    <div class="module-sub-header" style="--mc-icon-bg:#e0f2fe; --mc-text:#0284c7;">
+      <button class="module-sub-back" onclick="moduleGoBack('module2')">← Back</button>
+      <span class="module-sub-title">Smart Question Paper Generation</span>
+      <span class="module-sub-tag">Module 2</span>
+    </div>
+
+    <div class="alert alert-error hidden" id="mod2-token-err"
+         style="margin-bottom:12px;font-size:.85rem;"></div>
+
+    <!-- Option A: Upload existing QB -->
+    <button class="gen-all-btn" onclick="module2ComposePaper()"
+            style="--mc-bg1:#0284c7; --mc-bg2:#38bdf8; margin-bottom:10px;">
+      <span class="gen-all-icon">📋</span>
+      <div class="gen-all-text">
+        <div class="gen-all-label">Upload Question Bank</div>
+        <div class="gen-all-sub">Upload an existing Question Bank (or use one from Module 1) to compose Assignment, Quiz, Internal Assessment, or Final Exam papers with CO-tag filtering and editable preview.</div>
+      </div>
+      <span class="gen-all-token">2 tokens</span>
+    </button>
+
+    <!-- OR divider -->
+    <div style="display:flex;align-items:center;gap:12px;margin:4px 0 14px;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span style="font-size:.75rem;font-weight:800;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;">or</span>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+
+    <!-- Option B: Generate QB from syllabus -->
+    <button class="gen-all-btn" onclick="module2GenerateQB()"
+            style="--mc-bg1:#0369a1; --mc-bg2:#0ea5e9;">
+      <span class="gen-all-icon">⚡</span>
+      <div class="gen-all-text">
+        <div class="gen-all-label">Generate Question Bank from Syllabus</div>
+        <div class="gen-all-sub">Auto-generate Bloom's-aligned COs + complete Question Bank from your syllabus, then compose your paper.</div>
+      </div>
+      <span class="gen-all-token">4 tokens</span>
+    </button>
+
+  </div>
+
+  <!-- ── Module 3 Sub-screen: Course Delivery ─────────────────────────────── -->
+  <div id="sec-module3" class="card hidden">
+    <div class="module-sub-header" style="--mc-icon-bg:#ffe4e6; --mc-text:#e11d48;">
+      <button class="module-sub-back" onclick="moduleGoBack('module3')">← Back</button>
+      <span class="module-sub-title">AI-Powered Course Delivery Management System</span>
+      <span class="module-sub-tag">Module 3</span>
+    </div>
+
+    <div class="alert alert-error hidden" id="mod3-token-err"
+         style="margin-bottom:12px;font-size:.85rem;"></div>
+
+    <!-- Option A: Syllabus + CO file -->
+    <button class="gen-all-btn" onclick="module3GenerateWithCo()"
+            style="--mc-bg1:#e11d48; --mc-bg2:#fb7185; margin-bottom:10px;">
+      <span class="gen-all-icon">📝</span>
+      <div class="gen-all-text">
+        <div class="gen-all-label">Upload Syllabus + CO File</div>
+        <div class="gen-all-sub">Upload your existing Course Outcomes file to generate a CO-PO-SDG Lesson Plan + full-semester Teaching Diary using your own COs.</div>
+      </div>
+      <span class="gen-all-token">6 tokens</span>
+    </button>
+
+    <!-- OR divider -->
+    <div style="display:flex;align-items:center;gap:12px;margin:4px 0 14px;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span style="font-size:.75rem;font-weight:800;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;">or</span>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+
+    <!-- Option B: Syllabus only -->
+    <button class="gen-all-btn" onclick="module3GenerateSyllabusOnly()"
+            style="--mc-bg1:#f43f5e; --mc-bg2:#fda4af;">
+      <span class="gen-all-icon">⚡</span>
+      <div class="gen-all-text">
+        <div class="gen-all-label">Upload Syllabus Only</div>
+        <div class="gen-all-sub">Auto-generate Bloom's-aligned COs from syllabus, then build CO-PO-SDG Lesson Plan + full-semester Teaching Diary in sequence.</div>
+      </div>
+      <span class="gen-all-token">7 tokens</span>
+    </button>
+  </div>
+
+  <!-- ── Module 4 Sub-screen: Assessment Methods ──────────────────────────── -->
+  <div id="sec-module4" class="card hidden">
+    <div class="module-sub-header" style="--mc-icon-bg:#d1fae5; --mc-text:#059669;">
+      <button class="module-sub-back" onclick="moduleGoBack('module4')">&#8592; Back</button>
+      <span class="module-sub-title">AI-Powered Assessment Methods</span>
+      <span class="module-sub-tag">Module 4</span>
+    </div>
+
+    <div class="alert alert-error hidden" id="mod4-token-err"
+         style="margin-bottom:12px;font-size:.85rem;"></div>
+
+    <!-- Option A: Syllabus + CO file -->
+    <button class="gen-all-btn" onclick="module4GenerateWithCo()"
+            style="--mc-bg1:#059669; --mc-bg2:#34d399; margin-bottom:10px;">
+      <span class="gen-all-icon">&#128221;</span>
+      <div class="gen-all-text">
+        <div class="gen-all-label">Upload Syllabus + CO File</div>
+        <div class="gen-all-sub">Upload your existing Course Outcomes file to generate CO-PO Mapping, CO Attainment, PO Attainment (with ATR), CO&#8594;SDG and PO&#8594;SDG contributions using your own COs, then download the comprehensive assessment report.</div>
+      </div>
+      <span class="gen-all-token">5 tokens</span>
+    </button>
+
+    <!-- OR divider -->
+    <div style="display:flex;align-items:center;gap:12px;margin:4px 0 14px;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span style="font-size:.75rem;font-weight:800;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;">or</span>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+
+    <!-- Option B: Syllabus only -->
+    <button class="gen-all-btn" onclick="module4GenerateSyllabusOnly()"
+            style="--mc-bg1:#10b981; --mc-bg2:#6ee7b7;">
+      <span class="gen-all-icon">&#9889;</span>
+      <div class="gen-all-text">
+        <div class="gen-all-label">Upload Syllabus Only</div>
+        <div class="gen-all-sub">Auto-generate Bloom's-aligned COs from syllabus, then produce CO-PO Mapping, CO Attainment, PO Attainment (with ATR), CO&#8594;SDG and PO&#8594;SDG contributions in sequence, followed by the comprehensive assessment report.</div>
+      </div>
+      <span class="gen-all-token">6 tokens</span>
+    </button>
   </div>
 
   <!-- ── Step indicator ── -->

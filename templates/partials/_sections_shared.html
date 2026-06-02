@@ -15,7 +15,7 @@
     </div>
     <div class="alert alert-error hidden" id="upload-err"></div>
     <div class="actions">
-      <button class="btn btn-ghost" onclick="startOver()">← Back</button>
+      <button class="btn btn-ghost" onclick="_aioGoBackFromUpload()">← Back</button>
     </div>
   </div>
 
@@ -34,7 +34,7 @@
     </div>
 
     <div class="actions">
-      <button class="btn btn-ghost" onclick="goBack('courses')">← Back</button>
+      <button class="btn btn-ghost" onclick="_aioFromModule ? _aioGoBackFromUpload() : goBack('courses')">← Back</button>
       <button class="btn btn-primary" id="btn-course-next" disabled onclick="courseNext()">
         <span id="btn-course-next-label">Generate COs</span>
       </button>

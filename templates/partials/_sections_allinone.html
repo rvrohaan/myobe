@@ -46,7 +46,70 @@
         <p style="font-size:.875rem;font-weight:700;margin:0;">Preview</p>
         <button class="ctrl-btn" id="btn-aio-expand" onclick="aioToggleExpand()">Expand</button>
       </div>
+      <!-- Plain-text preview (used by all tools except pomap) -->
       <div id="aio-preview-box" style="border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-size:.82rem;line-height:1.6;color:var(--text);white-space:pre-wrap;max-height:200px;overflow:hidden;transition:max-height .4s ease;"></div>
+
+      <!-- CO-PO mapping table preview (pomap step only) -->
+      <div id="aio-pomap-table-wrap" class="hidden" style="border:1px solid var(--border);border-radius:8px;overflow:hidden;max-height:280px;overflow-y:auto;transition:max-height .4s ease;">
+        <div class="po-map-wrap" id="aio-pomap-inline-map" style="margin:0;border-radius:0;padding:6px 8px;"></div>
+        <div id="aio-pomap-summary" class="hidden" style="padding:8px 14px;font-size:.78rem;color:var(--muted);border-top:1px solid var(--border);"></div>
+      </div>
+
+      <!-- Rich table display (sdgco, sdgpo, coatt, poatt) -->
+      <div id="aio-rich-preview" class="hidden"
+           style="border:1px solid var(--border);border-radius:8px;overflow:hidden;max-height:280px;overflow-y:auto;transition:max-height .4s ease;"></div>
+
+      <!-- Tool-specific adjust panel (sdgco / coatt / poatt) -->
+      <div id="aio-tool-adjust" class="hidden"
+           style="margin-top:12px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:rgba(99,102,241,.03);">
+        <details id="aio-tool-details"
+                 ontoggle="document.getElementById('aio-tool-arrow').textContent=this.open?'&#9660;':'&#9658'">
+          <summary style="cursor:pointer;font-size:.85rem;font-weight:700;list-style:none;display:flex;align-items:center;gap:7px;user-select:none;">
+            <span id="aio-tool-arrow" style="font-size:.65rem;">&#9658;</span>
+            <span id="aio-tool-adjust-label">Adjust Options</span>
+          </summary>
+          <div id="aio-tool-adjust-body" style="margin-top:12px;"></div>
+        </details>
+      </div>
+
+      <!-- PO / PSO adjust panel (pomap step only) -->
+      <div id="aio-pomap-adjust" class="hidden" style="margin-top:12px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:rgba(99,102,241,.03);">
+        <details id="aio-po-details" ontoggle="document.getElementById('aio-po-arrow').textContent=this.open?'&#9660;':'&#9658'">
+          <summary style="cursor:pointer;font-size:.85rem;font-weight:700;list-style:none;display:flex;align-items:center;gap:7px;user-select:none;">
+            <span id="aio-po-arrow" style="font-size:.65rem;">&#9658;</span>
+            Adjust Programme Outcomes / PSOs
+          </summary>
+          <div style="margin-top:12px;">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+              <span style="font-size:.78rem;color:var(--muted);">Standard POs:</span>
+              <button class="ctrl-btn" onclick="aioPoSelectAll(true)">Select all</button>
+              <button class="ctrl-btn" onclick="aioPoSelectAll(false)">Deselect all</button>
+            </div>
+            <div id="aio-po-checklist" style="display:grid;gap:5px;max-height:220px;overflow-y:auto;padding-right:4px;"></div>
+
+            <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+                <span style="font-size:.85rem;font-weight:700;">Custom POs / PSOs</span>
+                <span style="font-size:.75rem;color:var(--muted);">e.g. PSO1, PSO2</span>
+              </div>
+              <div style="display:grid;grid-template-columns:90px 1fr 1.6fr auto;gap:8px;margin-bottom:6px;padding:0 2px;">
+                <span style="font-size:.72rem;color:var(--muted);font-weight:600;">Key</span>
+                <span style="font-size:.72rem;color:var(--muted);font-weight:600;">Name</span>
+                <span style="font-size:.72rem;color:var(--muted);font-weight:600;">Description (optional)</span>
+                <span></span>
+              </div>
+              <div id="aio-po-custom-list"></div>
+              <button class="btn btn-ghost" onclick="addAioPo()" style="margin-top:6px;font-size:.79rem;padding:5px 12px;">+ Add custom PO / PSO</button>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap;">
+              <button class="btn btn-primary" id="btn-aio-po-apply" onclick="_aioApplyPoConfig(this)"
+                style="font-size:.82rem;padding:7px 18px;">&#8635; Apply &amp; Regenerate</button>
+              <div class="alert alert-error hidden" id="aio-po-err" style="margin:0;font-size:.8rem;flex:1;"></div>
+            </div>
+          </div>
+        </details>
+      </div>
 
       <!-- Edit area: CO-step gets a two-panel layout; all other steps get a plain textarea -->
       <div id="aio-edit-wrap" class="hidden" style="margin-top:10px;">
@@ -103,10 +166,44 @@
       </div>
     </div>
 
-    <!-- Progress pills -->
-    <div id="aio-step-pills" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);"></div>
+<div class="alert alert-error hidden" id="aio-run-err"></div>
+  </div>
 
-    <div class="alert alert-error hidden" id="aio-run-err"></div>
+  <!-- Module 3 Option A: CO file upload (between course selection and generation) -->
+  <div id="sec-aio-co-upload" class="card hidden">
+    <h2>Upload Course Outcomes</h2>
+    <p class="sub">Upload the CO file for this course. Supported formats: TXT, DOCX, PDF. The COs will be used to generate the Lesson Plan and Teaching Diary.</p>
+
+    <div style="margin:20px 0;padding:18px 20px;border:1.5px dashed var(--border);border-radius:12px;background:rgba(225,29,72,.03);">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:1.4rem;">📄</span>
+        <div style="flex:1;">
+          <div style="font-size:.88rem;font-weight:700;margin-bottom:4px;">CO File</div>
+          <div id="aio-co-upload-status" style="font-size:.78rem;color:var(--muted);">
+            No file selected — choose a TXT, DOCX, or PDF file.
+          </div>
+        </div>
+        <label class="btn btn-primary" style="cursor:pointer;font-size:.82rem;">
+          Choose File
+          <input type="file" id="aio-co-file-input" accept=".txt,.docx,.doc,.pdf"
+                 style="display:none;" onchange="aioCoUploadFile(this)">
+        </label>
+      </div>
+      <div class="uni-progress hidden" id="aio-co-upload-loading" style="margin-top:12px;">
+        <span class="uni-progress-label">Parsing CO file&#8230;</span>
+        <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+      </div>
+    </div>
+
+    <div class="alert alert-error hidden" id="aio-co-upload-err" style="margin-bottom:12px;"></div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goBack('aio-co-upload')">&#8592; Back</button>
+      <span class="spacer"></span>
+      <button class="btn btn-primary" id="btn-aio-co-next" onclick="aioCoNext()" disabled>
+        Generate &#8594;
+      </button>
+    </div>
   </div>
 
   <!-- Step 5: Done -->
@@ -119,4 +216,162 @@
     <div class="actions">
       <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
     </div>
+  </div>
+
+  <!-- ── Module 3 Report Preview ──────────────────────────────────────────── -->
+  <div id="sec-m3-preview" class="card hidden">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <h2 style="margin:0;">Module 3 Report Preview</h2>
+      <button class="btn btn-ghost" style="padding:4px 10px;font-size:.78rem;" onclick="toggleM3AiPanel()">AI Assistant</button>
+    </div>
+    <p class="sub">Review and edit the report. Select text to rephrase it, or ask the AI about delivery quality, SDG coverage, or NBA compliance.</p>
+
+    <div class="preview-layout">
+      <div id="m3-report-preview-div" contenteditable="true" spellcheck="false"></div>
+
+      <div class="ai-panel" id="m3-ai-panel">
+        <div class="ai-panel-header" onclick="toggleM3AiPanel()">
+          <span class="ai-panel-title">AI Assistant</span>
+          <span class="ai-panel-toggle" id="m3-ai-panel-toggle">&#9664;</span>
+        </div>
+        <div class="ai-panel-body">
+
+          <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Edit Content</div>
+          <button id="m3-rephrase-btn" class="btn btn-primary"
+            style="width:100%;font-size:.78rem;padding:6px 0;justify-content:center;"
+            onclick="_m3Rephrase()">Rephrase Selection</button>
+          <div id="m3-rephrase-output" style="margin-top:8px;"></div>
+          <div id="m3-undo-bar" style="display:none;margin-top:6px;">
+            <button class="btn btn-ghost"
+              style="width:100%;font-size:.75rem;padding:5px 0;text-align:center;border-color:#f59e0b;color:#92400e;background:#fffbeb;"
+              onclick="_m3UndoRephrase()">&#8617; Undo last change</button>
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px;">
+
+          <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;">Ask AI</div>
+          <textarea id="m3-ai-question" rows="6"
+            placeholder="e.g. How can I improve CO-session coverage? Which SDGs should I add? How do I increase the readiness score?"
+            style="width:100%;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:.82rem;background:var(--bg);color:var(--text);resize:vertical;min-height:120px;font-family:inherit;outline:none;box-sizing:border-box;line-height:1.5;"
+            onkeydown="if(event.ctrlKey&&event.key==='Enter')_m3AskAI()"></textarea>
+          <div style="font-size:.7rem;color:var(--muted);margin:4px 0 7px;">
+            Select text for context &middot; Ctrl+Enter to submit
+          </div>
+          <button id="m3-ask-btn" class="btn btn-ghost"
+            style="width:100%;font-size:.78rem;padding:6px 0;justify-content:center;border-color:#e11d48;color:#e11d48;"
+            onclick="_m3AskAI()">Ask AI &#8594;</button>
+
+          <div class="ai-status-msg" id="m3-ai-status" style="margin-top:8px;">Select text or type a question above.</div>
+          <div id="m3-ai-answer"></div>
+
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:.85rem;font-weight:600;color:var(--muted);margin-top:20px;margin-bottom:10px;">Download format</p>
+    <div class="format-grid">
+      <div class="fmt-card" data-m3fmt="txt"  onclick="pickM3Fmt('txt')">
+        <div class="fmt-icon">&#128221;</div><div class="fmt-label">Text</div>
+      </div>
+      <div class="fmt-card selected" data-m3fmt="docx" onclick="pickM3Fmt('docx')">
+        <div class="fmt-icon">&#128216;</div><div class="fmt-label">Word</div>
+      </div>
+      <div class="fmt-card" data-m3fmt="pdf"  onclick="pickM3Fmt('pdf')">
+        <div class="fmt-icon">&#128213;</div><div class="fmt-label">PDF</div>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" onclick="showSection('aio-done');">&#8592; Back</button>
+      <span class="spacer"></span>
+      <button class="btn btn-primary" id="btn-dl-m3-report" onclick="downloadM3Report()"
+        style="background:linear-gradient(90deg,#e11d48,#fb7185);border-color:transparent;">
+        &#11015; Download Report
+      </button>
+      <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
+    </div>
+    <div class="uni-progress hidden" id="dl-m3-progress">
+      <span class="uni-progress-label">Generating document&#8230;</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill"></div></div>
+    </div>
+    <div class="alert alert-error hidden" id="m3-preview-err"></div>
+  </div>
+
+  <!-- ── Module 4 Report Preview ──────────────────────────────────────────── -->
+  <div id="sec-m4-preview" class="card hidden">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <h2 style="margin:0;">Module 4 Report Preview</h2>
+      <button class="btn btn-ghost" style="padding:4px 10px;font-size:.78rem;" onclick="toggleM4AiPanel()">AI Assistant</button>
+    </div>
+    <p class="sub">Review and edit the report. Select text to rephrase it, or ask the AI about attainment levels, SDG coverage, or NBA compliance.</p>
+
+    <div class="preview-layout">
+      <div id="m4-report-preview-div" contenteditable="true" spellcheck="false"></div>
+
+      <div class="ai-panel" id="m4-ai-panel">
+        <div class="ai-panel-header" onclick="toggleM4AiPanel()">
+          <span class="ai-panel-title">AI Assistant</span>
+          <span class="ai-panel-toggle" id="m4-ai-panel-toggle">&#9664;</span>
+        </div>
+        <div class="ai-panel-body">
+
+          <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Edit Content</div>
+          <button id="m4-rephrase-btn" class="btn btn-primary"
+            style="width:100%;font-size:.78rem;padding:6px 0;justify-content:center;background:#059669;border-color:#059669;"
+            onclick="_m4Rephrase()">Rephrase Selection</button>
+          <div id="m4-rephrase-output" style="margin-top:8px;"></div>
+          <div id="m4-undo-bar" style="display:none;margin-top:6px;">
+            <button class="btn btn-ghost"
+              style="width:100%;font-size:.75rem;padding:5px 0;text-align:center;border-color:#f59e0b;color:#92400e;background:#fffbeb;"
+              onclick="_m4UndoRephrase()">&#8617; Undo last change</button>
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px;">
+
+          <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;">Ask AI</div>
+          <textarea id="m4-ai-question" rows="6"
+            placeholder="e.g. How can I improve CO attainment? Which SDGs should I add? How do I raise the readiness score?"
+            style="width:100%;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:.82rem;background:var(--bg);color:var(--text);resize:vertical;min-height:120px;font-family:inherit;outline:none;box-sizing:border-box;line-height:1.5;"
+            onkeydown="if(event.ctrlKey&&event.key==='Enter')_m4AskAI()"></textarea>
+          <div style="font-size:.7rem;color:var(--muted);margin:4px 0 7px;">
+            Select text for context &middot; Ctrl+Enter to submit
+          </div>
+          <button id="m4-ask-btn" class="btn btn-ghost"
+            style="width:100%;font-size:.78rem;padding:6px 0;justify-content:center;border-color:#059669;color:#059669;"
+            onclick="_m4AskAI()">Ask AI &#8594;</button>
+
+          <div class="ai-status-msg" id="m4-ai-status" style="margin-top:8px;">Select text or type a question above.</div>
+          <div id="m4-ai-answer"></div>
+
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:.85rem;font-weight:600;color:var(--muted);margin-top:20px;margin-bottom:10px;">Download format</p>
+    <div class="format-grid">
+      <div class="fmt-card" data-m4fmt="txt"  onclick="pickM4Fmt('txt')">
+        <div class="fmt-icon">&#128221;</div><div class="fmt-label">Text</div>
+      </div>
+      <div class="fmt-card selected" data-m4fmt="docx" onclick="pickM4Fmt('docx')">
+        <div class="fmt-icon">&#128216;</div><div class="fmt-label">Word</div>
+      </div>
+      <div class="fmt-card" data-m4fmt="pdf"  onclick="pickM4Fmt('pdf')">
+        <div class="fmt-icon">&#128213;</div><div class="fmt-label">PDF</div>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" onclick="showSection('aio-done');">&#8592; Back</button>
+      <span class="spacer"></span>
+      <button class="btn btn-primary" id="btn-dl-m4-report" onclick="downloadM4Report()"
+        style="background:linear-gradient(90deg,#059669,#34d399);border-color:transparent;">
+        &#11015; Download Report
+      </button>
+      <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
+    </div>
+    <div class="uni-progress hidden" id="dl-m4-progress">
+      <span class="uni-progress-label">Generating document&#8230;</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill"></div></div>
+    </div>
+    <div class="alert alert-error hidden" id="m4-preview-err"></div>
   </div>

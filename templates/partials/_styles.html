@@ -79,13 +79,16 @@
       padding: 14px 20px; box-shadow: var(--shadow);
       margin-bottom: 24px; overflow-x: auto;
     }
-    .step { display: flex; align-items: center; flex: 1; min-width: 0; }
-    .step:not(:last-child)::after {
-      content: ''; flex: 1; height: 2px;
-      background: var(--border); margin: 0 6px; min-width: 12px;
+    /* Each step pill shrinks to content — connectors carry all the flex growth */
+    .step { display: flex; align-items: center; flex: 0 0 auto; }
+    /* Connector sits between step pills as a real flex item */
+    .step-connector {
+      flex: 1; height: 2px; min-width: 16px;
+      background: var(--border); margin: 0 4px;
+      transition: background .25s;
     }
-    .step.done:not(:last-child)::after   { background: var(--success); }
-    .step.active:not(:last-child)::after { background: var(--primary-light); }
+    .step-connector.done   { background: var(--success); }
+    .step-connector.active { background: var(--primary-light); }
     .step-dot {
       width: 26px; height: 26px; border-radius: 50%;
       background: var(--border); color: var(--muted);
@@ -97,15 +100,14 @@
     .step.done   .step-dot { background: var(--success); color: #fff; }
     .step-label {
       font-size: .68rem; color: var(--muted); margin-left: 5px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .step.active .step-label { color: var(--primary); font-weight: 600; }
     .step.done   .step-label { color: var(--success); }
 
     /* Compact step bar: centre steps when there are only 2–3 */
     .steps-compact { justify-content: center; }
-    .steps-compact .step { flex: 0 0 auto; }
-    .steps-compact .step:not(:last-child)::after { flex: 0 0 80px; }
+    .steps-compact .step-connector { flex: 0 0 72px; }
 
     /* ── Card ── */
     .card {
@@ -413,6 +415,8 @@
     .uni-progress-fill  { height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); width: 0%; border-radius: 99px; transition: width .25s ease; }
     .uni-progress-fill.is-indeterminate { position: absolute; top: 0; bottom: 0; width: 40%; left: -40%; border-radius: 99px; transition: none; animation: uni-slide 1.6s ease-in-out infinite; }
     @keyframes uni-slide { 0%{left:-40%} 100%{left:100%} }
+    .uni-progress-fill.is-forward { width: 0%; transition: none; animation: uni-fill-fwd 120s cubic-bezier(.15,.5,.4,1) forwards; }
+    @keyframes uni-fill-fwd { 0%{width:0%} 40%{width:55%} 70%{width:72%} 90%{width:82%} 100%{width:88%} }
 
     /* ── Toggle ── */
     .toggle-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
@@ -431,7 +435,8 @@
       gap: 16px;
       align-items: flex-start;
     }
-    .preview-layout #paper-preview-div {
+    .preview-layout #paper-preview-div,
+    .preview-layout #m1-report-preview-div {
       flex: 1;
       min-width: 0;
     }
@@ -551,6 +556,91 @@
     #paper-preview-div h3 { font-size: 11pt; margin: 6px 0 3px; }
     #paper-preview-div p  { margin: 3px 0; }
     #paper-preview-div strong { font-weight: 700; }
+
+    /* ── Module 1 Report preview div (same styling as paper preview) ── */
+    #m1-report-preview-div {
+      background: #fff;
+      padding: 48px 64px;
+      min-height: 560px;
+      max-height: 72vh;
+      overflow-y: auto;
+      border: 1px solid #c9d0d8;
+      border-radius: 4px;
+      box-shadow: 0 3px 18px rgba(0,0,0,.13);
+      outline: none;
+      line-height: 1.6;
+      font-size: 11pt;
+      font-family: 'Calibri', 'Segoe UI', sans-serif;
+      color: #111;
+      caret-color: var(--primary);
+      cursor: text;
+    }
+    #m1-report-preview-div:focus { box-shadow: 0 0 0 2px rgba(79,70,229,.18), 0 3px 18px rgba(0,0,0,.13); }
+    #m1-report-preview-div table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+    #m1-report-preview-div td, #m1-report-preview-div th { border: 1px solid #aaa; padding: 4px 8px; vertical-align: top; font-size: 10.5pt; }
+    #m1-report-preview-div th { background: #f0f0f0; font-weight: 600; }
+    #m1-report-preview-div h1 { font-size: 15pt; margin: 10px 0 4px; }
+    #m1-report-preview-div h2 { font-size: 12.5pt; margin: 8px 0 3px; }
+    #m1-report-preview-div h3 { font-size: 11pt; margin: 6px 0 3px; }
+    #m1-report-preview-div p  { margin: 3px 0; }
+    #m1-report-preview-div strong { font-weight: 700; }
+
+    /* ── Module 3 Report preview div ── */
+    #m3-report-preview-div {
+      background: #fff;
+      padding: 48px 64px;
+      min-height: 560px;
+      max-height: 72vh;
+      overflow-y: auto;
+      border: 1px solid #c9d0d8;
+      border-radius: 4px;
+      box-shadow: 0 3px 18px rgba(0,0,0,.13);
+      outline: none;
+      line-height: 1.6;
+      font-size: 11pt;
+      font-family: 'Calibri', 'Segoe UI', sans-serif;
+      color: #111;
+      caret-color: #e11d48;
+      cursor: text;
+    }
+    #m3-report-preview-div:focus { box-shadow: 0 0 0 2px rgba(225,29,72,.18), 0 3px 18px rgba(0,0,0,.13); }
+    #m3-report-preview-div table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+    #m3-report-preview-div td, #m3-report-preview-div th { border: 1px solid #aaa; padding: 4px 8px; vertical-align: top; font-size: 10.5pt; }
+    #m3-report-preview-div th { background: #fff0f2; font-weight: 600; }
+    #m3-report-preview-div h1 { font-size: 15pt; margin: 10px 0 4px; }
+    #m3-report-preview-div h2 { font-size: 12.5pt; margin: 8px 0 3px; }
+    #m3-report-preview-div h3 { font-size: 11pt; margin: 6px 0 3px; }
+    #m3-report-preview-div p  { margin: 3px 0; }
+    #m3-report-preview-div strong { font-weight: 700; }
+    .preview-layout #m3-report-preview-div { flex: 1; min-width: 0; }
+
+    /* ── Module 4 Report preview div ── */
+    #m4-report-preview-div {
+      background: #fff;
+      padding: 48px 64px;
+      min-height: 560px;
+      max-height: 72vh;
+      overflow-y: auto;
+      border-radius: 10px;
+      box-shadow: 0 3px 18px rgba(0,0,0,.1);
+      font-size: 10.5pt;
+      font-family: 'Times New Roman', serif;
+      line-height: 1.6;
+      outline: none;
+      color: #111;
+      caret-color: #059669;
+      cursor: text;
+    }
+    #m4-report-preview-div:focus { box-shadow: 0 0 0 2px rgba(5,150,105,.18), 0 3px 18px rgba(0,0,0,.13); }
+    #m4-report-preview-div table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+    #m4-report-preview-div td, #m4-report-preview-div th { border: 1px solid #aaa; padding: 4px 8px; vertical-align: top; font-size: 10.5pt; }
+    #m4-report-preview-div th { background: #ecfdf5; font-weight: 600; }
+    #m4-report-preview-div h1 { font-size: 15pt; margin: 10px 0 4px; }
+    #m4-report-preview-div h2 { font-size: 12.5pt; margin: 8px 0 3px; }
+    #m4-report-preview-div h3 { font-size: 11pt; margin: 6px 0 3px; }
+    #m4-report-preview-div p  { margin: 3px 0; }
+    #m4-report-preview-div strong { font-weight: 700; }
+    .preview-layout #m4-report-preview-div { flex: 1; min-width: 0; }
 
     /* ── CO–PO Mapping table ── */
     .po-map-wrap { overflow-x: auto; margin-top: 16px; background: #fff; border-radius: 8px; padding: 4px; }

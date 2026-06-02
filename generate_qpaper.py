@@ -574,7 +574,8 @@ def build_lab_viva_paper(selected, data, cfg):
         co = f"  [{exp['co']}]" if exp.get('co') and cfg.get('show_co') else ""
         lines = [f"\n[{unit}] {exp['title']}{co}"]
         for vq in exp['viva']:
-            vq_clean = re.sub(r'^\d+\.\s*', '', vq).strip()
+            # Strip leading labels like "V1.", "1.", "Q1." before renumbering
+            vq_clean = re.sub(r'^[A-Za-z]?\d+\.\s*', '', vq).strip()
             if vq_clean:
                 lines.append(f"Q{q_num}. {vq_clean}")
                 q_num += 1
@@ -845,7 +846,7 @@ def save_docx(blocks, output_path, co_tally=None):
                 p.paragraph_format.left_indent = Pt(36)
                 p.add_run(line)
 
-            # Quiz question: "Q1. (MCQ) ...  [1 Mark]"
+            # Quiz / viva question: "Q1. text"
             elif re.match(r'^Q\d+\.', line):
                 qm = re.match(r'(Q\d+)\.\s*(.*)', line)
                 if qm:
@@ -870,7 +871,16 @@ def save_docx(blocks, output_path, co_tally=None):
                         run_m.font.size = Pt(9)
                         run_m.font.color.rgb = RGBColor(80, 80, 80)
                     else:
-                        _add_question(qm.group(1), body, True)
+                        # Add body directly to the existing paragraph (not via _add_question
+                        # which would open a second paragraph and produce a duplicate number line)
+                        co_m = re.search(r'\s*(\[CO\d+\])\s*(\[.+?\])?\s*$', body)
+                        if co_m:
+                            p.add_run(body[:co_m.start()].strip() + "  ")
+                            co_run = p.add_run(co_m.group(0).strip())
+                            co_run.font.color.rgb = RGBColor(0x00, 0x70, 0x70)
+                            co_run.font.size = Pt(8)
+                        else:
+                            p.add_run(body)
 
             # Experiment title: "Experiment N: title"
             elif re.match(r'^Experiment \d+:', line):

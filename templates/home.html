@@ -250,42 +250,6 @@
     }
     @media (max-width: 720px) { .how-connector { display: none; } }
 
-    /* ── PRODUCTS ── */
-    .products-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-      gap: 18px;
-    }
-    .product-card {
-      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
-      border-radius: 16px; padding: 28px 24px 24px;
-      position: relative; overflow: hidden;
-      transition: transform .25s, border-color .25s, background .25s, box-shadow .25s;
-    }
-    .product-card::before {
-      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-      background: var(--card-accent, linear-gradient(90deg,#6366f1,#8b5cf6));
-    }
-    .product-card:hover {
-      transform: translateY(-6px);
-      border-color: rgba(255,255,255,.18);
-      background: rgba(255,255,255,.09);
-      box-shadow: 0 20px 60px rgba(0,0,0,.4);
-    }
-    .product-icon-wrap {
-      width: 50px; height: 50px; border-radius: 13px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.4rem; margin-bottom: 16px;
-    }
-    .product-card h3 { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
-    .product-card p { font-size: .85rem; color: rgba(255,255,255,.5); line-height: 1.6; margin-bottom: 18px; }
-    .product-tag {
-      display: inline-block; font-size: .68rem; font-weight: 700;
-      padding: 3px 11px; border-radius: 999px; text-transform: uppercase; letter-spacing: .05em;
-    }
-    .tag-basic   { background: rgba(52,211,153,.12); color: #6ee7b7; border: 1px solid rgba(52,211,153,.2); }
-    .tag-pro     { background: rgba(129,140,248,.12); color: #a5b4fc; border: 1px solid rgba(129,140,248,.2); }
-    .tag-premium { background: rgba(196,181,253,.12); color: #c4b5fd; border: 1px solid rgba(196,181,253,.2); }
-
     /* ── PRICING ── */
     .token-intro {
       display: flex; align-items: center; justify-content: center; gap: 12px;
@@ -392,6 +356,119 @@
     .footer-links ul a:hover { color: #a5b4fc; }
     .footer-bottom { padding-top: 24px; font-size: .78rem; color: rgba(255,255,255,.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 
+    /* ── MODULES — flip cards ── */
+    .modules-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 22px;
+    }
+    @media (max-width: 760px) { .modules-grid { grid-template-columns: 1fr; } }
+
+    .module-card { perspective: 1200px; border-radius: 18px; height: 400px; cursor: default; }
+    .module-card-inner {
+      position: relative; width: 100%; height: 100%;
+      transform-style: preserve-3d;
+      transition: transform .65s cubic-bezier(.4,0,.2,1);
+      border-radius: 18px;
+    }
+    .module-card:hover .module-card-inner,
+    .module-card.flipped .module-card-inner { transform: rotateY(180deg); }
+
+    .module-card-front,
+    .module-card-back {
+      position: absolute; inset: 0;
+      backface-visibility: hidden; -webkit-backface-visibility: hidden;
+      border-radius: 18px; padding: 26px 24px;
+      overflow: hidden; border: 1px solid rgba(255,255,255,.08);
+    }
+    .module-card-front { background: rgba(255,255,255,.05); }
+    .module-card-front::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--mod-accent, linear-gradient(90deg,#6366f1,#8b5cf6));
+    }
+    .module-card-back {
+      transform: rotateY(180deg);
+      background: var(--mod-back, rgba(99,102,241,.12));
+      border-color: rgba(255,255,255,.14);
+      display: flex; flex-direction: column;
+    }
+    .module-card-back::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--mod-accent, linear-gradient(90deg,#6366f1,#8b5cf6));
+    }
+
+    /* Front elements */
+    .module-num-label {
+      display: inline-flex; align-items: center;
+      font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+      padding: 4px 13px; border-radius: 999px; margin-bottom: 13px;
+    }
+    .module-icon { font-size: 1.6rem; margin-bottom: 10px; display: block; }
+    .module-card-front h3 { font-size: 1.05rem; font-weight: 800; color: #fff; margin-bottom: 8px; }
+    .module-card-front > p { font-size: .83rem; color: rgba(255,255,255,.5); line-height: 1.58; margin-bottom: 14px; }
+    .module-tools { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .module-tools li {
+      font-size: .71rem; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.11);
+      color: rgba(255,255,255,.62);
+    }
+    .module-cost { font-size: .78rem; font-weight: 700; color: #a5b4fc; }
+    .module-flip-hint {
+      position: absolute; bottom: 12px; right: 16px;
+      font-size: .66rem; color: rgba(255,255,255,.24); letter-spacing: .03em;
+      pointer-events: none;
+    }
+
+    /* Back elements */
+    .back-section-title {
+      font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      color: rgba(255,255,255,.36); margin-bottom: 12px; margin-top: 10px;
+    }
+    .back-list { list-style: none; flex: 1; overflow: hidden; }
+    .back-list li {
+      display: flex; align-items: flex-start; gap: 9px;
+      font-size: .83rem; color: rgba(255,255,255,.8);
+      padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.07); line-height: 1.42;
+    }
+    .back-list li:last-child { border-bottom: none; }
+    .back-list .bi { color: var(--mod-bullet, #a5b4fc); font-size: .7rem; flex-shrink: 0; margin-top: 3px; }
+    .back-cta {
+      display: inline-flex; align-items: center; gap: 6px; margin-top: 14px;
+      padding: 9px 18px; border-radius: 10px; align-self: flex-start;
+      background: var(--mod-accent, linear-gradient(90deg,#6366f1,#8b5cf6));
+      color: #fff; font-size: .82rem; font-weight: 700;
+      text-decoration: none; transition: opacity .15s, transform .15s;
+    }
+    .back-cta:hover { opacity: .85; transform: translateY(-1px); }
+
+    /* ── FIELDS ── */
+    .fields-wrap { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 40px; }
+    .field-pill {
+      display: inline-flex; align-items: center; gap: 9px;
+      padding: 11px 22px; border-radius: 12px;
+      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+      font-size: .92rem; font-weight: 600; color: rgba(255,255,255,.78);
+      transition: background .2s, border-color .2s, transform .2s, color .2s;
+    }
+    .field-pill:hover {
+      background: rgba(129,140,248,.15); border-color: rgba(129,140,248,.35);
+      color: #fff; transform: translateY(-2px);
+    }
+
+    /* Light theme — modules */
+    html.light-theme .module-card-front { background: rgba(255,255,255,.65); border-color: rgba(37,99,235,.14); }
+    html.light-theme .module-card-front h3 { color: #1e293b; }
+    html.light-theme .module-card-front > p { color: rgba(30,41,59,.6); }
+    html.light-theme .module-tools li { background: rgba(37,99,235,.07); border-color: rgba(37,99,235,.15); color: rgba(30,41,59,.68); }
+    html.light-theme .module-cost { color: #2563eb; }
+    html.light-theme .module-flip-hint { color: rgba(30,41,59,.25); }
+    html.light-theme .module-card-back { background: rgba(37,99,235,.07); border-color: rgba(37,99,235,.22); }
+    html.light-theme .back-section-title { color: rgba(30,41,59,.42); }
+    html.light-theme .back-list li { color: rgba(30,41,59,.8); border-bottom-color: rgba(30,41,59,.07); }
+    html.light-theme .back-list .bi { color: #2563eb; }
+    /* Light theme — fields */
+    html.light-theme .field-pill { background: rgba(255,255,255,.5); border-color: rgba(37,99,235,.15); color: rgba(30,41,59,.75); }
+    html.light-theme .field-pill:hover { background: rgba(37,99,235,.1); border-color: rgba(37,99,235,.3); color: #1e293b; }
+
     /* ── Animations ── */
     @keyframes fadeInUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
     @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
@@ -457,10 +534,6 @@
     html.light-theme .how-step:hover { background: rgba(255,255,255,.85); border-color: rgba(37,99,235,.35); }
     html.light-theme .how-step h3 { color: #1e293b; }
     html.light-theme .how-step p { color: rgba(30,41,59,.6); }
-    html.light-theme .product-card { background: rgba(255,255,255,.6); border-color: rgba(37,99,235,.12); }
-    html.light-theme .product-card:hover { background: rgba(255,255,255,.85); border-color: rgba(37,99,235,.3); box-shadow: 0 20px 60px rgba(37,99,235,.15); }
-    html.light-theme .product-card h3 { color: #1e293b; }
-    html.light-theme .product-card p { color: rgba(30,41,59,.6); }
     html.light-theme .token-intro { background: rgba(37,99,235,.08); border-color: rgba(37,99,235,.2); color: rgba(30,41,59,.7); }
     html.light-theme .token-intro strong { color: #2563eb; }
     html.light-theme .plan-card { background: rgba(255,255,255,.65); border-color: rgba(37,99,235,.12); }
@@ -504,7 +577,8 @@
   </a>
   <ul class="nav-links">
     <li><a href="/#how">How it works</a></li>
-    <li><a href="/#products">Products</a></li>
+    <li><a href="/#modules">Modules</a></li>
+    <li><a href="/#fields">Fields</a></li>
     <li><a href="/#pricing">Pricing</a></li>
   </ul>
   <div class="nav-actions">
@@ -530,7 +604,7 @@
   <div class="hero-inner">
     <div class="hero-badge">
       <span class="hero-badge-dot"></span>
-      Built for Indian Colleges · NBA &amp; OBE Compliant
+      Engineering · Management · Pharmacy · Medical · Law &amp; More
     </div>
     <h1>
       Generate<br>
@@ -538,21 +612,21 @@
       in Minutes, Not Hours
     </h1>
     <p class="hero-sub">
-      MyOBE automates academic documentation straight from your syllabus PDF or Word file —
-      so faculty can focus on teaching, not paperwork.
+      MyOBE automates NBA/OBE-compliant academic documentation for Engineering, Management,
+      Pharmacy, Medical, Law, and more — straight from your syllabus, so faculty can focus on teaching, not paperwork.
     </p>
     <div class="hero-actions">
       {% if logged_in %}
         <a href="/app" class="btn-cta">Open Dashboard →</a>
-        <a href="/#products" class="btn-cta-ghost">Explore tools</a>
+        <a href="/#modules" class="btn-cta-ghost">Explore modules</a>
       {% else %}
         <a href="/login?tab=register" class="btn-cta">Start for Free →</a>
-        <a href="/#products" class="btn-cta-ghost">See what it does</a>
+        <a href="/#modules" class="btn-cta-ghost">See what it does</a>
       {% endif %}
     </div>
     <div class="hero-stats">
-      <div class="hero-stat"><strong><span data-count="9"></span></strong><span>Tools</span></div>
-      <div class="hero-stat"><strong><span data-count="30" data-suffix="s"></span></strong><span>Avg Generation</span></div>
+      <div class="hero-stat"><strong><span data-count="4"></span></strong><span>Modules</span></div>
+      <div class="hero-stat"><strong><span data-count="8" data-suffix="+"></span></strong><span>Disciplines</span></div>
       <div class="hero-stat"><strong><span data-count="100" data-suffix="%"></span></strong><span>OBE Aligned</span></div>
       <div class="hero-stat"><strong>PDF · DOCX · TXT</strong><span>Export Formats</span></div>
     </div>
@@ -585,64 +659,164 @@
   </div>
 </section>
 
-<!-- ── PRODUCTS ── -->
-<section id="products">
+<!-- ── MODULES ── -->
+<section id="modules">
   <div class="section-header reveal">
     <p class="section-label">What we offer</p>
-    <h2 class="section-title">Every document your faculty needs</h2>
-    <p class="section-sub">Each tool produces submission-ready output aligned with NBA, NAAC, and OBE frameworks.</p>
+    <h2 class="section-title">Four modules. Every document covered.</h2>
+    <p class="section-sub">Each module bundles related tools and delivers a submission-ready Comprehensive Report — aligned to NBA, NAAC, and OBE frameworks.</p>
   </div>
-  <div class="products-grid">
-    <div class="product-card reveal" style="--card-accent:linear-gradient(90deg,#6366f1,#8b5cf6)">
-      <div class="product-icon-wrap" style="background:rgba(99,102,241,.15)">📘</div>
-      <h3>CO Generator</h3>
-      <p>Generate Bloom's taxonomy-aligned Course Outcome statements from any syllabus — formatted and export-ready.</p>
+  <div class="modules-grid">
+
+    <!-- M1 -->
+    <div class="module-card reveal"
+         style="--mod-accent:linear-gradient(90deg,#6366f1,#8b5cf6);--mod-back:rgba(99,102,241,.13);--mod-bullet:#a5b4fc">
+      <div class="module-card-inner">
+        <div class="module-card-front">
+          <div class="module-num-label" style="background:rgba(99,102,241,.15);color:#a5b4fc;border:1px solid rgba(99,102,241,.25)">Module 1</div>
+          <span class="module-icon">📘</span>
+          <h3>Course Documentation</h3>
+          <p>Generate Bloom's taxonomy-aligned Course Outcomes, a full CO-tagged Question Bank, and a Comprehensive Module Report — all from your syllabus in one run.</p>
+          <ul class="module-tools">
+            <li>CO Generator</li>
+            <li>Question Bank</li>
+            <li>Comprehensive Report</li>
+          </ul>
+          <div class="module-cost">&#9711; 6 tokens per run</div>
+          <span class="module-flip-hint">Flip to see outputs</span>
+        </div>
+        <div class="module-card-back">
+          <div class="module-num-label" style="background:rgba(99,102,241,.15);color:#a5b4fc;border:1px solid rgba(99,102,241,.25)">Module 1</div>
+          <p class="back-section-title">What you get</p>
+          <ul class="back-list">
+            <li><span class="bi">&#10022;</span> CO statements — Bloom's levels L1&ndash;L6, export-ready</li>
+            <li><span class="bi">&#10022;</span> Question Bank — 2, 5 &amp; 10-mark questions, CO-tagged</li>
+            <li><span class="bi">&#10022;</span> Assignment &amp; quiz question sets</li>
+            <li><span class="bi">&#10022;</span> Comprehensive Module Report with Bloom's analytics</li>
+            <li><span class="bi">&#10022;</span> PDF, DOCX &amp; TXT export — all documents</li>
+          </ul>
+          <a href="/app" class="back-cta">Use Module 1 &#8594;</a>
+        </div>
+      </div>
     </div>
-    <div class="product-card reveal" style="--card-accent:linear-gradient(90deg,#0ea5e9,#38bdf8);transition-delay:.07s">
-      <div class="product-icon-wrap" style="background:rgba(14,165,233,.15)">📚</div>
-      <h3>Question Bank Generator</h3>
-      <p>Auto-generate 2-mark, 5-mark, and 10-mark questions, assignments, and quizzes — CO-tagged, export-ready.</p>
+
+    <!-- M2 -->
+    <div class="module-card reveal"
+         style="--mod-accent:linear-gradient(90deg,#0ea5e9,#38bdf8);--mod-back:rgba(14,165,233,.12);--mod-bullet:#7dd3fc;transition-delay:.08s">
+      <div class="module-card-inner">
+        <div class="module-card-front">
+          <div class="module-num-label" style="background:rgba(14,165,233,.15);color:#7dd3fc;border:1px solid rgba(14,165,233,.25)">Module 2</div>
+          <span class="module-icon">📋</span>
+          <h3>Question Paper Composer</h3>
+          <p>Compose Assignment, Quiz, Internal Assessment (CIE), or Final Exam papers with custom marks and CO coverage. Full support for Lab, Practical, and Viva formats.</p>
+          <ul class="module-tools">
+            <li>Theory Papers</li>
+            <li>Lab &amp; Practical</li>
+            <li>Viva Papers</li>
+            <li>CIE / Internal Exams</li>
+          </ul>
+          <div class="module-cost">&#9711; 2 tokens per paper</div>
+          <span class="module-flip-hint">Flip to see formats</span>
+        </div>
+        <div class="module-card-back">
+          <div class="module-num-label" style="background:rgba(14,165,233,.15);color:#7dd3fc;border:1px solid rgba(14,165,233,.25)">Module 2</div>
+          <p class="back-section-title">Paper formats supported</p>
+          <ul class="back-list">
+            <li><span class="bi">&#10022;</span> Assignment &amp; Quiz papers</li>
+            <li><span class="bi">&#10022;</span> Internal Assessment / CIE &mdash; Standard, Module-wise, Mixed 30</li>
+            <li><span class="bi">&#10022;</span> Final Examination papers</li>
+            <li><span class="bi">&#10022;</span> Lab Practical &mdash; Full Pool, One Per Unit, Spot-5</li>
+            <li><span class="bi">&#10022;</span> Viva &mdash; Full Viva, Unit-wise, Quick Viva</li>
+          </ul>
+          <a href="/app" class="back-cta">Compose a Paper &#8594;</a>
+        </div>
+      </div>
     </div>
-    <div class="product-card reveal" style="--card-accent:linear-gradient(90deg,#f59e0b,#fbbf24);transition-delay:.14s">
-      <div class="product-icon-wrap" style="background:rgba(245,158,11,.15)">📋</div>
-      <h3>Question Paper Generator</h3>
-      <p>Compose Assignment, Quiz, Internal Assessment, or Final Exam papers — with custom marks and CO coverage.</p>
+
+    <!-- M3 -->
+    <div class="module-card reveal"
+         style="--mod-accent:linear-gradient(90deg,#f43f5e,#fb7185);--mod-back:rgba(244,63,94,.11);--mod-bullet:#fda4af;transition-delay:.08s">
+      <div class="module-card-inner">
+        <div class="module-card-front">
+          <div class="module-num-label" style="background:rgba(244,63,94,.15);color:#fda4af;border:1px solid rgba(244,63,94,.25)">Module 3</div>
+          <span class="module-icon">📅</span>
+          <h3>Lesson Plan &amp; Teaching Diary</h3>
+          <p>Generate a full-semester Lesson Plan with CO-PO-SDG mapping and a complete Teaching Diary with delivery records and attainment evidence — plus a Comprehensive Module Report.</p>
+          <ul class="module-tools">
+            <li>Lesson Plan</li>
+            <li>Teaching Diary</li>
+            <li>Comprehensive Report</li>
+          </ul>
+          <div class="module-cost">&#9711; 6 tokens per run</div>
+          <span class="module-flip-hint">Flip to see outputs</span>
+        </div>
+        <div class="module-card-back">
+          <div class="module-num-label" style="background:rgba(244,63,94,.15);color:#fda4af;border:1px solid rgba(244,63,94,.25)">Module 3</div>
+          <p class="back-section-title">What you get</p>
+          <ul class="back-list">
+            <li><span class="bi">&#10022;</span> 13-section Lesson Plan with CO-PO-SDG alignment</li>
+            <li><span class="bi">&#10022;</span> Session-wise delivery plan across all units</li>
+            <li><span class="bi">&#10022;</span> Full-semester Teaching Diary with delivery records</li>
+            <li><span class="bi">&#10022;</span> CO attainment evidence for NBA/NAAC</li>
+            <li><span class="bi">&#10022;</span> Comprehensive Module Report with analytics</li>
+          </ul>
+          <a href="/app" class="back-cta">Use Module 3 &#8594;</a>
+        </div>
+      </div>
     </div>
-    <div class="product-card reveal" style="--card-accent:linear-gradient(90deg,#10b981,#34d399);transition-delay:.07s">
-      <div class="product-icon-wrap" style="background:rgba(16,185,129,.15)">🗺️</div>
-      <h3>CO–PO Mapping</h3>
-      <p>Generate an NBA-compliant CO–PO / CO–PSO mapping table with 3/2/1/0 attainment scores.</p>
+
+    <!-- M4 -->
+    <div class="module-card reveal"
+         style="--mod-accent:linear-gradient(90deg,#10b981,#34d399);--mod-back:rgba(16,185,129,.11);--mod-bullet:#6ee7b7;transition-delay:.16s">
+      <div class="module-card-inner">
+        <div class="module-card-front">
+          <div class="module-num-label" style="background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.25)">Module 4</div>
+          <span class="module-icon">📊</span>
+          <h3>Attainment &amp; SDG Analysis</h3>
+          <p>NBA-compliant CO-PO Mapping, CO &amp; PO Attainment, CO/PO to UN SDG contributions — all from a single upload. Includes a Comprehensive Assessment Report.</p>
+          <ul class="module-tools">
+            <li>CO-PO Mapping</li>
+            <li>CO &amp; PO Attainment</li>
+            <li>SDG Contributions</li>
+            <li>Assessment Report</li>
+          </ul>
+          <div class="module-cost">&#9711; 4&ndash;5 tokens per run</div>
+          <span class="module-flip-hint">Flip to see outputs</span>
+        </div>
+        <div class="module-card-back">
+          <div class="module-num-label" style="background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.25)">Module 4</div>
+          <p class="back-section-title">What you get</p>
+          <ul class="back-list">
+            <li><span class="bi">&#10022;</span> CO-PO / CO-PSO Mapping table (3/2/1/0 scores)</li>
+            <li><span class="bi">&#10022;</span> CO Attainment &mdash; NBA Method 2 Tier-I compliant</li>
+            <li><span class="bi">&#10022;</span> PO Attainment via weighted average</li>
+            <li><span class="bi">&#10022;</span> CO &rarr; SDG &amp; PO &rarr; SDG contributions</li>
+            <li><span class="bi">&#10022;</span> Composite SDG Index &amp; Comprehensive Assessment Report</li>
+          </ul>
+          <a href="/app" class="back-cta">Use Module 4 &#8594;</a>
+        </div>
+      </div>
     </div>
-    <div class="product-card reveal" style="--card-accent:linear-gradient(90deg,#f43f5e,#fb7185);transition-delay:.14s">
-      <div class="product-icon-wrap" style="background:rgba(244,63,94,.15)">📅</div>
-      <h3>Course Lesson Plan</h3>
-      <p>Generate a complete 13-section lesson plan with CO-PO-SDG mapping, session delivery plan, and NBA/NAAC alignment.</p>
-    </div>
-    <div class="product-card reveal" style="--card-accent:linear-gradient(90deg,#8b5cf6,#a78bfa);transition-delay:.21s">
-      <div class="product-icon-wrap" style="background:rgba(139,92,246,.15)">📓</div>
-      <h3>Teaching Diary</h3>
-      <p>Generate a full-semester teaching diary with delivery records, CO attainment data, and NBA/NAAC evidence.</p>
-    </div>
-    <div class="product-card reveal" style="--card-accent:linear-gradient(90deg,#f97316,#fb923c);transition-delay:.07s">
-      <div class="product-icon-wrap" style="background:rgba(249,115,22,.15)">📈</div>
-      <h3>CO Attainment</h3>
-      <p>Upload CIE mark sheets to auto-calculate CO attainment levels and PO attainment via weighted average — NBA Method 2 Tier-I compliant.</p>
-    </div>
-    <div class="product-card reveal" style="--card-accent:linear-gradient(90deg,#14b8a6,#2dd4bf);transition-delay:.14s">
-      <div class="product-icon-wrap" style="background:rgba(20,184,166,.15)">📊</div>
-      <h3>CO → SDG Contribution</h3>
-      <p>Analyse CO-level contributions to UN Sustainable Development Goals — identify key outcomes driving SDG alignment.</p>
-    </div>
-    <div class="product-card reveal" style="--card-accent:linear-gradient(90deg,#22c55e,#4ade80);transition-delay:.21s">
-      <div class="product-icon-wrap" style="background:rgba(34,197,94,.15)">🌍</div>
-      <h3>PO → SDG Contribution</h3>
-      <p>Calculate how Programme Outcomes contribute to UN SDGs using weighted attainment scores and a Composite SDG Index.</p>
-    </div>
-    <div class="product-card reveal" style="--card-accent:linear-gradient(90deg,#eab308,#f97316);transition-delay:.07s">
-      <div class="product-icon-wrap" style="background:rgba(234,179,8,.15)">⚡</div>
-      <h3>All in One</h3>
-      <p>Generate every document in sequence from a single syllabus — COs, Question Bank, CO–PO Mapping, Lesson Plan, Teaching Diary, SDG Contributions, and CO Attainment.</p>
-    </div>
+
+  </div>
+</section>
+
+<!-- ── SUPPORTED FIELDS ── -->
+<section id="fields">
+  <div class="section-header reveal" style="text-align:center">
+    <p class="section-label">Who we serve</p>
+    <h2 class="section-title">Built for every professional college</h2>
+    <p class="section-sub" style="margin:0 auto">OBE and NBA documentation requirements differ across disciplines &mdash; MyOBE adapts to your field.</p>
+  </div>
+  <div class="fields-wrap reveal" style="transition-delay:.1s">
+    <div class="field-pill">&#9881;&#65039; Engineering</div>
+    <div class="field-pill">&#128188; Management</div>
+    <div class="field-pill">&#128138; Pharmacy</div>
+    <div class="field-pill">&#129514; Medical</div>
+    <div class="field-pill">&#129463; Dental</div>
+    <div class="field-pill">&#9878;&#65039; Law</div>
+    <div class="field-pill">&#127963;&#65039; Architecture &amp; Planning</div>
+    <div class="field-pill">&#127807; Agriculture &amp; Allied Sciences</div>
   </div>
 </section>
 
@@ -651,7 +825,7 @@
   <div class="section-header reveal">
     <p class="section-label">Pricing</p>
     <h2 class="section-title">Pay as you go</h2>
-    <p class="section-sub">Buy tokens, spend them on generations. Every tool unlocked — no tier restrictions.</p>
+    <p class="section-sub">Buy tokens, spend them on generations. All modules and disciplines unlocked — no tier restrictions.</p>
   </div>
   <div class="token-intro reveal">
     <span>&#9711;</span>
@@ -666,9 +840,9 @@
       <div class="plan-per">&#8377;10 per token</div>
       <p class="plan-desc">Great for trying out the tools or occasional use.</p>
       <ul class="plan-features">
-        <li><span class="check">&#10003;</span> All 9 tools unlocked</li>
-        <li><span class="check">&#10003;</span> ~10 CO generations</li>
-        <li><span class="check">&#10003;</span> ~5 Question Banks</li>
+        <li><span class="check">&#10003;</span> All 4 modules unlocked</li>
+        <li><span class="check">&#10003;</span> ~1&ndash;2 full module runs</li>
+        <li><span class="check">&#10003;</span> ~5 question papers</li>
         <li><span class="check">&#10003;</span> PDF, DOCX &amp; TXT export</li>
       </ul>
       <a href="/login?tab=register" class="btn-plan btn-plan-outline">Get Started</a>
@@ -682,10 +856,10 @@
       <div class="plan-per">&#8377;8.33 per token &mdash; save 17%</div>
       <p class="plan-desc">Covers a full semester of documentation for most faculty.</p>
       <ul class="plan-features">
-        <li><span class="check">&#10003;</span> All 9 tools unlocked</li>
-        <li><span class="check">&#10003;</span> ~60 CO generations</li>
-        <li><span class="check">&#10003;</span> ~30 Question Banks</li>
-        <li><span class="check">&#10003;</span> ~30 Lesson Plans or Diaries</li>
+        <li><span class="check">&#10003;</span> All 4 modules unlocked</li>
+        <li><span class="check">&#10003;</span> ~10 full module runs</li>
+        <li><span class="check">&#10003;</span> ~30 question papers</li>
+        <li><span class="check">&#10003;</span> Covers a full semester easily</li>
       </ul>
       <a href="/login?tab=register" class="btn-plan btn-plan-filled">Buy Popular</a>
     </div>
@@ -697,9 +871,9 @@
       <div class="plan-per">&#8377;6.67 per token &mdash; save 33%</div>
       <p class="plan-desc">For departments or faculty with heavy documentation workloads.</p>
       <ul class="plan-features">
-        <li><span class="check">&#10003;</span> All 9 tools unlocked</li>
-        <li><span class="check">&#10003;</span> ~150 CO generations</li>
-        <li><span class="check">&#10003;</span> ~75 Question Banks</li>
+        <li><span class="check">&#10003;</span> All 4 modules unlocked</li>
+        <li><span class="check">&#10003;</span> ~25 full module runs</li>
+        <li><span class="check">&#10003;</span> ~75 question papers</li>
         <li><span class="check">&#10003;</span> Best per-token value</li>
       </ul>
       <a href="/login?tab=register" class="btn-plan btn-plan-outline">Buy Pro Pack</a>
@@ -713,7 +887,7 @@
   <div class="cta-strip-bg"></div>
   <div class="cta-strip-inner reveal">
     <h2>Ready to save hours every week?</h2>
-    <p>Join faculty from colleges across India — generate your first CO set in under a minute.</p>
+    <p>Join faculty from colleges across India &mdash; Engineering, Pharmacy, Management, Medical, and more. Generate your first document in under a minute.</p>
     {% if logged_in %}
       <a href="/app" class="btn-cta">Open Dashboard →</a>
     {% else %}
@@ -729,15 +903,15 @@
       <a href="/" class="footer-logo">
         <div class="footer-logo-icon">🎓</div>MyOBE
       </a>
-      <p>Automates NBA/NAAC-compliant academic documentation for Indian engineering and science colleges.</p>
+      <p>Automates NBA/NAAC-compliant academic documentation for Engineering, Management, Pharmacy, Medical, Law, and more.</p>
     </div>
     <div class="footer-links">
-      <h4>Tools</h4>
+      <h4>Modules</h4>
       <ul>
-        <li><a href="/#products">CO Generator</a></li>
-        <li><a href="/#products">Question Bank</a></li>
-        <li><a href="/#products">Question Paper</a></li>
-        <li><a href="/#products">CO–PO Mapping</a></li>
+        <li><a href="/#modules">Module 1 &mdash; Course Docs</a></li>
+        <li><a href="/#modules">Module 2 &mdash; Question Papers</a></li>
+        <li><a href="/#modules">Module 3 &mdash; Lesson Plans</a></li>
+        <li><a href="/#modules">Module 4 &mdash; Attainment</a></li>
       </ul>
     </div>
     <div class="footer-links">
@@ -752,7 +926,7 @@
   </div>
   <div class="footer-bottom">
     <span>&copy; 2026 MyOBE — Academic Content Generator</span>
-    <span>Built for Indian faculty · NBA &amp; NAAC aligned</span>
+    <span>Built for Indian faculty &middot; NBA &amp; NAAC aligned &middot; 8+ disciplines</span>
   </div>
 </footer>
 
@@ -816,6 +990,14 @@
     entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); revObs.unobserve(e.target); } });
   }, { threshold: 0.08 });
   document.querySelectorAll('.reveal').forEach(el => revObs.observe(el));
+
+  /* ── Module card tap-to-flip (touch devices) ── */
+  document.querySelectorAll('.module-card').forEach(card => {
+    card.addEventListener('click', e => {
+      if (e.target.closest('a')) return;
+      card.classList.toggle('flipped');
+    });
+  });
 </script>
 </body>
 </html>

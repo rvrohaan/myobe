@@ -163,7 +163,7 @@
       color: rgba(255,255,255,.45);
       text-transform: uppercase; letter-spacing: .07em; margin-bottom: 7px;
     }
-    .field input {
+    .field input, .field select {
       width: 100%; padding: 11px 14px;
       background: rgba(255,255,255,.07);
       border: 1.5px solid rgba(255,255,255,.12);
@@ -171,8 +171,10 @@
       outline: none; color: #fff;
       transition: border-color .15s, box-shadow .15s, background .15s;
     }
+    .field select { appearance: none; cursor: pointer; }
+    .field select option { background: #1e1b4b; color: #fff; }
     .field input::placeholder { color: rgba(255,255,255,.22); }
-    .field input:focus {
+    .field input:focus, .field select:focus {
       border-color: rgba(99,102,241,.6);
       box-shadow: 0 0 0 3px rgba(99,102,241,.15);
       background: rgba(255,255,255,.1);
@@ -242,9 +244,10 @@
     html.light-theme .tab-btn.active { color: #1e293b; background: rgba(37,99,235,.08); border-bottom-color: #2563eb; }
     html.light-theme .tab-btn:hover:not(.active) { color: rgba(30,41,59,.7); background: rgba(37,99,235,.05); }
     html.light-theme .field label { color: rgba(30,41,59,.5); }
-    html.light-theme .field input { background: rgba(255,255,255,.85); border-color: rgba(37,99,235,.2); color: #1e293b; }
+    html.light-theme .field input, html.light-theme .field select { background: rgba(255,255,255,.85); border-color: rgba(37,99,235,.2); color: #1e293b; }
+    html.light-theme .field select option { background: #eff6ff; color: #1e293b; }
     html.light-theme .field input::placeholder { color: rgba(30,41,59,.3); }
-    html.light-theme .field input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); background: #fff; }
+    html.light-theme .field input:focus, html.light-theme .field select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); background: #fff; }
     html.light-theme .field .hint { color: rgba(30,41,59,.5); }
     html.light-theme .divider { color: rgba(30,41,59,.3); }
     html.light-theme .divider::before, html.light-theme .divider::after { background: rgba(30,41,59,.12); }
@@ -355,6 +358,20 @@
         <label for="reg-confirm">Confirm Password</label>
         <input id="reg-confirm" name="confirm" type="password"
                autocomplete="new-password" required>
+      </div>
+      <div class="field">
+        <label for="reg-college-type">College / Institution Type</label>
+        <select id="reg-college-type" name="college_type">
+          <option value="engineering">Engineering (NBA/NAAC)</option>
+          <option value="medical">Medical (NMC)</option>
+          <option value="dental">Dental (DCI)</option>
+          <option value="law">Law (BCI)</option>
+          <option value="pharmacy">Pharmacy (PCI)</option>
+          <option value="management">Management (AICTE)</option>
+          <option value="architecture">Architecture &amp; Planning (COA)</option>
+          <option value="agriculture">Agriculture &amp; Allied (ICAR)</option>
+        </select>
+        <p class="hint">Sets the Programme Outcomes (POs) framework for your institution</p>
       </div>
       <button class="btn-submit" type="submit">Create Account</button>
     </form>

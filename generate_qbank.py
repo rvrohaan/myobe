@@ -222,9 +222,17 @@ def build_unit_plan(client, cos, course_text):
         title = unit_titles.get(label, '')
         plan[label] = {'title': title, 'cos': co_groups.get(label, [])}
 
-    # Unmapped COs last
+    # Distribute unmapped COs across existing units instead of creating an 'Unmapped' bucket.
+    # This ensures every CO gets questions generated for it.
     if unmapped:
-        plan['Unmapped'] = {'title': 'COs not mapped to a unit', 'cos': unmapped}
+        if plan:
+            unit_labels = list(plan.keys())
+            for i, co in enumerate(unmapped):
+                target = unit_labels[i % len(unit_labels)]
+                plan[target]['cos'].append(co)
+                print(f"    Assigned CO{co['num']} (unmapped) → {target}")
+        else:
+            plan['Unit 1'] = {'title': 'Course Content', 'cos': unmapped}
 
     return plan
 

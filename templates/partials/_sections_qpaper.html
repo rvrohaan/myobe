@@ -1,100 +1,20 @@
-  <!-- ── MODE 3: Source selection + upload ────────────────────────────── -->
+  <!-- ── MODE 3: Upload Question Bank ────────────────────────────────── -->
   <div id="sec-upload-qb" class="card hidden">
-    <h2>Question Paper — Choose Source</h2>
-    <p class="sub">Upload an existing question bank, or build one now from a syllabus.</p>
+    <h2>Upload Question Bank</h2>
+    <p class="sub">Upload a question bank file to compose your paper. Supported formats: TXT, DOCX, PDF.</p>
 
-    <!-- Source tabs -->
-    <div style="display:flex;gap:8px;margin-bottom:20px;">
-      <button class="ctrl-btn" id="qptab-qbfile" onclick="switchQPTab('qbfile')"
-              style="padding:6px 14px;font-size:.82rem;">Upload Question Bank</button>
-      <button class="ctrl-btn" id="qptab-syllabus" onclick="switchQPTab('syllabus')"
-              style="padding:6px 14px;font-size:.82rem;">Generate from Syllabus</button>
+    <div class="upload-zone" id="upload-qb-zone">
+      <div class="upload-icon">📚</div>
+      <h3>Drag &amp; drop your question bank here</h3>
+      <p>or click to browse</p>
+      <p style="margin-top:8px;font-size:.72rem;">TXT · DOCX · PDF</p>
+      <input type="file" id="qb-file-input" accept=".txt,.docx,.pdf">
     </div>
-
-    <!-- ── Panel A: Upload QB file ── -->
-    <div id="qp-qbfile-panel">
-      <div class="upload-zone" id="upload-qb-zone">
-        <div class="upload-icon">📚</div>
-        <h3>Drag &amp; drop your question bank here</h3>
-        <p>or click to browse</p>
-        <p style="margin-top:8px;font-size:.72rem;">TXT · DOCX · PDF</p>
-        <input type="file" id="qb-file-input" accept=".txt,.docx,.pdf">
-      </div>
-      <div class="uni-progress hidden" id="qb-upload-loading">
-        <span class="uni-progress-label">Parsing question bank…</span>
-        <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
-      </div>
-      <div class="alert alert-error hidden" id="qb-upload-err"></div>
+    <div class="uni-progress hidden" id="qb-upload-loading">
+      <span class="uni-progress-label">Parsing question bank…</span>
+      <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
     </div>
-
-    <!-- ── Panel B: Generate QB from Syllabus ── -->
-    <div id="qp-syllabus-panel" class="hidden">
-
-      <!-- Phase 1: Upload syllabus -->
-      <div id="qps-phase-upload">
-        <div class="upload-zone" id="qps-syl-zone">
-          <div class="upload-icon">📄</div>
-          <h3>Drag &amp; drop your syllabus here</h3>
-          <p>or click to browse — PDF · DOCX · TXT</p>
-          <input type="file" id="qps-syl-input" accept=".pdf,.docx,.doc,.txt">
-        </div>
-        <div class="uni-progress hidden" id="qps-upload-loading">
-          <span class="uni-progress-label">Extracting courses…</span>
-          <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
-        </div>
-        <div class="alert alert-error hidden" id="qps-upload-err"></div>
-      </div>
-
-      <!-- Phase 2: Course + QB config (shown after upload) -->
-      <div id="qps-phase-config" class="hidden">
-        <p style="font-size:.85rem;font-weight:600;margin-bottom:8px;">Select course</p>
-        <input class="search-box" id="qps-course-search" type="text" placeholder="Search…" style="margin-bottom:8px;">
-        <div class="course-list" id="qps-course-list" style="max-height:200px;"></div>
-
-        <p style="font-size:.85rem;font-weight:600;margin:14px 0 8px;">Questions per unit</p>
-        <div class="num-grid" style="grid-template-columns:repeat(5,1fr);">
-          <div class="num-field">
-            <label>2-mark</label>
-            <input type="number" id="qps-n2" value="4" min="1" max="20">
-          </div>
-          <div class="num-field">
-            <label>5-mark</label>
-            <input type="number" id="qps-n5" value="4" min="1" max="20">
-          </div>
-          <div class="num-field">
-            <label>10-mark</label>
-            <input type="number" id="qps-n10" value="4" min="1" max="20">
-          </div>
-          <div class="num-field">
-            <label>Assignments</label>
-            <input type="number" id="qps-nassign" value="2" min="0" max="10">
-          </div>
-          <div class="num-field">
-            <label>Quiz Qs</label>
-            <input type="number" id="qps-nquiz" value="5" min="0" max="20">
-          </div>
-        </div>
-        <p style="font-size:.72rem;color:var(--muted);margin-top:6px;">COs are auto-generated from the syllabus — no selection step needed.</p>
-
-        <div style="margin-top:14px;">
-          <button class="btn btn-primary" id="qps-btn-gen" disabled onclick="qpsGenerate()">
-            Generate Question Bank →
-          </button>
-        </div>
-        <div class="alert alert-error hidden" id="qps-config-err"></div>
-      </div>
-
-      <!-- Phase 3: Generation progress -->
-      <div id="qps-phase-generating" class="hidden">
-        <div class="uni-progress" style="margin-top:0;">
-          <span class="uni-progress-label" id="qps-gen-label">Generating…</span>
-          <div class="uni-progress-track"><div class="uni-progress-fill" id="qps-progress-fill" style="width:0%"></div></div>
-        </div>
-        <div class="stream-output" id="qps-stream-out" style="max-height:240px;margin-top:12px;"></div>
-        <div class="alert alert-error hidden" id="qps-gen-err" style="margin-top:8px;"></div>
-      </div>
-
-    </div><!-- /qp-syllabus-panel -->
+    <div class="alert alert-error hidden" id="qb-upload-err"></div>
 
     <div class="actions">
       <button class="btn btn-ghost" onclick="startOver()">← Back</button>
@@ -194,6 +114,14 @@
     <!-- Assign / Quiz / Lab: pick specific items (shown when ptype = assign / quiz / practical / viva) -->
     <div class="parts-section hidden" id="assign-quiz-picker-section">
       <h3 id="assign-quiz-picker-heading">Pick specific questions</h3>
+
+      <!-- Lab templates (practical / viva only) — populated dynamically -->
+      <div id="lab-tpl-section" class="hidden" style="margin-bottom:14px;">
+        <p style="font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;
+                  letter-spacing:.5px;margin-bottom:10px;">Choose a template</p>
+        <div class="tpl-sel-grid" id="lab-tpl-grid"></div>
+      </div>
+
       <div class="picker-toggle">
         <button type="button" onclick="toggleAssignQuizPicker()">
           <span id="aq-picker-icon">▶</span> Pick specific questions

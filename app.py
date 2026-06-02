@@ -1,4 +1,4 @@
-﻿import os
+import os
 import re
 import json
 import uuid
@@ -57,11 +57,17 @@ from generate_qpaper import (
 from generate_po_mapping import (
     parse_cos_for_mapping, parse_course_header,
     generate_mapping_stream, parse_mapping_response,
-    POS as STANDARD_POS,
+    POS as _ENG_POS,           # kept for backward compat
+    POS_BY_TYPE, COLLEGE_TYPE_META, get_pos_for_type,
     save_txt as po_save_txt,
     save_docx as po_save_docx,
     save_pdf  as po_save_pdf,
 )
+# Dynamic helper — always reads from current user's session
+def _get_standard_pos():
+    return get_pos_for_type(session.get("college_type", "engineering"))
+
+STANDARD_POS = _ENG_POS   # legacy alias used in a few places; prefer _get_standard_pos()
 
 from generate_template import (
     parse_template_paper,
@@ -84,10 +90,12 @@ from generate_teaching_diary import (
     build_txt  as td_build_txt,
 )
 
+import generate_m1_report as _m1r
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
 
-# In-process store keyed by session ID â€” fine for single-user local tool
+# In-process store keyed by session ID  -  fine for single-user local tool
 _store: dict = {}
 
 _DATA_DIR   = os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__)))
@@ -103,15 +111,97 @@ def load_users() -> dict:
         needs_save = False
         for k, v in list(raw.items()):
             if isinstance(v, str):
-                raw[k] = {"password": v, "tokens": 5}
+                raw[k] = {"password": v, "tokens": 5, "college_type": "engineering"}
                 needs_save = True
-            elif isinstance(v, dict) and "tokens" not in v:
-                raw[k]["tokens"] = 5
-                needs_save = True
+            elif isinstance(v, dict):
+                if "tokens" not in v:
+                    raw[k]["tokens"] = 5
+                    needs_save = True
+                if "college_type" not in v:
+                    raw[k]["college_type"] = "engineering"
+                    needs_save = True
         if needs_save:
             _save_users(raw)
         return raw
     return {}
+
+
+# ── College context helpers ───────────────────────────────────────────────────
+
+_COLLEGE_CONTEXTS = {
+    "engineering": {
+        "type": "Engineering", "discipline": "engineering",
+        "accreditation": "NBA/NAAC (National Board of Accreditation)",
+        "professional": "engineer", "program": "B.Tech / B.E.",
+        "outcomes_term": "Programme Outcomes (POs)",
+        "body": "NBA", "framework": "OBE/NBA",
+    },
+    "medical": {
+        "type": "Medical", "discipline": "medicine",
+        "accreditation": "NMC (National Medical Commission)",
+        "professional": "physician/doctor", "program": "MBBS / MD",
+        "outcomes_term": "Graduate Attributes / Programme Outcomes",
+        "body": "NMC", "framework": "CBME/NMC",
+    },
+    "dental": {
+        "type": "Dental", "discipline": "dentistry",
+        "accreditation": "DCI (Dental Council of India)",
+        "professional": "dental surgeon / dentist", "program": "BDS / MDS",
+        "outcomes_term": "Programme Outcomes (POs)",
+        "body": "DCI", "framework": "OBE/DCI",
+    },
+    "law": {
+        "type": "Law", "discipline": "law",
+        "accreditation": "BCI (Bar Council of India)",
+        "professional": "advocate / lawyer", "program": "LLB / LLM",
+        "outcomes_term": "Programme Outcomes / Graduate Attributes",
+        "body": "BCI", "framework": "OBE/BCI",
+    },
+    "pharmacy": {
+        "type": "Pharmacy", "discipline": "pharmacy",
+        "accreditation": "PCI (Pharmacy Council of India)",
+        "professional": "pharmacist", "program": "B.Pharm / M.Pharm",
+        "outcomes_term": "Programme Outcomes (POs)",
+        "body": "PCI", "framework": "OBE/PCI",
+    },
+    "management": {
+        "type": "Management", "discipline": "management / business",
+        "accreditation": "AICTE/NAAC",
+        "professional": "manager / business professional", "program": "BBA / MBA",
+        "outcomes_term": "Programme Outcomes (POs)",
+        "body": "AICTE", "framework": "OBE/AICTE",
+    },
+    "architecture": {
+        "type": "Architecture & Planning", "discipline": "architecture",
+        "accreditation": "COA (Council of Architecture)",
+        "professional": "architect / planner", "program": "B.Arch / M.Arch",
+        "outcomes_term": "Programme Outcomes (POs)",
+        "body": "COA", "framework": "OBE/COA",
+    },
+    "agriculture": {
+        "type": "Agriculture & Allied Sciences", "discipline": "agriculture",
+        "accreditation": "ICAR (Indian Council of Agricultural Research)",
+        "professional": "agronomist / agricultural scientist", "program": "B.Sc Ag / M.Sc Ag",
+        "outcomes_term": "Programme Outcomes (POs)",
+        "body": "ICAR", "framework": "OBE/ICAR",
+    },
+}
+
+
+def _get_college_context() -> dict:
+    """Return college context dict for the current user's college_type."""
+    ct = session.get("college_type", "engineering")
+    return _COLLEGE_CONTEXTS.get(ct, _COLLEGE_CONTEXTS["engineering"])
+
+
+def _ctx_prompt() -> str:
+    """One-liner system-prompt prefix for AI calls: role + accreditation body."""
+    c = _get_college_context()
+    return (
+        f"You are an OBE and accreditation expert for Indian {c['type']} colleges "
+        f"({c['accreditation']}). You specialise in {c['framework']} compliance, "
+        f"Bloom's taxonomy-aligned {c['outcomes_term']}, and quality education."
+    )
 
 
 def login_required(fn):
@@ -174,14 +264,14 @@ def _get_store():
     return _store.setdefault(_sid(), {})
 
 
-# â”€â”€ Auth routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Auth routes â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 def _save_users(users: dict) -> None:
     with open(USERS_FILE, "w", encoding="utf-8") as f:
         json.dump(users, f, indent=2)
 
 
-# â”€â”€ Password-reset token helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Password-reset token helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 def _load_tokens() -> dict:
     if os.path.exists(TOKENS_FILE):
@@ -264,16 +354,17 @@ def login():
         users    = load_users()
 
         if not users:
-            error = "No users yet â€” use the Register tab to create an account."
+            error = "No users yet  -  use the Register tab to create an account."
         elif username not in users:
             error = "Invalid username or password."
         elif not check_password_hash(users[username]["password"], password):
             error = "Invalid username or password."
         else:
             session.clear()
-            session["logged_in"] = True
-            session["username"]  = username
-            session["tokens"]    = users[username].get("tokens", 0)
+            session["logged_in"]    = True
+            session["username"]     = username
+            session["tokens"]       = users[username].get("tokens", 0)
+            session["college_type"] = users[username].get("college_type", "engineering")
             return redirect(request.args.get("next") or url_for("dashboard"))
 
     resp = make_response(render_template(
@@ -319,13 +410,23 @@ def register():
     if any(d.get("email", "").lower() == email for d in users.values() if isinstance(d, dict)):
         return fail("An account with that email address already exists.")
 
-    users[username] = {"password": generate_password_hash(password), "tokens": 5, "email": email}
+    college_type = request.form.get("college_type", "engineering").strip()
+    if college_type not in _COLLEGE_CONTEXTS:
+        college_type = "engineering"
+
+    users[username] = {
+        "password":     generate_password_hash(password),
+        "tokens":       5,
+        "email":        email,
+        "college_type": college_type,
+    }
     _save_users(users)
 
     session.clear()
-    session["logged_in"] = True
-    session["username"]  = username
-    session["tokens"]    = 5
+    session["logged_in"]    = True
+    session["username"]     = username
+    session["tokens"]       = 5
+    session["college_type"] = college_type
     return redirect(url_for("dashboard"))
 
 
@@ -335,7 +436,7 @@ def logout():
     return redirect(url_for("login"))
 
 
-# â”€â”€ App routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Module 1: CO Generation routes ------------------------------------------
 
 @app.route("/")
 def home():
@@ -451,7 +552,7 @@ def generate():
         import anthropic
         client = anthropic.Anthropic(
             api_key=os.environ["ANTHROPIC_API_KEY"],
-            timeout=90.0,   # 90 s per read â€” aborts if Anthropic stops sending chunks
+            timeout=90.0,   # 90 s per read  -  aborts if Anthropic stops sending chunks
         )
         chunks = []
         try:
@@ -461,10 +562,10 @@ def generate():
                 chunks.append(chunk)
                 yield f"data: {json.dumps({'chunk': chunk})}\n\n"
         except anthropic.APITimeoutError:
-            yield f"data: {json.dumps({'error': 'Request timed out â€” check your internet connection and try again.'})}\n\n"
+            yield f"data: {json.dumps({'error': 'Request timed out - check your internet connection and try again.'})}\n\n"
             return
         except anthropic.APIConnectionError:
-            yield f"data: {json.dumps({'error': 'Could not reach the AI service â€” check your internet connection and try again.'})}\n\n"
+            yield f"data: {json.dumps({'error': 'Could not reach the AI service - check your internet connection and try again.'})}\n\n"
             return
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -552,7 +653,7 @@ def export():
     )
 
 
-# â”€â”€ Question Bank routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Module 1: Question Bank routes ------------------------------------------
 
 @app.route("/upload_co_qbank", methods=["POST"])
 @login_required
@@ -638,7 +739,7 @@ def export_qbank_cos():
     grid     = build_taxonomy_grid(co_text)
 
     all_output = [
-        f"# Course Outcomes\nCourse: {code} â€” {info.get('title', '')}{sem_label}\n",
+        f"# Course Outcomes\nCourse: {code}  -  {info.get('title', '')}{sem_label}\n",
         (summary + "\n\n" + co_text if summary else co_text) + "\n",
     ]
 
@@ -723,7 +824,7 @@ def generate_qbank_route():
         import anthropic
         client = anthropic.Anthropic(
             api_key=os.environ["ANTHROPIC_API_KEY"],
-            timeout=120.0,  # 120 s per read â€” QB generates more text per call
+            timeout=120.0,  # 120 s per read  -  QB generates more text per call
         )
         all_blocks = []
 
@@ -732,11 +833,11 @@ def generate_qbank_route():
 
         def _timeout_msg():
             return _ev({"type": "error",
-                        "message": "Request timed out â€” check your internet connection and try again."})
+                        "message": "Request timed out - check your internet connection and try again."})
 
         def _conn_msg():
             return _ev({"type": "error",
-                        "message": "Could not reach the AI service â€” check your internet connection and try again."})
+                        "message": "Could not reach the AI service - check your internet connection and try again."})
 
         try:
             sem_label = f"  [Semester {info['semester']}]" if info.get("semester") else ""
@@ -750,7 +851,7 @@ def generate_qbank_route():
                            "message": f"Using {len(cos)} pre-selected Course Outcome(s)",
                            "stage": "cos_done"})
             else:
-                yield _ev({"type": "status", "message": "Generating Course Outcomesâ€¦", "stage": "cos"})
+                yield _ev({"type": "status", "message": "Generating Course Outcomes...", "stage": "cos"})
                 co_text = generate_cos_for_course(client, code, info["title"], info["text"], num_cos=15)
                 cos     = parse_cos_from_text(co_text)
                 if not cos:
@@ -758,16 +859,16 @@ def generate_qbank_route():
                     return
                 yield _ev({"type": "status", "message": f"Generated {len(cos)} Course Outcomes", "stage": "cos_done"})
 
-            yield _ev({"type": "status", "message": "Extracting unit structure from syllabusâ€¦", "stage": "units"})
+            yield _ev({"type": "status", "message": "Extracting unit structure from syllabus...", "stage": "units"})
             unit_plan = build_unit_plan(client, cos, info["text"])
             num_units = len(unit_plan)
             yield _ev({"type": "status", "message": f"Found {num_units} unit(s)", "stage": "units_done", "num_units": num_units})
 
-            # â”€â”€ Lab course path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            # â"€â"€ Lab course path â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
             if lab_mode:
                 all_blocks.append(
                     f"# Lab Question Bank\n"
-                    f"Course: {code} â€” {info['title']}{sem_label}\n"
+                    f"Course: {code}  -  {info['title']}{sem_label}\n"
                     f"Experiments per unit: {n_exp}  |  {n_exp * num_units} total\n"
                 )
                 for idx, (unit_label, udata) in enumerate(unit_plan.items(), 1):
@@ -786,7 +887,7 @@ def generate_qbank_route():
                     all_blocks.append(header)
 
                     yield _ev({"type": "status",
-                               "message": f"[{idx}/{num_units}] {full_unit} â€” generating experimentsâ€¦",
+                               "message": f"[{idx}/{num_units}] {full_unit} - generating experiments...",
                                "stage": "unit", "unit_idx": idx, "unit_total": num_units})
                     etext = generate_lab_experiments_for_unit(
                         client, unit_label, unit_title, unit_cos,
@@ -803,7 +904,7 @@ def generate_qbank_route():
                 yield _ev({"type": "done", "num_units": num_units, "is_lab": True})
                 return
 
-            # â”€â”€ Regular course path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            # â"€â"€ Regular course path â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
             total_per_unit = n2 + n5 + n10
             extras = []
             if n_assign: extras.append(f"{n_assign} assignment task(s)")
@@ -812,7 +913,7 @@ def generate_qbank_route():
 
             all_blocks.append(
                 f"# Question Bank\n"
-                f"Course: {code} â€” {info['title']}{sem_label}\n"
+                f"Course: {code}  -  {info['title']}{sem_label}\n"
                 f"Exam questions per unit: {n2} x 2-mark + {n5} x 5-mark + {n10} x 10-mark"
                 f" = {total_per_unit} per unit  |  {total_per_unit * num_units} total\n"
                 + extra_line
@@ -834,7 +935,7 @@ def generate_qbank_route():
                 all_blocks.append(header)
 
                 yield _ev({"type": "status",
-                           "message": f"[{idx}/{num_units}] {full_unit} â€” generating exam questionsâ€¦",
+                           "message": f"[{idx}/{num_units}] {full_unit} - generating exam questions...",
                            "stage": "unit", "unit_idx": idx, "unit_total": num_units})
                 qtext = generate_questions_for_unit(
                     client, unit_label, unit_title, unit_cos,
@@ -846,7 +947,7 @@ def generate_qbank_route():
 
                 if n_assign:
                     yield _ev({"type": "status",
-                               "message": f"[{idx}/{num_units}] {unit_label} â€” generating assignmentsâ€¦",
+                               "message": f"[{idx}/{num_units}] {unit_label} - generating assignments...",
                                "stage": "unit_assign", "unit_idx": idx})
                     atext = generate_assignments_for_unit(
                         client, unit_label, unit_title, unit_cos,
@@ -858,7 +959,7 @@ def generate_qbank_route():
 
                 if n_quiz:
                     yield _ev({"type": "status",
-                               "message": f"[{idx}/{num_units}] {unit_label} â€” generating quiz questionsâ€¦",
+                               "message": f"[{idx}/{num_units}] {unit_label} - generating quiz questions...",
                                "stage": "unit_quiz", "unit_idx": idx})
                     qztext = generate_quiz_for_unit(
                         client, unit_label, unit_title, unit_cos,
@@ -953,7 +1054,7 @@ def export_qbank():
     )
 
 
-# â”€â”€ Question Paper routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Module 2: Question Paper routes -----------------------------------------
 
 @app.route("/parse_generated_qbank", methods=["POST"])
 @login_required
@@ -1127,7 +1228,7 @@ def _build_lab_paper_blocks(body, data):
     show_co = bool(body.get("show_co", False))
 
     if ptype not in ("practical", "viva"):
-        raise ValueError("Invalid lab paper type â€” expected 'practical' or 'viva'")
+        raise ValueError("Invalid lab paper type  -  expected 'practical' or 'viva'")
 
     cfg = {
         "title":     body.get("title", "Practical Examination" if ptype == "practical" else "Viva Voce Examination"),
@@ -1307,7 +1408,7 @@ def _edited_text_to_pdf(text, output_path):
 
 
 @app.route("/export_qpaper", methods=["POST"])
-@tokens_required(1)
+@tokens_required(2)
 def export_qpaper():
     store    = _get_store()
     data     = store.get("qb_data")
@@ -1546,7 +1647,7 @@ def _html_to_pdf(html, output_path):
     from html.parser import HTMLParser
     from fpdf import FPDF, XPos, YPos
 
-    # â”€â”€ parse into a flat list of blocks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # â"€â"€ parse into a flat list of blocks â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     blocks = []
 
     class _P(HTMLParser):
@@ -1599,9 +1700,9 @@ def _html_to_pdf(html, output_path):
 
     _P().feed(html)
 
-    # â”€â”€ render with fpdf2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # â"€â"€ render with fpdf2 â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     pdf = FPDF()
-    pdf.set_auto_page_break(auto=False)   # manual page breaks â€” avoids mid-row breaks
+    pdf.set_auto_page_break(auto=False)   # manual page breaks  -  avoids mid-row breaks
     pdf.add_page()
     pdf.set_margins(15, 15, 15)
     page_w  = pdf.w - 2 * pdf.l_margin   # ~180 mm on A4
@@ -1711,7 +1812,7 @@ def ai_rephrase():
         f"Rephrase the following engineering exam question to be clearer, "
         f"more precise, and academically well-worded{co_ctx}{marks_ctx}.\n\n"
         f'Original question:\n"{question_text}"\n\n'
-        f"Return ONLY the rephrased question â€” no explanation, no quotes, no preamble."
+        f"Return ONLY the rephrased question  -  no explanation, no quotes, no preamble."
     )
 
     try:
@@ -1758,7 +1859,7 @@ def ai_apply_suggestion():
         f"Original question{co_ctx}{marks_ctx}:\n\"{question_text}\"\n\n"
         f"Feedback to address: {suggestion_message}\n\n"
         f"Rewrite the question to address this feedback while preserving the original intent "
-        f"and scope. Return ONLY the improved question â€” no explanation, no quotes, no preamble."
+        f"and scope. Return ONLY the improved question  -  no explanation, no quotes, no preamble."
     )
 
     try:
@@ -1848,7 +1949,100 @@ Rules:
         return jsonify({"error": str(e), "suggestions": []})
 
 
-# â”€â”€ Lesson Plan AI suggestion routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+@app.route("/m1_report_apply_suggestion", methods=["POST"])
+@login_required
+def m1_report_apply_suggestion():
+    """Rewrite a selected report section to directly incorporate AI advice."""
+    import anthropic as _ant
+
+    body     = request.get_json() or {}
+    original = (body.get("original") or "").strip()
+    advice   = (body.get("advice")   or "").strip()
+
+    if not original or not advice:
+        return jsonify({"error": "Missing original text or advice"}), 400
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return jsonify({"error": "API key not configured"}), 500
+
+    prompt = (
+        "You are editing a section of a Module 1 comprehensive academic report for an Indian "
+        "engineering college course.\n\n"
+        f"Original section:\n\"\"\"\n{original[:1200]}\n\"\"\"\n\n"
+        f"Improvement advice to incorporate:\n{advice[:800]}\n\n"
+        "Rewrite the section so it directly reflects the improvements described in the advice. "
+        "Keep the same writing style, tone, and approximate length as the original. "
+        "Do NOT add headers, bullet points, or labels — return only the rewritten prose, "
+        "ready to replace the original in the report."
+    )
+
+    try:
+        client   = _ant.Anthropic(api_key=api_key, timeout=30.0)
+        response = client.messages.create(
+            model      = "claude-haiku-4-5-20251001",
+            max_tokens = 600,
+            messages   = [{"role": "user", "content": prompt}],
+        )
+        rewritten = response.content[0].text.strip().strip('"').strip("'")
+        return jsonify({"rewritten": rewritten})
+    except _ant.APITimeoutError:
+        return jsonify({"error": "Request timed out"}), 504
+    except _ant.APIConnectionError:
+        return jsonify({"error": "Could not reach AI service"}), 503
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+
+@app.route("/m1_report_ai_suggest", methods=["POST"])
+@tokens_required(1)
+def m1_report_ai_suggest():
+    """Answer a free-form question about the Module 1 report using selected report text as context."""
+    import anthropic as _ant
+
+    body     = request.get_json() or {}
+    question = (body.get("question") or "").strip()
+    context  = (body.get("context")  or "").strip()
+
+    if not question:
+        return jsonify({"error": "No question provided"}), 400
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return jsonify({"error": "API key not configured"}), 500
+
+    ctx_part = f"\n\nSelected section from the report:\n\"{context[:800]}\"" if context else ""
+
+    prompt = (
+        "You are an expert OBE/NBA academic quality advisor reviewing a Module 1 comprehensive "
+        "report for an Indian engineering college course. The report covers Course Outcomes, "
+        "Question Bank quality, Bloom's taxonomy compliance, CO coverage, scenario analysis, "
+        "QQI scores, marks distribution, and accreditation readiness."
+        f"{ctx_part}\n\n"
+        f"Question: {question}\n\n"
+        "Give a concise, practical, and actionable answer. If the question is about improving "
+        "a metric, explain specific techniques the faculty can apply to the question bank or "
+        "COs. Keep the response under 200 words and use plain text (no markdown)."
+    )
+
+    try:
+        client   = _ant.Anthropic(api_key=api_key, timeout=25.0)
+        response = client.messages.create(
+            model      = "claude-haiku-4-5-20251001",
+            max_tokens = 450,
+            messages   = [{"role": "user", "content": prompt}],
+        )
+        answer = response.content[0].text.strip()
+        return jsonify({"answer": answer})
+    except _ant.APITimeoutError:
+        return jsonify({"error": "Request timed out"}), 504
+    except _ant.APIConnectionError:
+        return jsonify({"error": "Could not reach AI service"}), 503
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+
+# -- Lesson Plan AI suggestion routes -----------------------------------------
 
 @app.route("/lp_ai_review", methods=["POST"])
 @tokens_required(1)
@@ -1888,9 +2082,9 @@ Return ONLY valid JSON (no markdown):
 }}
 
 Rules:
-- clarity: Is it specific, free of vague verbs (know, understand, learn)? 1â€“2 sentences.
-- blooms_alignment: Does the action verb match {bloom or 'the stated Bloom level'}? 1â€“2 sentences.
-- obe_compliance: Does it express ONE measurable competency in NBA OBE format? 1â€“2 sentences.
+- clarity: Is it specific, free of vague verbs (know, understand, learn)? 1 - 2 sentences.
+- blooms_alignment: Does the action verb match {bloom or 'the stated Bloom level'}? 1 - 2 sentences.
+- obe_compliance: Does it express ONE measurable competency in NBA OBE format? 1 - 2 sentences.
 - level: "ok"=no issue, "tip"=minor improvement, "warning"=significant problem."""
     else:
         prompt = f"""You are an OBE curriculum expert reviewing a lesson plan session entry.
@@ -1910,9 +2104,9 @@ Return ONLY valid JSON (no markdown):
 }}
 
 Rules:
-- co_alignment: Does the topic logically map to {co_ref or 'the mapped CO'}? 1â€“2 sentences.
-- sdg_relevance: Is the {sdg or 'SDG'} connection meaningful for this topic? 1â€“2 sentences.
-- method_fit: Is the teaching method appropriate for this topic and CO level? 1â€“2 sentences.
+- co_alignment: Does the topic logically map to {co_ref or 'the mapped CO'}? 1 - 2 sentences.
+- sdg_relevance: Is the {sdg or 'SDG'} connection meaningful for this topic? 1 - 2 sentences.
+- method_fit: Is the teaching method appropriate for this topic and CO level? 1 - 2 sentences.
 - level: "ok"=no issue, "tip"=minor improvement, "warning"=significant problem."""
 
     try:
@@ -1960,7 +2154,7 @@ def lp_ai_rephrase():
             f"and fully NBA/OBE-compliant using a strong Bloom's action verb at the "
             f"{bloom or 'appropriate'} level.\n\n"
             f'Original CO: "{text}"\n\n'
-            f"Return ONLY the rephrased CO statement â€” no explanation, no label, no quotes."
+            f"Return ONLY the rephrased CO statement  -  no explanation, no label, no quotes."
         )
     else:
         co_ctx = f" (mapped to {co_ref})" if co_ref else ""
@@ -1968,7 +2162,7 @@ def lp_ai_rephrase():
             f"Rephrase the following lesson plan session topic{co_ctx} to be more specific "
             f"and clearly aligned to the course outcome.\n\n"
             f'Original topic: "{text}"\n\n'
-            f"Return ONLY the rephrased topic â€” no explanation, no label, no quotes."
+            f"Return ONLY the rephrased topic  -  no explanation, no label, no quotes."
         )
 
     try:
@@ -2013,7 +2207,7 @@ def lp_ai_apply():
             f'Original CO (Bloom level: {bloom or "unspecified"}): "{text}"\n\n'
             f"Feedback to address: {suggestion_message}\n\n"
             f"Rewrite the CO to address this feedback while preserving its original intent and scope. "
-            f"Return ONLY the improved CO statement â€” no explanation, no label, no quotes."
+            f"Return ONLY the improved CO statement  -  no explanation, no label, no quotes."
         )
     else:
         prompt = (
@@ -2021,7 +2215,7 @@ def lp_ai_apply():
             f'Original topic: "{text}"\n\n'
             f"Feedback to address: {suggestion_message}\n\n"
             f"Rewrite the topic to address this feedback. "
-            f"Return ONLY the improved topic â€” no explanation, no label, no quotes."
+            f"Return ONLY the improved topic  -  no explanation, no label, no quotes."
         )
 
     try:
@@ -2194,7 +2388,7 @@ def export_template_paper():
     )
 
 
-# â”€â”€ Format Profile management routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Format Profile management routes â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 @app.route("/api/profiles", methods=["GET"])
 @login_required
@@ -2227,7 +2421,7 @@ def api_delete_profile(profile_id):
     return jsonify({"ok": True})
 
 
-# â”€â”€ COâ€“PO Mapping routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ CO - PO Mapping routes â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 @app.route("/upload_co_pomap", methods=["POST"])
 @login_required
@@ -2328,10 +2522,10 @@ def generate_po_mapping_route():
             ):
                 chunks.append(chunk)
         except anthropic.APITimeoutError:
-            yield f"data: {json.dumps({'error': 'Request timed out â€” try again.'})}\n\n"
+            yield f"data: {json.dumps({'error': 'Request timed out - try again.'})}\n\n"
             return
         except anthropic.APIConnectionError:
-            yield f"data: {json.dumps({'error': 'Could not reach AI service â€” check your connection.'})}\n\n"
+            yield f"data: {json.dumps({'error': 'Could not reach AI service - check your connection.'})}\n\n"
             return
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -2375,7 +2569,7 @@ def export_po_mapping():
     configured_pos = store.get("pomap_pos") or []
     has_pso = any(k.upper().startswith("PSO") for k, *_ in configured_pos)
     map_title_base = "CO-PO-PSO Mapping Table" if has_pso else "CO-PO Mapping Table"
-    map_title_docx = map_title_base.replace("CO-PO", "COâ€“PO")
+    map_title_docx = map_title_base.replace("CO-PO", "CO - PO")
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     tmp.close()
@@ -2403,12 +2597,12 @@ def export_po_mapping():
     )
 
 
-# â”€â”€ Lesson Plan routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Lesson Plan routes â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 @app.route("/upload_lp", methods=["POST"])
 @login_required
 def upload_lp():
-    """Upload a syllabus for lesson plan generation â€” reuses existing course parsing."""
+    """Upload a syllabus for lesson plan generation  -  reuses existing course parsing."""
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
 
@@ -2502,10 +2696,10 @@ def generate_lp():
     info = courses[code]
 
     meta = {
-        "academic_year": request.args.get("academic_year", "2026â€“2027"),
+        "academic_year": request.args.get("academic_year", "2026 - 2027"),
         "semester":      request.args.get("semester", f"Semester {info.get('semester','III')}"),
         "regulation":    request.args.get("regulation", "R26"),
-        "program":       request.args.get("program", "B.Tech â€“ CSE"),
+        "program":       request.args.get("program", "B.Tech  -  CSE"),
         "course_type":   request.args.get("course_type", "Theory + Lab"),
         "credits":       request.args.get("credits", "4"),
         "ltp":           request.args.get("ltp", "3-0-2"),
@@ -2604,7 +2798,7 @@ def export_lp():
     )
 
 
-# â”€â”€ Teaching Diary routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Teaching Diary routes â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 @app.route("/upload_td", methods=["POST"])
 @login_required
@@ -2710,10 +2904,10 @@ def generate_td():
     )
 
     meta = {
-        "academic_year":  request.args.get("academic_year", "2026â€“2027"),
+        "academic_year":  request.args.get("academic_year", "2026 - 2027"),
         "semester":       request.args.get("semester", f"Semester {info.get('semester','III')}"),
         "regulation":     request.args.get("regulation", "R26"),
-        "program":        request.args.get("program", "B.Tech â€“ CSE"),
+        "program":        request.args.get("program", "B.Tech  -  CSE"),
         "course_type":    course_type,
         "credits":        request.args.get("credits", "4"),
         "ltp":            ltp,
@@ -2815,7 +3009,7 @@ def export_td():
     )
 
 
-# â”€â”€ Password reset routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Password reset routes â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 @app.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
@@ -2835,7 +3029,7 @@ def forgot_password():
             _save_tokens(tokens)
             reset_url = url_for("reset_password", token=token, _external=True)
             _send_reset_email(email, reset_url)
-        # Always show the same message â€” don't reveal whether the email exists
+        # Always show the same message  -  don't reveal whether the email exists
         message = ("If an account with that email exists, we've sent a reset link. "
                    "Check your inbox (and spam folder).")
     return render_template("forgot_password.html", message=message)
@@ -2868,7 +3062,7 @@ def reset_password(token):
     return render_template("reset_password.html", token=token, error=error)
 
 
-# â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Settings â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 @app.route("/settings", methods=["GET", "POST"])
 @login_required
@@ -2901,10 +3095,13 @@ def settings():
     user_data     = users.get(username, {})
     current_tokens = user_data.get("tokens", 0)
     current_email  = user_data.get("email", "")
+    current_college_type = user_data.get("college_type", "engineering")
     session["tokens"] = current_tokens
     return render_template("settings.html", username=username, tokens=current_tokens,
                            packages=TOPUP_PACKAGES,
-                           email=current_email, email_error=email_error, email_ok=email_ok)
+                           email=current_email, email_error=email_error, email_ok=email_ok,
+                           college_type=current_college_type,
+                           college_type_meta=COLLEGE_TYPE_META)
 
 
 @app.route("/topup", methods=["POST"])
@@ -2929,6 +3126,44 @@ def api_token_balance():
     balance = users.get(session["username"], {}).get("tokens", 0)
     session["tokens"] = balance
     return jsonify({"tokens": balance})
+
+
+@app.route("/api/college_types")
+def api_college_types():
+    """Return all supported college types with labels."""
+    return jsonify([
+        {"value": k, "label": v["label"], "accreditation": v["accreditation"]}
+        for k, v in COLLEGE_TYPE_META.items()
+    ])
+
+
+@app.route("/api/college_pos")
+@login_required
+def api_college_pos():
+    """Return the standard PO list for the current user's college type."""
+    pos = _get_standard_pos()
+    return jsonify([
+        {"key": p[0], "name": p[1], "desc": p[2]}
+        for p in pos
+    ])
+
+
+@app.route("/set_college_type", methods=["POST"])
+@login_required
+def set_college_type():
+    """Update college type for the logged-in user."""
+    data         = request.get_json() or {}
+    college_type = (data.get("college_type") or "engineering").strip()
+    if college_type not in _COLLEGE_CONTEXTS:
+        return jsonify({"error": "Unknown college type"}), 400
+    users = load_users()
+    username = session["username"]
+    users[username]["college_type"] = college_type
+    _save_users(users)
+    session["college_type"] = college_type
+    ctx = _COLLEGE_CONTEXTS[college_type]
+    return jsonify({"ok": True, "college_type": college_type, "label": ctx["type"],
+                    "accreditation": ctx["accreditation"]})
 
 
 # ── Razorpay payment routes ───────────────────────────────────────────────────
@@ -3310,6 +3545,111 @@ def generate_sdg_po_auto():
         return jsonify({"error": "AI returned no SDG mapping — try again"}), 500
 
     return jsonify({"pos": pos, "sdgs_selected": sdgs_selected, "weights_all": weights_all})
+
+
+@app.route("/generate_sdg_po_all", methods=["POST"])
+@tokens_required(1)
+def generate_sdg_po_all():
+    """AI estimates PO attainments and rates each PO against ALL 17 SDGs in one call."""
+    import anthropic as _ant, json as _json
+
+    body   = request.get_json() or {}
+    course = (body.get("course") or "").strip()
+
+    store  = _get_store()
+    info   = store.get("courses", {}).get(course.upper(), {})
+    text   = info.get("text", "")[:3000]
+    title  = info.get("title", course)
+
+    if not text:
+        return jsonify({"error": "Syllabus not found. Upload the syllabus first."}), 400
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return jsonify({"error": "API key not configured"}), 500
+
+    # Use short SDG keys to minimise token count in the response
+    short_sdgs = [f"SDG{i}" for i in range(1, 18)]
+    sdg_key_row = "  ".join(short_sdgs)
+
+    prompt = (
+        f"You are an NBA/NAAC OBE expert for Indian engineering colleges.\n\n"
+        f"Course: {title} ({course})\nSyllabus excerpt:\n{text}\n\n"
+        "Do TWO things:\n\n"
+        "1. Estimate realistic PO attainment % (0-100) for PO1-PO12.\n"
+        "   Core technical POs directly covered: 65-85; partially relevant: 40-65.\n\n"
+        "2. Rate each PO's contribution to ALL 17 UN SDGs using short keys SDG1..SDG17:\n"
+        "   SDG1=No Poverty  SDG2=Zero Hunger  SDG3=Good Health  SDG4=Quality Education\n"
+        "   SDG5=Gender Equality  SDG6=Clean Water  SDG7=Clean Energy  SDG8=Decent Work\n"
+        "   SDG9=Industry & Innovation  SDG10=Reduced Inequalities  SDG11=Sustainable Cities\n"
+        "   SDG12=Responsible Consumption  SDG13=Climate Action  SDG14=Life Below Water\n"
+        "   SDG15=Life on Land  SDG16=Peace & Justice  SDG17=Partnerships\n\n"
+        "   Scale: 3=Strong/direct, 2=Moderate, 1=Low/indirect, 0=No link.\n"
+        "   For engineering courses, SDG4 and SDG9 usually score highest.\n\n"
+        "Return ONLY valid JSON — no explanation:\n"
+        "{\n"
+        '  "pos": [{"name":"PO1","attainment":75},...,{"name":"PO12","attainment":50}],\n'
+        '  "weights": {\n'
+        '    "SDG1":{"PO1":0,"PO2":0,"PO3":0,"PO4":0,"PO5":0,"PO6":1,"PO7":0,"PO8":1,"PO9":1,"PO10":1,"PO11":0,"PO12":1},\n'
+        '    "SDG4":{"PO1":2,"PO2":2,"PO3":1,"PO4":1,"PO5":1,"PO6":1,"PO7":0,"PO8":1,"PO9":1,"PO10":2,"PO11":1,"PO12":3},\n'
+        '    "SDG9":{"PO1":3,"PO2":3,"PO3":3,"PO4":2,"PO5":3,"PO6":1,"PO7":1,"PO8":0,"PO9":1,"PO10":1,"PO11":2,"PO12":1},\n'
+        "    ... all 17 SDGs ...\n"
+        "  }\n"
+        "}"
+    )
+
+    try:
+        client = _ant.Anthropic(api_key=api_key, timeout=50.0)
+        resp   = client.messages.create(
+            model="claude-haiku-4-5-20251001", max_tokens=3500,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = resp.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        data = _json.loads(raw.strip())
+    except _ant.APITimeoutError:
+        return jsonify({"error": "AI request timed out — try again"}), 504
+    except _ant.APIConnectionError:
+        return jsonify({"error": "Could not reach AI service"}), 503
+    except Exception as e:
+        return jsonify({"error": f"AI analysis failed: {e}"}), 500
+
+    pos = [
+        {"name": str(p.get("name","")).strip(), "attainment": float(p.get("attainment", 0))}
+        for p in data.get("pos", []) if p.get("name")
+    ]
+    if not pos:
+        return jsonify({"error": "AI returned no PO data — try again"}), 500
+
+    weights_raw = data.get("weights", {})
+
+    # Map short key → full SDG label
+    short_to_full = {f"SDG{i}": _ALL_SDGS_PY[i-1] for i in range(1, 18)}
+
+    def _interp(pct):
+        if pct >= 85: return "Excellent"
+        if pct >= 70: return "Strong"
+        if pct >= 50: return "Moderate"
+        return "Weak"
+
+    results = []
+    for short, full in short_to_full.items():
+        wts_for_sdg = weights_raw.get(short, weights_raw.get(full, {}))
+        num = den = 0.0
+        for po in pos:
+            w = float(wts_for_sdg.get(po["name"], 0))
+            if w > 0:
+                num += po["attainment"] * w
+                den += w
+        contribution = round(num / den, 2) if den > 0 else 0.0
+        results.append({"sdg": full, "contribution": contribution, "interpretation": _interp(contribution)})
+
+    composite = round(sum(r["contribution"] for r in results) / len(results), 2) if results else 0.0
+
+    return jsonify({"pos": pos, "results": results, "composite": composite})
 
 
 @app.route("/export_sdg_po", methods=["POST"])
@@ -3755,6 +4095,240 @@ def export_sdg_co():
     )
 
 
+_ALL_SDGS_PY = [
+    "SDG 1 — No Poverty", "SDG 2 — Zero Hunger",
+    "SDG 3 — Good Health and Well-being", "SDG 4 — Quality Education",
+    "SDG 5 — Gender Equality", "SDG 6 — Clean Water and Sanitation",
+    "SDG 7 — Affordable and Clean Energy", "SDG 8 — Decent Work and Economic Growth",
+    "SDG 9 — Industry, Innovation and Infrastructure", "SDG 10 — Reduced Inequalities",
+    "SDG 11 — Sustainable Cities and Communities",
+    "SDG 12 — Responsible Consumption and Production", "SDG 13 — Climate Action",
+    "SDG 14 — Life Below Water", "SDG 15 — Life on Land",
+    "SDG 16 — Peace, Justice and Strong Institutions",
+    "SDG 17 — Partnerships for the Goals",
+]
+
+
+@app.route("/generate_sdg_co_all", methods=["POST"])
+@tokens_required(1)
+def generate_sdg_co_all():
+    """Rate each CO's contribution to all (or selected) SDGs in one AI call."""
+    import anthropic as _ant, json as _json
+
+    body     = request.get_json() or {}
+    cos      = body.get("cos", [])         # [{name, statement}]
+    course   = (body.get("course") or "").strip()
+    sdg_list = body.get("sdg_list") or _ALL_SDGS_PY   # subset or all 17
+
+    if not cos:
+        return jsonify({"error": "No COs provided"}), 400
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return jsonify({"error": "API key not configured"}), 500
+
+    store = _get_store()
+    title = store.get("courses", {}).get(course.upper(), {}).get("title", course)
+    client = _ant.Anthropic(api_key=api_key, timeout=60.0)
+
+    co_lines  = "\n".join(f"- {c['name']}: {c.get('statement','')}" for c in cos)
+    sdg_keys  = [s.split(" — ")[0] for s in sdg_list]   # "SDG 1", "SDG 2", ...
+    sdg_block = "\n".join(f'  "{k}": <0-3>' for k in sdg_keys)
+    prompt = (
+        f"You are an OBE and UN SDG expert for Indian engineering colleges.\n\n"
+        f"Course: {title} ({course})\nCourse Outcomes:\n{co_lines}\n\n"
+        f"Rate each CO's contribution to each of the following {len(sdg_list)} UN SDGs.\n"
+        f"Scale: 3=Strong/direct, 2=Moderate, 1=Low/indirect, 0=No link.\n"
+        f"For engineering courses, consider innovation, analytical skills, and capacity-building "
+        f"as indirect links (score 1-2). Only use 0 when truly no conceivable connection.\n\n"
+        f"Return ONLY a valid JSON object. Keys are CO names, values are objects mapping "
+        f"SDG short labels (e.g. 'SDG 1') to integer scores:\n"
+        "{{\n" +
+        f'  "{cos[0]["name"]}": {{\n{sdg_block}\n  }},\n' +
+        (f'  "{cos[1]["name"]}": {{...}},\n' if len(cos) > 1 else '') +
+        "  ...\n}}"
+    )
+
+    try:
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001", max_tokens=3000,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = resp.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        ai_matrix = _json.loads(raw.strip())
+    except _ant.APITimeoutError:
+        return jsonify({"error": "AI request timed out — try again"}), 504
+    except _ant.APIConnectionError:
+        return jsonify({"error": "Could not reach AI service"}), 503
+    except Exception as e:
+        return jsonify({"error": f"AI analysis failed: {e}"}), 500
+
+    # Normalise: map short key ("SDG 1") → score for each CO; also build full-key matrix
+    short_to_full = {s.split(" — ")[0]: s for s in sdg_list}
+    matrix      = {}   # {co_name: {full_sdg_label: score}}
+    co_totals   = {}
+    sdg_totals  = {s: 0 for s in sdg_list}
+
+    for c in cos:
+        name = c["name"]
+        row  = ai_matrix.get(name, {})
+        matrix[name] = {}
+        co_totals[name] = 0
+        for full_sdg in sdg_list:
+            short = full_sdg.split(" — ")[0]
+            score = int(row.get(short, row.get(full_sdg, 0)))
+            score = max(0, min(3, score))
+            matrix[name][full_sdg] = score
+            co_totals[name]        += score
+            sdg_totals[full_sdg]   += score
+
+    top_sdgs = sorted([s for s in sdg_list if sdg_totals[s] > 0],
+                      key=lambda s: -sdg_totals[s])
+
+    return jsonify({
+        "matrix":     matrix,
+        "sdgs":       sdg_list,
+        "cos":        [c["name"] for c in cos],
+        "co_totals":  co_totals,
+        "sdg_totals": sdg_totals,
+        "top_sdgs":   top_sdgs,
+    })
+
+
+@app.route("/export_sdg_co_all", methods=["POST"])
+@login_required
+def export_sdg_co_all():
+    """Export CO x SDG full matrix as TXT, DOCX, or PDF."""
+    from fpdf import FPDF
+    from fpdf.enums import XPos, YPos
+    from docx import Document
+    from docx.shared import Pt, Inches, RGBColor
+
+    body       = request.get_json() or {}
+    fmt        = body.get("fmt", "docx")
+    data       = body.get("data", {})
+    matrix     = data.get("matrix", {})
+    sdgs       = data.get("sdgs", [])
+    cos        = data.get("cos", [])
+    sdg_totals = data.get("sdg_totals", {})
+    co_totals  = data.get("co_totals", {})
+    course     = (data.get("course") or "COURSE").strip()
+    title      = data.get("courseTitle", "")
+
+    if fmt not in ("txt", "docx", "pdf"):
+        return jsonify({"error": "Invalid format"}), 400
+    if not matrix:
+        return jsonify({"error": "No matrix data"}), 400
+
+    def _s(v): return str(v) if v is not None else ""
+    short = lambda sdg: sdg.split(" — ")[0]   # "SDG 1 — ..." → "SDG 1"
+
+    suffix = {"txt": ".txt", "docx": ".docx", "pdf": ".pdf"}[fmt]
+    mime   = {"txt": "text/plain",
+              "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "pdf": "application/pdf"}[fmt]
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    tmp.close()
+    try:
+        if fmt == "txt":
+            lines = [f"CO-SDG Contribution Matrix — {title} ({course})", "=" * 56, ""]
+            hdr = "CO    " + "  ".join(short(s).ljust(6) for s in sdgs)
+            lines.append(hdr)
+            lines.append("-" * len(hdr))
+            for co in cos:
+                row = matrix.get(co, {})
+                lines.append(co.ljust(6) + "  ".join(str(row.get(s, 0)).ljust(6) for s in sdgs))
+            lines += ["", "Top Contributing SDGs:"]
+            top = sorted(sdgs, key=lambda s: -sdg_totals.get(s, 0))[:8]
+            for s in top:
+                if sdg_totals.get(s, 0) > 0:
+                    lines.append(f"  {s}: {sdg_totals[s]}")
+            with open(tmp.name, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines))
+
+        elif fmt == "docx":
+            doc = Document()
+            for sec in doc.sections:
+                sec.top_margin = sec.bottom_margin = Inches(0.7)
+                sec.left_margin = sec.right_margin = Inches(0.7)
+            h = doc.add_heading("CO-SDG Contribution Matrix", level=0)
+            h.runs[0].font.color.rgb = RGBColor(6, 78, 91)
+            sub = doc.add_paragraph(f"{title} ({course})")
+            sub.runs[0].font.size = Pt(9)
+            tbl = doc.add_table(rows=1 + len(cos), cols=1 + len(sdgs))
+            tbl.style = "Table Grid"
+            tbl.rows[0].cells[0].text = "CO \\ SDG"
+            for i, s in enumerate(sdgs):
+                tbl.rows[0].cells[i + 1].text = short(s)
+            for ri, co in enumerate(cos):
+                row = matrix.get(co, {})
+                tbl.rows[ri + 1].cells[0].text = co
+                for ci, s in enumerate(sdgs):
+                    tbl.rows[ri + 1].cells[ci + 1].text = _s(row.get(s, 0))
+            for cell in tbl.rows[0].cells:
+                for para in cell.paragraphs:
+                    for run in para.runs:
+                        run.bold = True
+            doc.save(tmp.name)
+
+        else:  # pdf
+            pdf = FPDF()
+            pdf.set_auto_page_break(auto=True, margin=12)
+            pdf.add_page(orientation="L")   # landscape for wide matrix
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.set_text_color(6, 78, 91)
+            pdf.cell(0, 8, f"CO-SDG Contribution Matrix — {title} ({course})",
+                     new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.set_text_color(0, 0, 0)
+            pdf.ln(2)
+            cw  = max(10, min(16, 255 // (1 + len(sdgs))))
+            co_w = 20
+            pdf.set_font("Helvetica", "B", 7.5)
+            pdf.set_fill_color(209, 250, 229)
+            pdf.cell(co_w, 6, "CO", border=1, fill=True, align="C")
+            for s in sdgs:
+                pdf.cell(cw, 6, short(s), border=1, fill=True, align="C")
+            pdf.ln()
+            pdf.set_font("Helvetica", "", 7.5)
+            for co in cos:
+                row = matrix.get(co, {})
+                pdf.cell(co_w, 5, co, border=1, align="C")
+                for s in sdgs:
+                    v = row.get(s, 0)
+                    if v == 3:
+                        pdf.set_fill_color(198, 224, 180); fill = True
+                    elif v == 2:
+                        pdf.set_fill_color(255, 242, 204); fill = True
+                    elif v == 1:
+                        pdf.set_fill_color(221, 238, 247); fill = True
+                    else:
+                        fill = False
+                    pdf.cell(cw, 5, _s(v) if v else "–", border=1, align="C", fill=fill)
+                    if fill:
+                        pdf.set_fill_color(255, 255, 255)
+                pdf.ln()
+            pdf.output(tmp.name)
+
+        with open(tmp.name, "rb") as fh:
+            content = fh.read()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+    return Response(content, mimetype=mime,
+                    headers={"Content-Disposition":
+                             f'attachment; filename="{course}_CO_SDG_Matrix{suffix}"'})
+
+
 @app.route("/export_co_attainment", methods=["POST"])
 @login_required
 def export_co_attainment():
@@ -4196,6 +4770,630 @@ def aio_prepare():
     store["current_code"] = code
 
     return jsonify({"ok": True})
+
+
+# ── Module 1 Comprehensive Report ────────────────────────────────────────────
+
+@app.route("/generate_module1_report", methods=["POST"])
+@login_required
+def generate_module1_report():
+    """Generate a single comprehensive DOCX report for all Module-1 deliverables."""
+    import anthropic as _ant
+
+    store   = _get_store()
+    body    = request.get_json() or {}
+
+    co_text      = store.get("current_result", "")
+    qbank_blocks = store.get("qbank_all_blocks", [])
+    co_tally     = store.get("qbank_co_tally", {})
+    code         = (store.get("qbank_code") or store.get("current_code", "COURSE")).strip().upper()
+    courses      = store.get("courses", {})
+    info         = courses.get(code, {"title": "Untitled", "semester": None})
+    title        = info.get("title", "Untitled")
+    semester     = info.get("semester")
+
+    if not co_text.strip():
+        return jsonify({"error": "No COs found in session. Run Module 1 generation first."}), 400
+    if not qbank_blocks:
+        return jsonify({"error": "No Question Bank found in session. Run Module 1 generation first."}), 400
+
+    # Parse COs and Bloom's data
+    from generate_qbank import parse_cos_from_text
+    from generate_cos import bloom_level_summary
+    from generate_qpaper import parse_qbank as _parse_qbank, is_lab_qbank
+
+    cos           = parse_cos_from_text(co_text)
+    bloom_summary = bloom_level_summary(co_text)
+    raw_qb_text   = "\n".join(qbank_blocks)
+
+    is_lab    = is_lab_qbank(raw_qb_text)
+    lab_tally = store.get("qbank_lab_tally", {}) if is_lab else {}
+
+    # Compute rule-based analytics (lab-aware)
+    analytics = _m1r.compute_analytics(cos, co_tally, raw_qb_text,
+                                       is_lab=is_lab, lab_tally=lab_tally)
+
+    # Build sample paper
+    sample_paper = []
+    if not is_lab:
+        try:
+            qb_data = _parse_qbank(raw_qb_text)
+            if qb_data and qb_data.get("units"):
+                sample_paper = _m1r.build_sample_paper_text(qb_data, code, title)
+                qb_data_for_report = qb_data
+            else:
+                qb_data_for_report = None
+        except Exception:
+            qb_data_for_report = None
+    else:
+        # Lab course: build a sample practical paper from the lab question bank
+        try:
+            from generate_qpaper import parse_lab_qbank
+            lab_data = parse_lab_qbank(raw_qb_text)
+            if lab_data and lab_data.get("units"):
+                sample_paper = _m1r.build_sample_lab_paper_text(lab_data, code, title)
+                qb_data_for_report = lab_data
+            else:
+                qb_data_for_report = None
+        except Exception:
+            qb_data_for_report = None
+
+    # AI qualitative analysis (one call)
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    ai_data = {}
+    if api_key and cos:
+        try:
+            client  = _ant.Anthropic(api_key=api_key, timeout=60.0)
+            ai_data = _m1r.get_ai_analysis(client, cos, co_tally, bloom_summary,
+                                            code, title, analytics)
+        except Exception:
+            ai_data = {}
+
+    fmt = body.get("fmt", "docx")
+    if fmt not in ("txt", "docx", "pdf"):
+        return jsonify({"error": "Invalid format"}), 400
+
+    suffix = {"txt": ".txt", "docx": ".docx", "pdf": ".pdf"}[fmt]
+    mime   = {
+        "txt":  "text/plain",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "pdf":  "application/pdf",
+    }[fmt]
+
+    report_kwargs = dict(
+        cos=cos, co_text=co_text, qb_data=qb_data_for_report,
+        co_tally=co_tally, bloom_summary=bloom_summary,
+        analytics=analytics, ai=ai_data, sample_paper=sample_paper,
+        code=code, title=title, semester=semester, is_lab=is_lab,
+    )
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    tmp.close()
+    try:
+        if fmt == "docx":
+            _m1r.build_docx(**report_kwargs, output_path=tmp.name)
+        elif fmt == "pdf":
+            _m1r.build_pdf(**report_kwargs, output_path=tmp.name)
+        else:
+            _m1r.build_txt(**report_kwargs, output_path=tmp.name)
+        with open(tmp.name, "rb") as fh:
+            content = fh.read()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+    filename = f"{code}_Module1_Report{suffix}"
+    return Response(
+        content,
+        mimetype=mime,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+import generate_m3_report as _m3r
+import generate_m4_report as _m4r
+
+
+# ── Module 3 Comprehensive Report ────────────────────────────────────────────
+
+@app.route("/generate_module3_report", methods=["POST"])
+@login_required
+def generate_module3_report():
+    """Generate a single comprehensive DOCX/PDF/TXT report for all Module-3 deliverables."""
+    import anthropic as _ant
+
+    store    = _get_store()
+    body     = request.get_json() or {}
+    lp_data  = store.get("lp_data")
+    td_data  = store.get("td_data")
+
+    code  = (store.get("lp_code") or store.get("td_code") or "COURSE").strip().upper()
+    title = store.get("lp_title") or store.get("td_title") or "Untitled"
+    courses = store.get("lp_courses") or store.get("td_courses") or store.get("courses", {})
+    info  = courses.get(code, {})
+    semester = info.get("semester")
+
+    if not lp_data and not td_data:
+        return jsonify({"error": "No Module 3 data in session. Run Module 3 generation first."}), 400
+
+    analytics = _m3r.compute_analytics(lp_data or {}, td_data or {})
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    ai_data = {}
+    if api_key and analytics["cos"]:
+        try:
+            client  = _ant.Anthropic(api_key=api_key, timeout=60.0)
+            ai_data = _m3r.get_ai_analysis(client, lp_data or {}, td_data or {},
+                                            analytics, code, title)
+        except Exception:
+            ai_data = {}
+
+    fmt = body.get("fmt", "docx")
+    if fmt not in ("txt", "docx", "pdf"):
+        return jsonify({"error": "Invalid format"}), 400
+
+    suffix = {"txt": ".txt", "docx": ".docx", "pdf": ".pdf"}[fmt]
+    mime   = {
+        "txt":  "text/plain",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "pdf":  "application/pdf",
+    }[fmt]
+
+    report_kwargs = dict(
+        lp_data=lp_data or {}, td_data=td_data or {},
+        analytics=analytics, ai=ai_data,
+        code=code, title=title, semester=semester,
+    )
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    tmp.close()
+    try:
+        if fmt == "docx":
+            _m3r.build_docx(**report_kwargs, output_path=tmp.name)
+        elif fmt == "pdf":
+            _m3r.build_pdf(**report_kwargs, output_path=tmp.name)
+        else:
+            _m3r.build_txt(**report_kwargs, output_path=tmp.name)
+        with open(tmp.name, "rb") as fh:
+            content = fh.read()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+    filename = f"{code}_Module3_Report{suffix}"
+    return Response(
+        content,
+        mimetype=mime,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# -- PO Attainment ------------------------------------------------------------
+
+@app.route("/generate_po_attainment_ai", methods=["POST"])
+@tokens_required(1)
+def generate_po_attainment_ai():
+    """Compute PO attainment via NBA method from CO-PO mapping + CO attainment, with AI ATR."""
+    import anthropic as _ant, json as _json
+
+    body            = request.get_json() or {}
+    cos             = body.get("cos", [])             # [{name, statement}]
+    course          = (body.get("course") or "").strip()
+    pomap_rows      = body.get("pomap_rows", [])      # [{co, scores:{PO1:3,...}}]
+    co_results      = body.get("co_results", [])      # [{co, pct, level}]
+    target_threshold = float(body.get("target_threshold", 60))
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return jsonify({"error": "API key not configured"}), 500
+
+    store = _get_store()
+    info  = store.get("courses", {}).get(course.upper(), {})
+    title = info.get("title", course)
+
+    po_name_map = {p[0]: p[1] for p in STANDARD_POS}
+
+    client = _ant.Anthropic(api_key=api_key, timeout=45.0)
+
+    # ── Path A: we have pomap + co_results → compute mathematically, AI adds ATR ──
+    if pomap_rows and co_results:
+        level_map = {r["co"]: int(r.get("level", 0)) for r in co_results}
+        po_keys   = list(pomap_rows[0].get("scores", {}).keys()) if pomap_rows else [f"PO{i}" for i in range(1, 13)]
+
+        po_att_raw = {}
+        for pk in po_keys:
+            total_w      = 0
+            weighted_sum = 0.0
+            for row in pomap_rows:
+                w = int(row.get("scores", {}).get(pk, 0))
+                if w > 0:
+                    co_level     = level_map.get(row.get("co", ""), 0)
+                    weighted_sum += co_level * w
+                    total_w      += w
+            po_att_raw[pk] = round(weighted_sum / total_w, 3) if total_w else 0.0
+
+        # Express attainment as % (0-3 scale → 0-100 %)
+        po_pct_map = {pk: round(v / 3 * 100, 1) for pk, v in po_att_raw.items()}
+
+        # AI: generate ATR for below-threshold POs only
+        below = [pk for pk, pct in po_pct_map.items() if pct < target_threshold]
+        atr_map = {}
+        if below:
+            co_lines  = "\n".join(f"  {c['name']}: {c.get('statement','')}" for c in cos[:8])
+            po_lines  = "\n".join(f"  {pk}: {po_pct_map[pk]:.1f}% (name: {po_name_map.get(pk,'?')})" for pk in below)
+            atr_prompt = (
+                f"You are an NBA/NAAC accreditation expert.\n\n"
+                f"Course: {title} ({course})\nCourse Outcomes:\n{co_lines}\n\n"
+                f"The following Programme Outcomes are below the target threshold of {target_threshold}%:\n{po_lines}\n\n"
+                "For each PO listed, write ONE concise Action Taken Report (ATR) sentence "
+                "(what the faculty should do to improve attainment of this PO).\n\n"
+                "Return ONLY a valid JSON object, no explanation:\n"
+                '{"PO3": "Introduce more design projects...", "PO8": "Add ethics case studies..."}'
+            )
+            try:
+                resp = client.messages.create(
+                    model="claude-haiku-4-5-20251001", max_tokens=600,
+                    messages=[{"role": "user", "content": atr_prompt}],
+                )
+                raw = resp.content[0].text.strip()
+                if raw.startswith("```"):
+                    raw = raw.split("```")[1]
+                    if raw.startswith("json"):
+                        raw = raw[4:]
+                atr_map = _json.loads(raw.strip())
+            except Exception:
+                atr_map = {}
+
+        def _level(pct):
+            if pct >= 70: return 3
+            if pct >= 60: return 2
+            if pct >= 50: return 1
+            return 0
+
+        po_attainment = [
+            {
+                "po":          pk,
+                "name":        po_name_map.get(pk, pk),
+                "pct":         po_pct_map[pk],
+                "level":       _level(po_pct_map[pk]),
+                "target_met":  po_pct_map[pk] >= target_threshold,
+                "atr":         atr_map.get(pk, "Continue current strategies." if po_pct_map[pk] >= target_threshold else "Review pedagogy and increase practice opportunities."),
+            }
+            for pk in po_keys
+        ]
+
+    # ── Path B: CO-only → AI estimates CO att % + CO-PO weights, then compute ──
+    else:
+        if not cos:
+            return jsonify({"error": "No COs provided"}), 400
+
+        co_lines = "\n".join(f"  {c['name']}: {c.get('statement','')}" for c in cos)
+        prompt = (
+            f"You are an NBA/NAAC accreditation expert for Indian engineering colleges.\n\n"
+            f"Course: {title} ({course})\nCourse Outcomes:\n{co_lines}\n\n"
+            "Do THREE things:\n\n"
+            "1. Estimate CO attainment levels (0-3) for each CO. "
+            "Well-run courses: level 2-3 for most COs.\n\n"
+            "2. Rate each CO's contribution to PO1-PO12 (3=Strong, 2=Moderate, 1=Low, 0=None).\n"
+            "   PO1:Engineering Knowledge  PO2:Problem Analysis  PO3:Design/Dev\n"
+            "   PO4:Investigations  PO5:Modern Tools  PO6:Engineer&Society\n"
+            "   PO7:Environment  PO8:Ethics  PO9:Team Work  PO10:Communication\n"
+            "   PO11:Project Mgmt  PO12:Life-long Learning\n\n"
+            "3. For POs likely below 60% attainment, write a short ATR sentence.\n\n"
+            "Return ONLY valid JSON:\n"
+            "{\n"
+            '  "co_levels": {"CO1":2,"CO2":3,...},\n'
+            '  "co_po_weights": {"CO1":{"PO1":3,"PO2":2,...},...},\n'
+            '  "atr": {"PO3":"Introduce more design tasks...","PO8":"Add ethics case studies..."}\n'
+            "}"
+        )
+        try:
+            resp = client.messages.create(
+                model="claude-haiku-4-5-20251001", max_tokens=1500,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            raw = resp.content[0].text.strip()
+            if raw.startswith("```"):
+                raw = raw.split("```")[1]
+                if raw.startswith("json"):
+                    raw = raw[4:]
+            ai = _json.loads(raw.strip())
+        except _ant.APITimeoutError:
+            return jsonify({"error": "AI request timed out — try again"}), 504
+        except _ant.APIConnectionError:
+            return jsonify({"error": "Could not reach AI service"}), 503
+        except Exception as e:
+            return jsonify({"error": f"AI analysis failed: {e}"}), 500
+
+        co_levels  = ai.get("co_levels", {})
+        co_po_wts  = ai.get("co_po_weights", {})
+        atr_map    = ai.get("atr", {})
+        po_keys    = [f"PO{i}" for i in range(1, 13)]
+
+        po_att_raw = {}
+        for pk in po_keys:
+            total_w = 0; weighted_sum = 0.0
+            for c in cos:
+                w = int(co_po_wts.get(c["name"], {}).get(pk, 0))
+                if w > 0:
+                    lv = int(co_levels.get(c["name"], 1))
+                    weighted_sum += lv * w
+                    total_w      += w
+            po_att_raw[pk] = round(weighted_sum / total_w, 3) if total_w else 0.0
+
+        po_pct_map = {pk: round(v / 3 * 100, 1) for pk, v in po_att_raw.items()}
+
+        def _level(pct):
+            if pct >= 70: return 3
+            if pct >= 60: return 2
+            if pct >= 50: return 1
+            return 0
+
+        po_attainment = [
+            {
+                "po":         pk,
+                "name":       po_name_map.get(pk, pk),
+                "pct":        po_pct_map[pk],
+                "level":      _level(po_pct_map[pk]),
+                "target_met": po_pct_map[pk] >= target_threshold,
+                "atr":        atr_map.get(pk, "Continue current strategies." if po_pct_map[pk] >= target_threshold else "Review pedagogy and increase practice opportunities."),
+            }
+            for pk in po_keys
+        ]
+
+    met   = sum(1 for p in po_attainment if p["target_met"])
+    mean  = round(sum(p["pct"] for p in po_attainment) / len(po_attainment), 1) if po_attainment else 0
+    return jsonify({
+        "po_attainment":      po_attainment,
+        "summary": {
+            "mean_pct":            mean,
+            "target_threshold":    target_threshold,
+            "pos_meeting_target":  met,
+            "pos_below_target":    len(po_attainment) - met,
+        },
+        "courseName": title,
+        "courseCode": course,
+    })
+
+
+@app.route("/export_po_attainment", methods=["POST"])
+@login_required
+def export_po_attainment():
+    """Export PO Attainment table as TXT, DOCX, or PDF."""
+    from fpdf import FPDF
+    from fpdf.enums import XPos, YPos
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+
+    body         = request.get_json() or {}
+    fmt          = body.get("fmt", "docx")
+    data         = body.get("data", {})
+    po_att       = data.get("po_attainment", [])
+    summary      = data.get("summary", {})
+    course_code  = data.get("courseCode", "COURSE")
+    course_name  = data.get("courseName", "")
+
+    if fmt not in ("txt", "docx", "pdf"):
+        return jsonify({"error": "Invalid format"}), 400
+    if not po_att:
+        return jsonify({"error": "No PO attainment data"}), 400
+
+    def _s(v): return str(v) if v is not None else ""
+
+    suffix = {"txt": ".txt", "docx": ".docx", "pdf": ".pdf"}[fmt]
+    mime   = {"txt": "text/plain",
+              "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "pdf": "application/pdf"}[fmt]
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    tmp.close()
+    try:
+        if fmt == "txt":
+            lines = [f"PO Attainment Report — {course_name} ({course_code})", "=" * 60, ""]
+            lines.append(f"{'PO':<6}  {'Name':<36}  {'Att%':>6}  {'Level':>5}  Target")
+            lines.append("-" * 64)
+            for p in po_att:
+                lines.append(f"{p['po']:<6}  {p['name']:<36}  {p['pct']:>5.1f}%  {p['level']:>5}  {'Met' if p['target_met'] else 'Below'}")
+            lines.extend(["", f"Mean Attainment : {summary.get('mean_pct', 0):.1f}%",
+                          f"POs Meeting Target: {summary.get('pos_meeting_target', 0)} / {len(po_att)}", ""])
+            lines.append("Action Taken Report")
+            lines.append("-" * 40)
+            for p in po_att:
+                if not p.get("target_met"):
+                    lines.append(f"  {p['po']} ({p['name']}): {p.get('atr', '')}")
+            with open(tmp.name, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines))
+
+        elif fmt == "docx":
+            doc = Document()
+            from docx.shared import Inches
+            for sec in doc.sections:
+                sec.top_margin = sec.bottom_margin = Inches(0.8)
+                sec.left_margin = sec.right_margin = Inches(0.9)
+
+            GREEN = RGBColor(5, 150, 105)
+            p = doc.add_heading(f"PO Attainment Report", level=0)
+            p.runs[0].font.color.rgb = GREEN
+            sub = doc.add_paragraph(f"{course_name} ({course_code})")
+            sub.runs[0].font.size = Pt(9)
+
+            tbl = doc.add_table(rows=1 + len(po_att), cols=5)
+            tbl.style = "Table Grid"
+            for i, h in enumerate(["PO", "Name", "Attainment %", "Level", "Target"]):
+                tbl.rows[0].cells[i].text = h
+                for run in tbl.rows[0].cells[i].paragraphs[0].runs:
+                    run.bold = True
+            for i, p in enumerate(po_att):
+                cells = tbl.rows[i + 1].cells
+                cells[0].text = _s(p["po"])
+                cells[1].text = _s(p["name"])
+                cells[2].text = f"{p['pct']:.1f}%"
+                cells[3].text = _s(p["level"])
+                cells[4].text = "Met" if p["target_met"] else "Below"
+
+            doc.add_paragraph()
+            kv = doc.add_paragraph()
+            kv.add_run(f"Mean Attainment: ").bold = True
+            kv.add_run(f"{summary.get('mean_pct', 0):.1f}%  |  "
+                       f"POs Meeting Target: {summary.get('pos_meeting_target', 0)} / {len(po_att)}")
+
+            atr_rows = [p for p in po_att if not p.get("target_met")]
+            if atr_rows:
+                doc.add_heading("Action Taken Report", level=2)
+                for p in atr_rows:
+                    par = doc.add_paragraph(style="List Bullet")
+                    par.add_run(f"{p['po']} ({p['name']}): ").bold = True
+                    par.add_run(p.get("atr", ""))
+            doc.save(tmp.name)
+
+        else:  # pdf
+            pdf = FPDF()
+            pdf.set_auto_page_break(auto=True, margin=15)
+            pdf.add_page()
+            pdf.set_font("Helvetica", "B", 14)
+            pdf.set_text_color(5, 150, 105)
+            pdf.cell(0, 9, f"PO Attainment Report", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.set_font("Helvetica", "", 9)
+            pdf.set_text_color(100, 100, 100)
+            pdf.cell(0, 5, f"{course_name} ({course_code})", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.set_text_color(0, 0, 0)
+            pdf.ln(3)
+
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.set_fill_color(209, 250, 229)
+            for lbl, w in [("PO", 15), ("Name", 75), ("Att%", 22), ("Level", 18), ("Target", 22)]:
+                pdf.cell(w, 7, lbl, border=1, fill=True, align="C")
+            pdf.ln()
+            pdf.set_font("Helvetica", "", 9)
+            for p in po_att:
+                pdf.cell(15, 6, _s(p["po"]), border=1)
+                pdf.cell(75, 6, _s(p["name"])[:40], border=1)
+                pdf.cell(22, 6, f"{p['pct']:.1f}%", border=1, align="C")
+                pdf.cell(18, 6, _s(p["level"]), border=1, align="C")
+                pdf.cell(22, 6, "Met" if p["target_met"] else "Below", border=1, align="C")
+                pdf.ln()
+            pdf.ln(4)
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.cell(0, 6, f"Mean Attainment: {summary.get('mean_pct', 0):.1f}%   "
+                           f"POs Meeting Target: {summary.get('pos_meeting_target', 0)} / {len(po_att)}",
+                     new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+            atr_rows = [p for p in po_att if not p.get("target_met")]
+            if atr_rows:
+                pdf.ln(4)
+                pdf.set_font("Helvetica", "B", 10)
+                pdf.cell(0, 7, "Action Taken Report", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                pdf.set_font("Helvetica", "", 9)
+                for p in atr_rows:
+                    pdf.set_font("Helvetica", "B", 9)
+                    pdf.cell(30, 5, f"{p['po']}:", border=0)
+                    pdf.set_font("Helvetica", "", 9)
+                    pdf.multi_cell(0, 5, p.get("atr", ""))
+            pdf.output(tmp.name)
+
+        with open(tmp.name, "rb") as fh:
+            content = fh.read()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+    return Response(content, mimetype=mime,
+                    headers={"Content-Disposition": f'attachment; filename="{course_code}_PO_Attainment{suffix}"'})
+
+
+# -- Module 4 Comprehensive Report --------------------------------------------
+
+@app.route("/generate_module4_report", methods=["POST"])
+@login_required
+def generate_module4_report():
+    """Generate a single comprehensive DOCX/PDF/TXT report for all Module-4 deliverables."""
+    import anthropic as _ant
+
+    store  = _get_store()
+    body   = request.get_json() or {}
+
+    pomap_rows = body.get("pomap_rows") or store.get("pomap_rows") or []
+    coatt_data = body.get("coatt") or {}
+    poatt_data = body.get("poatt") or {}
+    sdgco_data = body.get("sdgco") or {}
+    sdgpo_data = body.get("sdgpo") or {}
+
+    code  = (store.get("pomap_course_code") or body.get("course") or "COURSE").strip().upper()
+    title = store.get("pomap_course_title") or body.get("course_title") or "Untitled"
+    courses = store.get("courses", {})
+    info  = courses.get(code, {})
+    semester = info.get("semester")
+
+    if not pomap_rows and not coatt_data and not sdgco_data and not sdgpo_data:
+        return jsonify({"error": "No Module 4 data found. Run Module 4 generation first."}), 400
+
+    analytics = _m4r.compute_analytics(pomap_rows, coatt_data, poatt_data, sdgco_data, sdgpo_data)
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    ai_data = {}
+    if api_key and (analytics["co_results"] or analytics["pomap_rows"]):
+        try:
+            client  = _ant.Anthropic(api_key=api_key, timeout=60.0)
+            all_data = dict(pomap=pomap_rows, coatt=coatt_data, poatt=poatt_data, sdgco=sdgco_data, sdgpo=sdgpo_data)
+            ai_data = _m4r.get_ai_analysis(client, all_data, analytics, code, title)
+        except Exception:
+            ai_data = {}
+
+    fmt = body.get("fmt", "docx")
+    if fmt not in ("txt", "docx", "pdf"):
+        return jsonify({"error": "Invalid format"}), 400
+
+    suffix = {"txt": ".txt", "docx": ".docx", "pdf": ".pdf"}[fmt]
+    mime   = {
+        "txt":  "text/plain",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "pdf":  "application/pdf",
+    }[fmt]
+
+    report_kwargs = dict(
+        pomap_data=pomap_rows, coatt_data=coatt_data,
+        poatt_data=poatt_data, sdgco_data=sdgco_data, sdgpo_data=sdgpo_data,
+        analytics=analytics, ai=ai_data,
+        code=code, title=title, semester=semester,
+    )
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    tmp.close()
+    try:
+        if fmt == "docx":
+            _m4r.build_docx(**report_kwargs, output_path=tmp.name)
+        elif fmt == "pdf":
+            _m4r.build_pdf(**report_kwargs, output_path=tmp.name)
+        else:
+            _m4r.build_txt(**report_kwargs, output_path=tmp.name)
+        with open(tmp.name, "rb") as fh:
+            content = fh.read()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+    filename = f"{code}_Module4_Report{suffix}"
+    return Response(
+        content,
+        mimetype=mime,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 if __name__ == "__main__":

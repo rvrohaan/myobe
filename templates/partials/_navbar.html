@@ -6,7 +6,8 @@
 
   <ul class="nav-links">
     <li><a href="/" {% if request.path == '/' %}class="active"{% endif %}>Home</a></li>
-    <li><a href="/#products">Products</a></li>
+    <li><a href="/#modules">Modules</a></li>
+    <li><a href="/#fields">Fields</a></li>
     <li><a href="/#pricing">Pricing</a></li>
   </ul>
 
@@ -14,11 +15,7 @@
     {% if session.logged_in %}
       <span class="nav-username">{{ session.username }}</span>
       <span class="nav-token-badge">&#9711; {{ session.tokens or 0 }} tokens</span>
-      {% if request.path == '/app' %}
-        <a href="#" class="btn-nav-ghost" onclick="startOver();return false;" title="Back to mode selection">Dashboard</a>
-      {% else %}
-        <a href="/app" class="btn-nav-ghost">Dashboard</a>
-      {% endif %}
+      <a href="/app" class="btn-nav-ghost">Dashboard</a>
       <a href="/settings" class="btn-nav-ghost{% if request.path == '/settings' %} active{% endif %}">Settings</a>
       <a href="/logout" class="btn-nav-ghost">Sign Out</a>
     {% else %}
