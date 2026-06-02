@@ -853,7 +853,7 @@ def main():
         print(f"  CO{co['num']}: {co['statement'][:80]}{'...' if len(co['statement']) > 80 else ''}")
 
     print("\nGenerating CO-PO Mapping…")
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=60.0)
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=60.0, max_retries=3)
 
     raw = ""
     for chunk in generate_mapping_stream(client, cos, course_code, course_title):

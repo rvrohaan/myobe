@@ -1322,7 +1322,7 @@ def _generate_from_syllabus(syllabus_path, co_path=None):
     sem_label = f"  [Semester {info['semester']}]" if info['semester'] else ""
     print(f"\nSelected: {matched} — {info['title']}{sem_label}")
 
-    client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
+    client = anthropic.Anthropic(api_key=api_key, timeout=120.0, max_retries=3)
 
     # ---- Load or generate COs ----
     if co_path:

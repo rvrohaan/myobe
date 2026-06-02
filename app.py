@@ -553,6 +553,7 @@ def generate():
         client = anthropic.Anthropic(
             api_key=os.environ["ANTHROPIC_API_KEY"],
             timeout=90.0,   # 90 s per read  -  aborts if Anthropic stops sending chunks
+            max_retries=3,
         )
         chunks = []
         try:
@@ -825,6 +826,7 @@ def generate_qbank_route():
         client = anthropic.Anthropic(
             api_key=os.environ["ANTHROPIC_API_KEY"],
             timeout=120.0,  # 120 s per read  -  QB generates more text per call
+            max_retries=3,
         )
         all_blocks = []
 
@@ -2514,6 +2516,7 @@ def generate_po_mapping_route():
         client = anthropic.Anthropic(
             api_key=os.environ["ANTHROPIC_API_KEY"],
             timeout=90.0,
+            max_retries=3,
         )
         chunks = []
         try:
@@ -2721,6 +2724,7 @@ def generate_lp():
         client = anthropic.Anthropic(
             api_key=os.environ["ANTHROPIC_API_KEY"],
             timeout=120.0,
+            max_retries=3,
         )
         try:
             for item in generate_lesson_plan_stream(
@@ -2932,6 +2936,7 @@ def generate_td():
         client = anthropic.Anthropic(
             api_key=os.environ["ANTHROPIC_API_KEY"],
             timeout=150.0,
+            max_retries=3,
         )
         try:
             for item in generate_teaching_diary_stream(

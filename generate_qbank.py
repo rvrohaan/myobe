@@ -1773,7 +1773,7 @@ def main():
     print(f"\nSelected: {matched} — {info['title']}{sem_label}")
 
     import anthropic
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=120.0)
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=120.0, max_retries=3)
 
     # ---------- Load or generate COs ----------
     if co_path:

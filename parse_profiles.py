@@ -177,7 +177,7 @@ def parse_with_llm(text: str) -> list[dict]:
         return []
 
     try:
-        client = anthropic.Anthropic(api_key=api_key, timeout=45.0)
+        client = anthropic.Anthropic(api_key=api_key, timeout=45.0, max_retries=3)
         resp = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=4096,

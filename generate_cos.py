@@ -626,7 +626,7 @@ def filter_cos(result_text, selected):
 
 def generate_all(syllabus_text, base_path, fmt, settings):
     import anthropic
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=120.0)
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=120.0, max_retries=3)
 
     filter_pairs = settings["filter_pairs"]   # list of (name, sem_or_None)
     sem_only     = settings["sem_only"]       # list of int
@@ -752,7 +752,7 @@ def main():
 
     # --- Generate 15 COs ---
     import anthropic
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=120.0)
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=120.0, max_retries=3)
 
     NUM_COS = 15
     print(f"\nGenerating {NUM_COS} COs for {matched}...")
