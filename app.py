@@ -5,10 +5,8 @@ import uuid
 import time
 import secrets
 import tempfile
-import smtplib
 import threading
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import resend
 from functools import wraps
 
 from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for, flash, make_response, after_this_request
@@ -292,18 +290,11 @@ def _purge_expired(tokens: dict) -> dict:
 
 
 def _send_reset_email(to_email: str, reset_url: str) -> bool:
-    host = os.environ.get("SMTP_HOST", "").strip()
-    port = int(os.environ.get("SMTP_PORT", "587"))
-    user = os.environ.get("SMTP_USER", "").strip()
-    pwd  = os.environ.get("SMTP_PASSWORD", "").strip()
-    frm  = os.environ.get("SMTP_FROM", user).strip() or user
-    if not host or not user:
+    api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    frm     = os.environ.get("SMTP_FROM", "MyOBE <help@myobe.in>").strip()
+    if not api_key:
+        app.logger.error("RESEND_API_KEY not set")
         return False
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Reset your MyOBE password"
-    msg["From"]    = frm
-    msg["To"]      = to_email
 
     plain = (
         "You requested a password reset for your MyOBE account.\n\n"
@@ -318,22 +309,19 @@ def _send_reset_email(to_email: str, reset_url: str) -> bool:
         '<p style="color:#64748b;font-size:.85em;">Link expires in 1 hour. '
         "If you didn't request this, ignore this email.</p>"
     )
-    msg.attach(MIMEText(plain, "plain"))
-    msg.attach(MIMEText(html,  "html"))
 
     try:
-        if port == 465:
-            with smtplib.SMTP_SSL(host, port, timeout=15) as s:
-                s.login(user, pwd)
-                s.send_message(msg)
-        else:
-            with smtplib.SMTP(host, port, timeout=15) as s:
-                s.starttls()
-                s.login(user, pwd)
-                s.send_message(msg)
+        resend.api_key = api_key
+        resend.Emails.send({
+            "from":    frm,
+            "to":      [to_email],
+            "subject": "Reset your MyOBE password",
+            "html":    html,
+            "text":    plain,
+        })
         return True
     except Exception as e:
-        app.logger.error("SMTP error: %s", e)
+        app.logger.error("Resend error: %s", e)
         return False
 
 
