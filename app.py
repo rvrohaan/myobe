@@ -323,7 +323,7 @@ def _send_reset_email(to_email: str, reset_url: str) -> bool:
 
     try:
         if port == 465:
-            with smtplib.SMTP_SSL(host, port) as s:
+            with smtplib.SMTP_SSL(host, port, timeout=15) as s:
                 s.login(user, pwd)
                 s.send_message(msg)
         else:
