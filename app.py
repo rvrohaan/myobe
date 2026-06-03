@@ -454,19 +454,24 @@ def upload():
         return jsonify({"error": f"Unsupported file type '{ext}'"}), 400
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+    text = None
     try:
         f.save(tmp.name)
         tmp.close()
         text = extract(tmp.name)
-    except Exception as e:
-        return jsonify({"error": f"Failed to extract text: {e}"}), 500
+    except BaseException:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+        return jsonify({"error": "Failed to read the file. It may be corrupted or use an unsupported format."}), 500
     finally:
         try:
             os.unlink(tmp.name)
         except OSError:
             pass
 
-    if not text.strip():
+    if not text or not text.strip():
         return jsonify({"error": "No text could be extracted from the file"}), 400
 
     courses = split_into_courses(text)

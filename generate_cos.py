@@ -10,13 +10,30 @@ if sys.stdout.encoding != 'utf-8':
 
 
 def extract_pdf(path):
+    try:
+        import fitz
+        text = []
+        with fitz.open(path) as doc:
+            for page in doc:
+                t = page.get_text()
+                if t:
+                    text.append(t)
+        result = "\n".join(text)
+        if result.strip():
+            return result
+    except Exception:
+        pass
+
     import pdfplumber
     text = []
     with pdfplumber.open(path) as pdf:
         for page in pdf.pages:
-            t = page.extract_text()
-            if t:
-                text.append(t)
+            try:
+                t = page.extract_text()
+                if t:
+                    text.append(t)
+            except Exception:
+                continue
     return "\n".join(text)
 
 
