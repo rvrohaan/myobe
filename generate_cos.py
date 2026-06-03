@@ -15,7 +15,7 @@ def extract_pdf(path):
         text = []
         with fitz.open(path) as doc:
             for page in doc:
-                t = page.get_text()
+                t = page.get_text(sort=True)
                 if t:
                     text.append(t)
         result = "\n".join(text)
