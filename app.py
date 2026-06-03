@@ -253,6 +253,17 @@ def tokens_required(cost=1):
     return decorator
 
 
+def _refund_tokens(cost):
+    """Refund tokens to the current user when SSE generation fails mid-stream."""
+    username = session.get("username")
+    if not username or cost <= 0:
+        return
+    users = load_users()
+    if username in users:
+        users[username]["tokens"] = users[username].get("tokens", 0) + cost
+        _save_users(users)
+
+
 def _sid():
     if "sid" not in session:
         session["sid"] = str(uuid.uuid4())
@@ -550,28 +561,34 @@ def generate():
             timeout=90.0,   # 90 s per read  -  aborts if Anthropic stops sending chunks
             max_retries=3,
         )
-        chunks = []
+        _success = False
         try:
-            for chunk in generate_cos_stream(
-                client, code, info["title"], info["text"], num_cos
-            ):
-                chunks.append(chunk)
-                yield f"data: {json.dumps({'chunk': chunk})}\n\n"
-        except anthropic.APITimeoutError:
-            yield f"data: {json.dumps({'error': 'Request timed out - check your internet connection and try again.'})}\n\n"
-            return
-        except anthropic.APIConnectionError:
-            yield f"data: {json.dumps({'error': 'Could not reach the AI service - check your internet connection and try again.'})}\n\n"
-            return
-        except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
-            return
+            chunks = []
+            try:
+                for chunk in generate_cos_stream(
+                    client, code, info["title"], info["text"], num_cos
+                ):
+                    chunks.append(chunk)
+                    yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+            except anthropic.APITimeoutError:
+                yield f"data: {json.dumps({'error': 'Request timed out - check your internet connection and try again.'})}\n\n"
+                return
+            except anthropic.APIConnectionError:
+                yield f"data: {json.dumps({'error': 'Could not reach the AI service - check your internet connection and try again.'})}\n\n"
+                return
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                return
 
-        result = "".join(chunks)
-        store["current_result"] = result
-        summary = bloom_level_summary(result)
-        cos_parsed = _parse_cos_from_raw(result)
-        yield f"data: {json.dumps({'done': True, 'summary': summary, 'cos': cos_parsed})}\n\n"
+            result = "".join(chunks)
+            store["current_result"] = result
+            summary = bloom_level_summary(result)
+            cos_parsed = _parse_cos_from_raw(result)
+            _success = True
+            yield f"data: {json.dumps({'done': True, 'summary': summary, 'cos': cos_parsed})}\n\n"
+        finally:
+            if not _success:
+                _refund_tokens(1)
 
     return Response(
         event_stream(),
@@ -852,6 +869,7 @@ def generate_qbank_route():
                 co_text = generate_cos_for_course(client, code, info["title"], info["text"], num_cos=15)
                 cos     = parse_cos_from_text(co_text)
                 if not cos:
+                    _refund_tokens(3)
                     yield _ev({"type": "error", "message": "No COs could be generated"})
                     return
                 yield _ev({"type": "status", "message": f"Generated {len(cos)} Course Outcomes", "stage": "cos_done"})
@@ -969,12 +987,15 @@ def generate_qbank_route():
                 yield _ev({"type": "unit_done", "unit": unit_label, "unit_idx": idx})
 
         except anthropic.APITimeoutError:
+            _refund_tokens(3)
             yield _timeout_msg()
             return
         except anthropic.APIConnectionError:
+            _refund_tokens(3)
             yield _conn_msg()
             return
         except Exception as e:
+            _refund_tokens(3)
             yield _ev({"type": "error", "message": str(e)})
             return
 
@@ -2727,6 +2748,7 @@ def generate_lp():
                 num_cos=num_cos, existing_cos=uploaded_cos
             ):
                 if "error" in item:
+                    _refund_tokens(3)
                     yield f"data: {json.dumps({'error': item['error']})}\n\n"
                     return
                 if "progress" in item:
@@ -2735,6 +2757,7 @@ def generate_lp():
                     store["lp_data"] = item["data"]
                     yield f"data: {json.dumps({'done': True, 'data': item['data']})}\n\n"
         except Exception as e:
+            _refund_tokens(3)
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return Response(
@@ -2939,6 +2962,7 @@ def generate_td():
                 num_cos=num_cos, existing_cos=uploaded_cos, is_lab=is_lab
             ):
                 if "error" in item:
+                    _refund_tokens(3)
                     yield f"data: {json.dumps({'error': item['error']})}\n\n"
                     return
                 if "progress" in item:
@@ -2947,6 +2971,7 @@ def generate_td():
                     store["td_data"] = item["data"]
                     yield f"data: {json.dumps({'done': True, 'data': item['data']})}\n\n"
         except Exception as e:
+            _refund_tokens(3)
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return Response(

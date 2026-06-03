@@ -702,7 +702,7 @@ function startQBankGeneration() {
   if (S.qbankSelectedCos) params.set('selected_cos', S.qbankSelectedCos);
   const es = new EventSource(`/generate_qbank?${params}`);
   let totalUnits = 0;
-  _addSSETimeout(es, 150_000, () => {
+  _addSSETimeout(es, 600_000, () => {
     out.innerHTML += `\n\n<span style="color:#f87171">Timed out — check your connection and try again.</span>`;
     out.scrollTop = out.scrollHeight;
   });
@@ -3780,7 +3780,7 @@ function startTdGenerate() {
   });
 
   const es = new EventSource('/generate_td?' + params.toString());
-  _addSSETimeout(es, 160000, () => {
+  _addSSETimeout(es, 300000, () => {
     _stopFakeProgress('td-gen-progress');
     showSection('td-config'); setStepBar(3);
     showErr('td-config-err', 'Request timed out — check your connection and try again.');
@@ -5442,6 +5442,23 @@ async function module2ComposePaper() {
     }
   } catch(_) {}
   if (errEl) errEl.classList.add('hidden');
+
+  // Try to use the QB that was just generated (skip the upload step)
+  try {
+    const r = await fetch('/parse_generated_qbank', { method: 'POST' });
+    if (r.ok) {
+      const d = await r.json();
+      if (!d.error) {
+        S.mode = 'qpaper';
+        S.qbData = d;
+        renderQBPreview(d);
+        openConfigurePaper();
+        return;
+      }
+    }
+  } catch(_) {}
+
+  // Fallback: go to upload step if session QB is unavailable
   selectMode('qpaper');
 }
 
@@ -6103,7 +6120,7 @@ async function _aioRunQbank() {
   }
 
   const es = new EventSource(`/generate_qbank?${params}`);
-  const _qbTimeout = _addSSETimeout(es, 300000, () => {
+  const _qbTimeout = _addSSETimeout(es, 600000, () => {
     showErr('aio-run-err', 'Question Bank generation timed out. Try regenerating.');
   });
 
@@ -6394,7 +6411,7 @@ async function _aioRunLp() {
   });
 
   const es = new EventSource(`/generate_lp?${params}`);
-  const _lpTimeout = _addSSETimeout(es, 150000, () => {
+  const _lpTimeout = _addSSETimeout(es, 300000, () => {
     progressEl.classList.add('hidden');
     showErr('aio-run-err', 'Lesson Plan generation timed out. Try regenerating.');
   });
@@ -6452,7 +6469,7 @@ async function _aioRunTd() {
   });
 
   const es = new EventSource(`/generate_td?${params}`);
-  const _tdTimeout = _addSSETimeout(es, 160000, () => {
+  const _tdTimeout = _addSSETimeout(es, 300000, () => {
     progressEl.classList.add('hidden');
     showErr('aio-run-err', 'Teaching Diary generation timed out. Try regenerating.');
   });
@@ -6987,7 +7004,8 @@ function _aioShowDone() {
   const completed = _aio.queue.filter(id => _aio.previews[id] !== undefined);
 
   // Detect module completions
-  const isModule1Done = completed.includes('cos') && completed.includes('qbank') && completed.length === 2;
+  const isModule1Done = _aioFromModule === 'module1' && completed.includes('cos') && completed.includes('qbank') && completed.length === 2;
+  const isModule2Done = _aioFromModule === 'module2' && completed.includes('qbank');
   const isModule3Done = completed.includes('lessonplan') && completed.includes('teachingdiary');
   const isModule4Done = completed.includes('pomap') && completed.includes('coatt') &&
                         completed.includes('sdgco') && completed.includes('sdgpo');
@@ -7027,6 +7045,37 @@ function _aioShowDone() {
     </div>
     <div style="text-align:center;font-size:.77rem;color:var(--muted);margin:4px 0 14px;">
       — or download individual files below —
+    </div>` : '';
+
+  // Module 2: question bank ready — prompt to compose paper
+  const mod2Block = isModule2Done ? `
+    <div style="border:2px solid #0369a1;border-radius:14px;padding:18px 20px;
+                background:linear-gradient(135deg,rgba(3,105,161,.07),rgba(14,165,233,.07));
+                margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span style="font-size:1.8rem;flex-shrink:0;">📝</span>
+        <div style="flex:1;min-width:180px;">
+          <p style="font-weight:800;font-size:.97rem;margin:0 0 4px;color:var(--text);">
+            Question Bank Ready — Compose Your Paper
+          </p>
+          <p style="font-size:.77rem;color:var(--muted);margin:0;line-height:1.5;">
+            Your CO-tagged Question Bank has been generated. Use it to compose an Assignment,
+            Quiz, Internal Assessment or Final Exam paper with CO filtering and editable preview.
+          </p>
+          <p style="font-size:.72rem;color:#0369a1;font-weight:700;margin:6px 0 0;">
+            Download the Question Bank below, then compose your paper
+          </p>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button onclick="module2ComposePaper()" class="ctrl-btn"
+            style="font-size:.82rem;padding:7px 18px;font-weight:700;background:linear-gradient(90deg,#0369a1,#0ea5e9);color:#fff;border-color:transparent;">
+            Compose Paper &#8594;
+          </button>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:.77rem;color:var(--muted);margin:4px 0 14px;">
+      &#8212; or download individual files below &#8212;
     </div>` : '';
 
   // Module 3 comprehensive report button
@@ -7093,7 +7142,7 @@ function _aioShowDone() {
       &#8212; or download individual files below &#8212;
     </div>` : '';
 
-  document.getElementById('aio-done-list').innerHTML = mod1Block + mod3Block + mod4Block + completed.map(toolId => {
+  document.getElementById('aio-done-list').innerHTML = mod1Block + mod2Block + mod3Block + mod4Block + completed.map(toolId => {
     const tool = AIO_TOOLS.find(t => t.id === toolId);
     return `
       <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;flex-wrap:wrap;">
