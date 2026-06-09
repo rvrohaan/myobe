@@ -26,11 +26,11 @@
     <input class="search-box" id="course-search" type="text" placeholder="Search by code or title…">
     <div class="course-list" id="course-list"></div>
 
-    <!-- CO slider — shown only in Mode 1 -->
+    <!-- CO count info — always generates 15, user picks up to 7 -->
     <div class="slider-row" id="cos-slider-row">
-      <label>Number of COs to generate: <span class="slider-val" id="cos-val">5</span></label>
-      <input type="range" id="cos-slider" min="3" max="15" value="5">
-      <div class="slider-ticks"><span>3</span><span>15</span></div>
+      <p style="font-size:.85rem;color:var(--text-muted,rgba(255,255,255,.5));margin:0;">
+        15 Course Outcomes will be generated — you can select up to <strong>7</strong> to use.
+      </p>
     </div>
 
     <div class="actions">

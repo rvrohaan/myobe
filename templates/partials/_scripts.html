@@ -5,7 +5,7 @@ const S = {
   step: 0,
   courses: [],
   selected: null,
-  numCos: 5,
+  numCos: 15,
   // Mode 1
   rawResult: '',
   coStmts: [],
@@ -145,7 +145,7 @@ function goBack(fromSec) {
 
 function startOver() {
   Object.assign(S, {
-    mode: null, step: 0, courses: [], selected: null, numCos: 5,
+    mode: null, step: 0, courses: [], selected: null, numCos: 15,
     rawResult: '', coStmts: [], coRows: [], chosenCos: new Set(), fmt: 'txt',
     qbFmt: 'docx', qbankCoStmts: [], qbankChosenCos: new Set(),
     qbankSelectedCos: null, qbCoTab: 'auto', isLabCourse: false, qbNexp: 3,
@@ -232,6 +232,18 @@ function handleFile(file) {
   _xhrUpload('/upload', fd, {
     progressId: 'upload-loading', uploadLabel: 'Uploading syllabus…',
     processMs: 10000, processLabels: ['Extracting text…', 'Parsing document structure…', 'Detecting courses…', 'Almost ready…'],
+    onSuccess:  d => { zone.style.pointerEvents = ''; S.courses = d.courses; renderCourses(); showSection('courses'); setStepBar(2); },
+    onErrorRaw: d => { if (d.ai_fallback) { handleAiExtract(); } else { zone.style.pointerEvents = ''; showErr('upload-err', d.error || 'Upload failed. Please try again.'); } },
+    onError:    m => { zone.style.pointerEvents = ''; showErr('upload-err', m); },
+  });
+}
+
+function handleAiExtract() {
+  document.getElementById('upload-err').classList.add('hidden');
+  zone.style.pointerEvents = 'none';
+  _xhrUpload('/upload_ai_extract', new FormData(), {
+    progressId: 'upload-loading', uploadLabel: 'Asking AI to read syllabus…',
+    processMs: 15000, processLabels: ['Analysing document structure…', 'Identifying courses…', 'Building course list…', 'Almost ready…'],
     onSuccess: d => { zone.style.pointerEvents = ''; S.courses = d.courses; renderCourses(); showSection('courses'); setStepBar(2); },
     onError:   m => { zone.style.pointerEvents = ''; showErr('upload-err', m); },
   });
@@ -255,10 +267,6 @@ function renderCourses(q = '') {
 }
 
 document.getElementById('course-search').addEventListener('input', function() { renderCourses(this.value); });
-document.getElementById('cos-slider').addEventListener('input', function() {
-  S.numCos = +this.value;
-  document.getElementById('cos-val').textContent = this.value;
-});
 
 function pickCourse(code) {
   S.selected = code;
@@ -314,7 +322,7 @@ function _addSSETimeout(es, ms, onTimeout) {
 
 /* ── MODE 1: CO Generation ───────────────────────────────────────────────── */
 function startGeneration() {
-  S.numCos = +document.getElementById('cos-slider').value;
+  S.numCos = 15;
   const c  = S.courses.find(x => x.code === S.selected);
   document.getElementById('gen-title').textContent = `Generating COs for ${S.selected}`;
   document.getElementById('gen-sub').textContent =
@@ -410,28 +418,39 @@ function highlight(text) {
 }
 
 /* ── MODE 1: Parse & Review ─────────────────────────────────────────────── */
+const CO_MAX_SELECT = 7;
+
 function parseResult(text) {
   S.coStmts = []; S.coRows = []; S.chosenCos = new Set();
   for (const line of text.split('\n')) {
     const s  = line.trim();
     const cm = s.match(/^CO(\d+):\s*(.*)/);
-    if (cm) { S.coStmts.push({ num: +cm[1], text: cm[2] }); S.chosenCos.add(+cm[1]); continue; }
+    if (cm) { S.coStmts.push({ num: +cm[1], text: cm[2] }); continue; }
     if (s.startsWith('|') && s.endsWith('|') && !s.match(/^\|[-| ]+\|$/)) {
-      const cells = s.slice(1,-1).split('|').map(x => x.trim());
-      if (cells.length === 4 && cells[0].match(/^CO\d+$/)) {
-        S.coRows.push({ num: +cells[0].replace('CO',''), unit: cells[1], kdim: cells[2], bloom: cells[3] });
+      const cells = s.slice(1,-1).split('|').map(x => x.trim().replace(/\*\*/g,''));
+      if (cells.length >= 4 && cells[0].match(/^CO\d+$/)) {
+        S.coRows.push({
+          num:   +cells[0].replace('CO',''),
+          unit:  cells.slice(1, cells.length - 2).join(', '),
+          kdim:  cells[cells.length - 2],
+          bloom: cells[cells.length - 1],
+        });
       }
     }
   }
 }
 
 function renderReview() {
-  document.getElementById('co-cards').innerHTML = S.coStmts.map(co => `
-    <div class="co-card ${S.chosenCos.has(co.num) ? 'selected' : ''}" onclick="toggleCo(${co.num})">
-      <input type="checkbox" ${S.chosenCos.has(co.num) ? 'checked' : ''} onclick="event.stopPropagation();toggleCo(${co.num})">
+  const atLimit = S.chosenCos.size >= CO_MAX_SELECT;
+  document.getElementById('co-cards').innerHTML = S.coStmts.map(co => {
+    const sel      = S.chosenCos.has(co.num);
+    const disabled = !sel && atLimit;
+    return `<div class="co-card ${sel ? 'selected' : ''} ${disabled ? 'co-card-disabled' : ''}" onclick="${disabled ? '' : `toggleCo(${co.num})`}">
+      <input type="checkbox" ${sel ? 'checked' : ''} ${disabled ? 'disabled' : ''} onclick="event.stopPropagation();${disabled ? '' : `toggleCo(${co.num})`}">
       <span class="co-num">CO${co.num}</span>
       <span class="co-text">${esc(co.text)}</span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   if (S.coRows.length) {
     const rows = S.coRows.map(r => {
@@ -453,13 +472,31 @@ function renderReview() {
   updateSelCount();
 }
 
-function toggleCo(n) { S.chosenCos.has(n) ? S.chosenCos.delete(n) : S.chosenCos.add(n); renderReview(); }
-function selectAll(v) { S.chosenCos = v ? new Set(S.coStmts.map(c => c.num)) : new Set(); renderReview(); }
-function invertSel()  { S.chosenCos = new Set([...new Set(S.coStmts.map(c => c.num))].filter(n => !S.chosenCos.has(n))); renderReview(); }
-function updateSelCount() { document.getElementById('sel-count').textContent = `${S.chosenCos.size} of ${S.coStmts.length} selected`; }
+function toggleCo(n) {
+  if (S.chosenCos.has(n)) { S.chosenCos.delete(n); }
+  else if (S.chosenCos.size < CO_MAX_SELECT) { S.chosenCos.add(n); }
+  renderReview();
+}
+function selectAll(v) {
+  if (v) { S.chosenCos = new Set(S.coStmts.slice(0, CO_MAX_SELECT).map(c => c.num)); }
+  else   { S.chosenCos = new Set(); }
+  renderReview();
+}
+function invertSel() {
+  const all    = S.coStmts.map(c => c.num);
+  const wanted = all.filter(n => !S.chosenCos.has(n)).slice(0, CO_MAX_SELECT);
+  S.chosenCos  = new Set(wanted);
+  renderReview();
+}
+function updateSelCount() {
+  const el = document.getElementById('sel-count');
+  const remaining = CO_MAX_SELECT - S.chosenCos.size;
+  el.textContent = `${S.chosenCos.size} / ${CO_MAX_SELECT} selected`;
+  el.style.color = S.chosenCos.size >= CO_MAX_SELECT ? 'var(--success, #4ade80)' : '';
+}
 
 function goToExport() {
-  if (S.chosenCos.size === 0) { alert('Please select at least one CO.'); return; }
+  if (S.chosenCos.size === 0) { alert('Please select at least one CO (up to 7).'); return; }
   const c = S.courses.find(x => x.code === S.selected);
   document.getElementById('exp-sub').textContent =
     `${S.selected}: ${c ? c.title : ''}${c && c.semester ? ` — Semester ${c.semester}` : ''}`;
@@ -493,10 +530,11 @@ function doDownload() {
   btn.textContent = 'Generating…';
   _startFakeProgress('dl-cos-progress', 4000, ['Generating document…', 'Formatting…', 'Almost ready…']);
   const selected = [...S.chosenCos].sort((a,b)=>a-b).join(',');
+  const coRows   = S.coRows.filter(r => S.chosenCos.has(r.num));
   fetch('/export', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ selected, fmt: S.fmt }),
+    body: JSON.stringify({ selected, fmt: S.fmt, coRows }),
   })
   .then(r => {
     if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Export failed'); });
@@ -1925,8 +1963,11 @@ function _xhrUpload(url, formData, opts) {
   xhr.onload = () => {
     try {
       const data = JSON.parse(xhr.responseText);
-      if (xhr.status >= 400 || data.error) { _finish(); onError(data.error || 'Server error'); }
-      else _finish(() => onSuccess(data, xhr.status));
+      if (xhr.status >= 400 || data.error) {
+        _finish();
+        if (opts.onErrorRaw) opts.onErrorRaw(data);
+        else onError(data.error || 'Server error');
+      } else _finish(() => onSuccess(data, xhr.status));
     } catch(e) { _finish(); onError('Invalid server response'); }
   };
   xhr.onerror = () => { _finish(); onError('Network error. Please try again.'); };
@@ -4389,7 +4430,7 @@ function generateCosForSdgCo() {
     showSection('upload'); setStepBar(1);
     return;
   }
-  const numCos   = +(document.getElementById('cos-slider')?.value || 5);
+  const numCos   = 15;
   const genBtn   = document.getElementById('btn-sdgco-gen-cos');
   const progress = document.getElementById('sdgco-cos-progress');
   const streamEl = document.getElementById('sdgco-cos-stream');
@@ -4965,7 +5006,7 @@ function _handleCoAttCoUpload(file) {
 
 function generateCosForCoAtt() {
   if (!S.selected) return;
-  const numCos   = +(document.getElementById('cos-slider')?.value || 5);
+  const numCos   = 15;
   const genBtn   = document.getElementById('btn-coatt-gen-cos');
   const progress = document.getElementById('coatt-cos-progress');
   const streamEl = document.getElementById('coatt-cos-stream');
@@ -5796,6 +5837,20 @@ function _aioOnDone(toolId, previewText, resultData) {
   const tool = AIO_TOOLS.find(t => t.id === toolId);
   document.getElementById('aio-run-title').textContent = `${tool.label} — Done`;
 
+  // For CO step: replace plain-text preview with inline selection UI
+  if (toolId === 'cos') {
+    box.style.whiteSpace = 'normal';
+    box.style.maxHeight  = '520px';
+    box.style.overflow   = 'auto';
+    box.innerHTML        = _aioCoSelectionHtml();
+    document.getElementById('btn-aio-expand').style.display = 'none';
+    document.getElementById('btn-aio-edit').style.display   = 'none';
+    document.getElementById('btn-aio-regen').style.display  = '';
+    document.getElementById('btn-aio-next').textContent     = 'Use Selected COs →';
+    document.getElementById('btn-aio-next').onclick         = _aioCoUseSelected;
+    return;
+  }
+
   // Show/hide Edit and Regenerate based on tool capability
   document.getElementById('btn-aio-edit').style.display  = tool.canEdit  ? '' : 'none';
   document.getElementById('btn-aio-regen').style.display = tool.canRegen ? '' : 'none';
@@ -5858,12 +5913,15 @@ function aioSaveEdit() {
   const toolId = _aio.queue[_aio.queueStep];
 
   if (toolId === 'cos') {
-    // Collect from the CO edit panel textareas
+    const included = new Set(
+      [...document.querySelectorAll('.aio-co-include-check:checked')].map(cb => parseInt(cb.dataset.num))
+    );
+    if (included.size === 0) { alert('Please include at least one CO.'); return; }
     const items = document.querySelectorAll('#aio-co-edit-list .aio-co-edit-ta');
-    _aio.cos = [...items].map(ta => ({
-      num: parseInt(ta.dataset.num, 10),
-      statement: ta.value.trim(),
-    })).filter(c => c.statement);
+    _aio.cos = [...items]
+      .filter(ta => included.has(parseInt(ta.dataset.num)))
+      .map(ta => ({ num: parseInt(ta.dataset.num, 10), statement: ta.value.trim() }))
+      .filter(c => c.statement);
     const newText = _aio.cos.map(c => `CO${c.num}: ${c.statement}`).join('\n');
     _aio.previews[toolId] = newText;
     document.getElementById('aio-preview-box').textContent = newText;
@@ -5879,28 +5937,61 @@ function aioSaveEdit() {
 // ── CO edit panel rendering ───────────────────────────────────────────────────
 function _aioRenderCoEditList() {
   const list = document.getElementById('aio-co-edit-list');
-  list.innerHTML = _aio.cos.map(c => `
-    <div style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden;background:var(--card);">
+  const included = new Set(_aio.cos.slice(0, CO_MAX_SELECT).map(c => c.num));
+  list.innerHTML =
+    `<div style="display:flex;align-items:center;gap:8px;padding:6px 2px 10px;font-size:.8rem;color:var(--muted);">
+       <span>Select up to <strong>${CO_MAX_SELECT}</strong> COs to include:</span>
+       <span id="aio-include-count" style="font-weight:700;color:var(--primary);">${Math.min(included.size, CO_MAX_SELECT)} / ${CO_MAX_SELECT}</span>
+     </div>` +
+    _aio.cos.map(c => {
+      const sel = included.has(c.num);
+      return `
+    <div style="border:1.5px solid ${sel ? 'var(--primary)' : 'var(--border)'};border-radius:10px;overflow:hidden;background:var(--card);opacity:${sel ? '1' : '.45'};" id="aio-co-card-${c.num}">
       <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;
-                  background:rgba(99,102,241,.06);border-bottom:1px solid var(--border);">
-        <input type="checkbox" class="aio-co-improve-check" data-num="${c.num}"
-               style="accent-color:var(--primary);width:15px;height:15px;cursor:pointer;flex-shrink:0;">
+                  background:${sel ? 'rgba(99,102,241,.10)' : 'rgba(99,102,241,.03)'};border-bottom:1px solid var(--border);">
+        <input type="checkbox" class="aio-co-include-check" data-num="${c.num}"
+               ${sel ? 'checked' : ''}
+               onchange="_aioToggleInclude(this)"
+               style="accent-color:var(--primary);width:16px;height:16px;cursor:pointer;flex-shrink:0;"
+               title="Include this CO">
         <span style="font-size:.8rem;font-weight:800;color:var(--primary);letter-spacing:.03em;">CO${c.num}</span>
-        <span style="font-size:.68rem;color:var(--muted);margin-left:auto;">check to improve with AI</span>
+        <span style="font-size:.68rem;color:var(--muted);margin-left:auto;margin-right:6px;">✨ improve with AI:</span>
+        <input type="checkbox" class="aio-co-improve-check" data-num="${c.num}"
+               style="accent-color:#a855f7;width:14px;height:14px;cursor:pointer;flex-shrink:0;">
       </div>
       <textarea class="text-input aio-co-edit-ta" data-num="${c.num}"
         style="width:100%;font-size:.82rem;line-height:1.65;resize:vertical;box-sizing:border-box;border:none;border-radius:0;background:transparent;padding:10px 12px;margin:0;outline:none;display:block;overflow-y:auto;min-height:80px;"
         oninput="this.style.height='auto';this.style.height=Math.max(this.scrollHeight,80)+'px'"
       >${esc(c.statement)}</textarea>
-    </div>
-  `).join('');
-  // Use two rAFs so the flex layout has settled before we measure scrollHeight
+    </div>`;
+    }).join('');
   requestAnimationFrame(() => requestAnimationFrame(() => {
     list.querySelectorAll('.aio-co-edit-ta').forEach(ta => {
       ta.style.height = 'auto';
       ta.style.height = Math.max(ta.scrollHeight, 80) + 'px';
     });
   }));
+}
+
+function _aioToggleInclude(cb) {
+  const num     = parseInt(cb.dataset.num);
+  const checked = [...document.querySelectorAll('.aio-co-include-check:checked')];
+  if (cb.checked && checked.length > CO_MAX_SELECT) {
+    cb.checked = false;
+    return;
+  }
+  const card = document.getElementById(`aio-co-card-${num}`);
+  if (card) {
+    card.style.opacity     = cb.checked ? '1' : '.5';
+    card.style.borderColor = cb.checked ? 'var(--primary)' : 'var(--border)';
+    card.style.background  = cb.checked ? 'rgba(99,102,241,.08)' : 'transparent';
+  }
+  const total   = document.querySelectorAll('.aio-co-include-check:checked').length;
+  const countEl = document.getElementById('aio-include-count');
+  if (countEl) {
+    countEl.textContent = `${total} / ${CO_MAX_SELECT}`;
+    countEl.style.color = total >= CO_MAX_SELECT ? 'var(--success, #4ade80)' : 'var(--primary)';
+  }
 }
 
 // ── AI Improve for CO step ────────────────────────────────────────────────────
@@ -5961,6 +6052,49 @@ function _aioApplyCo(num, btn) {
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────────
+function _aioCoSelectionHtml() {
+  const included = new Set();
+  return `<div style="margin-bottom:10px;font-size:.82rem;color:var(--muted);">
+      Select up to <strong>${CO_MAX_SELECT}</strong> COs to use:
+      <span id="aio-include-count" style="font-weight:700;color:var(--primary);margin-left:6px;">${included.size} / ${CO_MAX_SELECT}</span>
+    </div>` +
+    _aio.cos.map(c => {
+      const sel = included.has(c.num);
+      return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;margin-bottom:6px;
+                  border:1.5px solid ${sel ? 'var(--primary)' : 'var(--border)'};border-radius:8px;
+                  background:${sel ? 'rgba(99,102,241,.08)' : 'transparent'};
+                  opacity:${sel ? '1' : '.5'};cursor:pointer;" id="aio-co-card-${c.num}"
+               onclick="_aioCoCardClick(${c.num})">
+        <input type="checkbox" class="aio-co-include-check" data-num="${c.num}"
+               ${sel ? 'checked' : ''} onclick="event.stopPropagation();_aioToggleInclude(this)"
+               style="accent-color:var(--primary);width:15px;height:15px;margin-top:2px;flex-shrink:0;cursor:pointer;">
+        <div>
+          <span style="font-size:.8rem;font-weight:800;color:var(--primary);">CO${c.num}</span>
+          <span style="font-size:.82rem;color:var(--text);margin-left:8px;line-height:1.55;">${esc(c.statement)}</span>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+function _aioCoCardClick(num) {
+  const cb = document.querySelector(`.aio-co-include-check[data-num="${num}"]`);
+  if (cb) { cb.checked = !cb.checked; _aioToggleInclude(cb); }
+}
+
+function _aioCoUseSelected() {
+  const included = new Set(
+    [...document.querySelectorAll('.aio-co-include-check:checked')].map(cb => parseInt(cb.dataset.num))
+  );
+  if (included.size === 0) { alert('Please select at least one CO.'); return; }
+  _aio.cos = _aio.cos.filter(c => included.has(c.num));
+  _aio.previews['cos'] = _aio.cos.map(c => `CO${c.num}: ${c.statement}`).join('\n');
+  // Restore Next button for subsequent steps
+  const nextBtn = document.getElementById('btn-aio-next');
+  nextBtn.textContent = 'Next →';
+  nextBtn.onclick     = aioNext;
+  aioNext();
+}
+
 function aioNext() {
   _aio.queueStep++;
   if (_aio.queueStep >= _aio.queue.length) { _aioShowDone(); return; }
@@ -5973,7 +6107,12 @@ function aioSkip() {
   _aioRunStep();
 }
 
-function aioRegen() { _aioRunStep(); }
+function aioRegen() {
+  // Reset Next button in case we were on the CO step
+  const nextBtn = document.getElementById('btn-aio-next');
+  if (nextBtn) { nextBtn.textContent = 'Next →'; nextBtn.onclick = aioNext; }
+  _aioRunStep();
+}
 
 
 // ── CO parser helper ──────────────────────────────────────────────────────────
@@ -6027,7 +6166,13 @@ async function _aioPrepare() {
     body: JSON.stringify(body),
   });
   if (!r.ok) throw new Error('Session setup failed');
-  return r.json();
+  const d = await r.json();
+  // Sync _aio.cos to the server-renumbered COs (CO1, CO2, CO3…) so downloads
+  // use the same numbers as the stored co_taxonomy
+  if (d.cos && d.cos.length) {
+    _aio.cos = d.cos.map(c => ({ num: c.num, statement: c.statement }));
+  }
+  return d;
 }
 
 // ── Per-tool generators ───────────────────────────────────────────────────────
@@ -6037,11 +6182,11 @@ function _aioRunCos() {
   const streamEl = document.getElementById('aio-run-stream');
   streamEl.classList.remove('hidden');
   _startFakeProgress('aio-run-progress', 25000, [
-    'Analysing syllabus…', 'Mapping to Bloom\'s taxonomy…', 'Crafting CO statements…', 'Finalising outcomes…'
+    'Generating Course Outcomes…', 'Mapping to Bloom\'s taxonomy…', 'Crafting CO statements…', 'Finalising outcomes…'
   ]);
   let chunks = [];
 
-  const es = new EventSource(`/generate?code=${encodeURIComponent(S.selected || '')}&num_cos=5`);
+  const es = new EventSource(`/generate?code=${encodeURIComponent(S.selected || '')}&num_cos=15`);
   const _coTimeout = _addSSETimeout(es, 100000, () => {
     showErr('aio-run-err', 'CO generation timed out. Try regenerating.');
   });
@@ -7390,22 +7535,28 @@ async function downloadM1Report() {
   errDiv.classList.add('hidden');
   btn.disabled = true;
   btn.textContent = 'Downloading…';
-  _startFakeProgress('dl-m1-progress', 5000, ['Generating document…', 'Formatting…', 'Almost ready…']);
-
-  const div = document.getElementById('m1-report-preview-div');
   const fmt = S.m1PreviewFmt || 'docx';
-
-  const url     = fmt === 'txt' ? '/download_paper_from_text' : '/download_paper_from_html';
-  const payload = fmt === 'txt'
-    ? { text: div.innerText, fmt, label: 'Report', filename: 'Module1' }
-    : { html: div.innerHTML, fmt, label: 'Report', filename: 'Module1' };
+  const _m1EstMs = fmt === 'txt' ? 4000 : 45000;
+  const _m1Labels = fmt === 'txt' ? ['Preparing text…', 'Almost ready…']
+                                   : ['Building charts…', 'Generating document…', 'Formatting…', 'Packaging…', 'Almost ready…'];
+  _startFakeProgress('dl-m1-progress', _m1EstMs, _m1Labels);
 
   try {
-    const r = await fetch(url, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
-    });
+    let r;
+    if (fmt === 'txt') {
+      const div = document.getElementById('m1-report-preview-div');
+      r = await fetch('/download_paper_from_text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: div.innerText, fmt, label: 'Report', filename: 'Module1' }),
+      });
+    } else {
+      r = await fetch('/generate_module1_report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fmt }),
+      });
+    }
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
       throw new Error(d.error || 'Download failed');
@@ -7590,22 +7741,28 @@ async function downloadM3Report() {
   errDiv.classList.add('hidden');
   btn.disabled = true;
   btn.textContent = 'Downloading…';
-  _startFakeProgress('dl-m3-progress', 5000, ['Generating document…', 'Formatting…', 'Almost ready…']);
-
-  const div = document.getElementById('m3-report-preview-div');
   const fmt = S.m3PreviewFmt || 'docx';
-
-  const url     = fmt === 'txt' ? '/download_paper_from_text' : '/download_paper_from_html';
-  const payload = fmt === 'txt'
-    ? { text: div.innerText, fmt, label: 'Report', filename: 'Module3' }
-    : { html: div.innerHTML, fmt, label: 'Report', filename: 'Module3' };
+  const _m3EstMs = fmt === 'txt' ? 4000 : 45000;
+  const _m3Labels = fmt === 'txt' ? ['Preparing text…', 'Almost ready…']
+                                   : ['Building charts…', 'Generating document…', 'Formatting…', 'Packaging…', 'Almost ready…'];
+  _startFakeProgress('dl-m3-progress', _m3EstMs, _m3Labels);
 
   try {
-    const r = await fetch(url, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
-    });
+    let r;
+    if (fmt === 'txt') {
+      const div = document.getElementById('m3-report-preview-div');
+      r = await fetch('/download_paper_from_text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: div.innerText, fmt, label: 'Report', filename: 'Module3' }),
+      });
+    } else {
+      r = await fetch('/generate_module3_report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fmt }),
+      });
+    }
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
       throw new Error(d.error || 'Download failed');
@@ -7795,22 +7952,36 @@ async function downloadM4Report() {
   errDiv.classList.add('hidden');
   btn.disabled = true;
   btn.textContent = 'Downloading…';
-  _startFakeProgress('dl-m4-progress', 5000, ['Generating document…', 'Formatting…', 'Almost ready…']);
-
-  const div = document.getElementById('m4-report-preview-div');
   const fmt = S.m4PreviewFmt || 'docx';
-
-  const url     = fmt === 'txt' ? '/download_paper_from_text' : '/download_paper_from_html';
-  const payload = fmt === 'txt'
-    ? { text: div.innerText, fmt, label: 'Report', filename: 'Module4' }
-    : { html: div.innerHTML, fmt, label: 'Report', filename: 'Module4' };
+  const _m4EstMs = fmt === 'txt' ? 4000 : 45000;
+  const _m4Labels = fmt === 'txt' ? ['Preparing text…', 'Almost ready…']
+                                   : ['Building charts…', 'Generating document…', 'Formatting…', 'Packaging…', 'Almost ready…'];
+  _startFakeProgress('dl-m4-progress', _m4EstMs, _m4Labels);
 
   try {
-    const r = await fetch(url, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
-    });
+    let r;
+    if (fmt === 'txt') {
+      const div = document.getElementById('m4-report-preview-div');
+      r = await fetch('/download_paper_from_text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: div.innerText, fmt, label: 'Report', filename: 'Module4' }),
+      });
+    } else {
+      r = await fetch('/generate_module4_report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fmt,
+          course:     S.selected || '',
+          pomap_rows: _aio.results['pomap'] || [],
+          coatt:      _aio.results['coatt'] || {},
+          poatt:      _aio.results['poatt'] || {},
+          sdgco:      _aio.results['sdgco'] || {},
+          sdgpo:      _aio.results['sdgpo'] || {},
+        }),
+      });
+    }
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
       throw new Error(d.error || 'Download failed');

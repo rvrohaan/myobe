@@ -8,3 +8,5 @@ fpdf2>=2.8
 razorpay>=1.4
 gunicorn>=22.0
 resend>=2.0
+matplotlib>=3.8
+numpy>=1.26

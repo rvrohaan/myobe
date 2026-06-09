@@ -18,6 +18,11 @@ import re
 import json
 import datetime
 
+try:
+    import report_charts as _rc
+except Exception:
+    _rc = None
+
 # ── Bloom's action-verb mapping ───────────────────────────────────────────────
 _BLOOM_LEVELS = {
     "remember":   ["define", "list", "recall", "state", "identify", "name", "recognise", "label"],
@@ -441,6 +446,7 @@ def build_docx(
     semester,
     output_path: str,
     is_lab: bool = False,
+    taxonomy_grid=None,
 ):
     from docx import Document
     from docx.shared import Pt, Inches, RGBColor
@@ -522,6 +528,29 @@ def build_docx(
                     row.cells[i].width = Inches(w)
         doc.add_paragraph().paragraph_format.space_after = Pt(4)
         return t
+
+    def _insert_chart(buf, width=5.2):
+        if buf is None:
+            return
+        import tempfile as _tf, os as _os2
+        _fname = None
+        try:
+            with _tf.NamedTemporaryFile(delete=False, suffix='.png') as _f:
+                _f.write(buf.read())
+                _fname = _f.name
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p.add_run()
+            run.add_picture(_fname, width=Inches(width))
+            doc.add_paragraph().paragraph_format.space_after = Pt(4)
+        except Exception:
+            pass
+        finally:
+            if _fname:
+                try:
+                    _os2.unlink(_fname)
+                except Exception:
+                    pass
 
     def _add_bar_chart(label_count_pairs, total, label_header="Category", unit_label=""):
         """Visual bar chart table using colored ■□ characters in Courier New."""
@@ -664,27 +693,89 @@ def build_docx(
     _add_table(["CO", "Statement", "Bloom's Level"], co_rows,
                col_widths=[0.6, 4.5, 1.2])
 
-    # Always show Bloom's distribution — compute from CO statements when
-    # bloom_summary string is empty (e.g. AIO flow without full CO text)
-    _add_heading("Bloom's Taxonomy Distribution", level=2, color=TEAL)
-    if bloom_summary:
-        for line in bloom_summary.strip().split("\n"):
-            if line.strip():
-                _add_para(line.strip(), size=9.5)
-        _add_para()
-    bloom_counts: dict = {}
-    for c in cos:
-        lvl = _detect_bloom(c["statement"])
-        bloom_counts[lvl] = bloom_counts.get(lvl, 0) + 1
-    ORDER = ["Remember", "Understand", "Apply", "Analyse", "Evaluate", "Create"]
-    bloom_dist_rows = [
-        (lvl, str(bloom_counts.get(lvl, 0)),
-         f"{round(bloom_counts.get(lvl, 0) / max(len(cos), 1) * 100, 1)}%")
-        for lvl in ORDER if bloom_counts.get(lvl, 0) > 0
+    # Revised Bloom's Taxonomy (RBT) Table — full 4×6 knowledge-dimension matrix
+    _add_heading("Revised Bloom's Taxonomy (RBT) Table", level=2, color=TEAL)
+    _add_para("COGNITIVE PROCESS DIMENSION", bold=True, size=9)
+
+    _RBT_LNAMES  = ['REMEMBER', 'UNDERSTAND', 'APPLY', 'ANALYZE', 'EVALUATE', 'CREATE']
+    _RBT_LVERBS  = [
+        'Recognizing, Recalling',
+        'Interpreting, Exemplifying, Classifying, Summarizing, Inferring, Comparing, Explaining',
+        'Executing, Implementing',
+        'Differentiating, Organizing, Attributing',
+        'Checking, Critiquing',
+        'Generating, Planning, Producing',
     ]
-    if bloom_dist_rows:
-        _add_table(["Bloom's Level", "CO Count", "Share"], bloom_dist_rows,
-                   col_widths=[1.8, 1.1, 1.0])
+    _RBT_KDIMS = [
+        ("Factual",        "FACTUAL\nKNOWLEDGE"),
+        ("Conceptual",     "CONCEPTUAL\nKNOWLEDGE"),
+        ("Procedural",     "PROCEDURAL\nKNOWLEDGE"),
+        ("Meta-Cognitive", "METACOGNITIVE\nKNOWLEDGE"),
+    ]
+    _RBT_LEVELS = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6']
+
+    if taxonomy_grid:
+        _raw_grid = taxonomy_grid
+    else:
+        from generate_cos import build_taxonomy_grid as _btg
+        _raw_grid = _btg(co_text)
+    rbt_grid = {kd: {lv: _raw_grid.get(kd, {}).get(lv, []) for lv in _RBT_LEVELS}
+                for kd, _ in _RBT_KDIMS}
+
+    rbt_tbl = doc.add_table(rows=6, cols=7)  # row 0: names, row 1: verbs, rows 2-5: data
+    rbt_tbl.style = 'Table Grid'
+
+    def _shd(cell, fill_hex):
+        tc  = cell._tc
+        tcp = tc.get_or_add_tcPr()
+        shd = OxmlElement('w:shd')
+        shd.set(qn('w:val'),   'clear')
+        shd.set(qn('w:color'), 'auto')
+        shd.set(qn('w:fill'),  fill_hex)
+        tcp.append(shd)
+
+    # Header row 0 — level numbers and names (bold)
+    hdr0 = rbt_tbl.rows[0].cells
+    p0   = hdr0[0].paragraphs[0]
+    r0   = p0.add_run('KNOWLEDGE\nDIMENSION')
+    r0.bold = True; r0.font.size = Pt(8)
+    p0.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p0.paragraph_format.space_before = Pt(0); p0.paragraph_format.space_after = Pt(0)
+    _shd(hdr0[0], 'C8C8C8')
+    for i, name in enumerate(_RBT_LNAMES, 1):
+        p  = hdr0[i].paragraphs[0]
+        r  = p.add_run(f'{i}. {name}')
+        r.bold = True; r.font.size = Pt(8)
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_before = Pt(0); p.paragraph_format.space_after = Pt(0)
+        _shd(hdr0[i], 'C8C8C8')
+
+    # Header row 1 — verbs (italic, smaller)
+    hdr1 = rbt_tbl.rows[1].cells
+    _shd(hdr1[0], 'C8C8C8')
+    for i, verbs in enumerate(_RBT_LVERBS, 1):
+        p  = hdr1[i].paragraphs[0]
+        r  = p.add_run(verbs)
+        r.italic = True; r.font.size = Pt(7)
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_before = Pt(0); p.paragraph_format.space_after = Pt(0)
+        _shd(hdr1[i], 'C8C8C8')
+
+    # Data rows (indices 2-5)
+    for row_idx, (kd, label) in enumerate(_RBT_KDIMS, 2):
+        row = rbt_tbl.rows[row_idx].cells
+        pr  = row[0].paragraphs[0]
+        rr  = pr.add_run(label); rr.bold = True; rr.font.size = Pt(8)
+        pr.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        for col_idx, lv in enumerate(_RBT_LEVELS, 1):
+            cell_text = ', '.join(rbt_grid[kd].get(lv, []))
+            row[col_idx].text = cell_text
+            cp = row[col_idx].paragraphs[0]
+            cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            for run in cp.runs:
+                run.font.size = Pt(9)
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(4)
 
     doc.add_page_break()
 
@@ -803,6 +894,8 @@ def build_docx(
     _add_heading("Distribution Bar", level=2, color=TEAL)
     _add_bar_chart(list(analytics["diff_dist"].items()), total_q,
                    label_header="Difficulty Level", unit_label=" questions")
+    if _rc:
+        _insert_chart(_rc.difficulty_pie_chart(analytics["diff_dist"]))
 
     doc.add_page_break()
 
@@ -839,6 +932,8 @@ def build_docx(
     qqi_rows = [(co, f"{score}/100") for co, score in analytics["qqi_scores"].items()]
     qqi_rows.append(("Overall QQI", f"{analytics['overall_qqi']}/100"))
     _add_table(["CO", "QQI Score"], qqi_rows, col_widths=[1.5, 1.5])
+    if _rc:
+        _insert_chart(_rc.qqi_chart(analytics["qqi_scores"], analytics["overall_qqi"]))
 
     qqi_ai = ai.get("qqi_interpretation", {})
     if qqi_ai.get("overall"):
@@ -871,6 +966,8 @@ def build_docx(
     marks_pairs = [(f"CO{c['num']}", analytics["co_marks"].get(str(c["num"]), 0)) for c in cos]
     _add_bar_chart(marks_pairs, analytics["total_marks"],
                    label_header="CO", unit_label=" marks")
+    if _rc:
+        _insert_chart(_rc.co_marks_chart(cos, analytics["co_marks"], analytics["total_marks"]))
 
     doc.add_page_break()
 
@@ -920,6 +1017,8 @@ def build_docx(
             for m in acc_data["key_metrics"]
         ]
         _add_table(["Metric", "Score", "Status"], metric_rows, col_widths=[2.8, 1.3, 1.5])
+        if _rc:
+            _insert_chart(_rc.accreditation_metrics_chart(acc_data["key_metrics"]))
 
     if acc_data.get("strengths"):
         _add_heading("Strengths", level=2, color=GREEN)
@@ -946,7 +1045,7 @@ def build_docx(
 
 def build_txt(
     cos, co_text, qb_data, co_tally, bloom_summary, analytics, ai,
-    sample_paper, code, title, semester, output_path, is_lab=False,
+    sample_paper, code, title, semester, output_path, is_lab=False, taxonomy_grid=None,
 ):
     SEP  = "=" * 72
     SEP2 = "-" * 72
@@ -1175,7 +1274,7 @@ def build_txt(
 
 def build_pdf(
     cos, co_text, qb_data, co_tally, bloom_summary, analytics, ai,
-    sample_paper, code, title, semester, output_path, is_lab=False,
+    sample_paper, code, title, semester, output_path, is_lab=False, taxonomy_grid=None,
 ):
     from fpdf import FPDF, XPos, YPos
 
@@ -1248,6 +1347,32 @@ def build_pdf(
         pdf.set_font("Courier", "", 8.5)
         pdf.cell(0, 5, _s(f"  {label:<22} [{bar}] {count}"),
                  new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    try:
+        import report_charts as _rc
+    except Exception:
+        _rc = None
+
+    def _pdf_chart(buf, w=155):
+        if buf is None or _rc is None:
+            return
+        import tempfile as _tf, os as _os2
+        _fname = None
+        try:
+            with _tf.NamedTemporaryFile(delete=False, suffix='.png') as _f:
+                _f.write(buf.read())
+                _fname = _f.name
+            x = pdf.l_margin + (PAGE_W - w) / 2
+            pdf.image(_fname, x=x, w=w)
+            pdf.ln(3)
+        except Exception:
+            pass
+        finally:
+            if _fname:
+                try:
+                    _os2.unlink(_fname)
+                except Exception:
+                    pass
 
     # ── Cover page ──────────────────────────────────────────────────────────
     pdf.add_page()
@@ -1328,6 +1453,97 @@ def build_pdf(
     if bloom_summary:
         _heading2("Bloom's Taxonomy Summary")
         _body(bloom_summary.strip())
+
+    # RBT table
+    _heading2("Revised Bloom's Taxonomy (RBT) Table")
+    _PDF_KDIMS = [
+        ("Factual",        "FACTUAL\nKNOWLEDGE"),
+        ("Conceptual",     "CONCEPTUAL\nKNOWLEDGE"),
+        ("Procedural",     "PROCEDURAL\nKNOWLEDGE"),
+        ("Meta-Cognitive", "METACOGNITIVE\nKNOWLEDGE"),
+    ]
+    _PDF_LEVELS = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6']
+    _PDF_LNAMES = ['REMEMBER', 'UNDERSTAND', 'APPLY', 'ANALYZE', 'EVALUATE', 'CREATE']
+    _PDF_LVERBS = [
+        'Recognizing, Recalling',
+        'Interpreting, Exemplifying, Classifying, Summarizing, Inferring, Comparing, Explaining',
+        'Executing, Implementing',
+        'Differentiating, Organizing, Attributing',
+        'Checking, Critiquing',
+        'Generating, Planning, Producing',
+    ]
+    if taxonomy_grid:
+        _rbt_pdf_raw = taxonomy_grid
+    else:
+        from generate_cos import build_taxonomy_grid as _btg2
+        _rbt_pdf_raw = _btg2(co_text)
+    rbt_pdf_grid = {kd: {lv: _rbt_pdf_raw.get(kd, {}).get(lv, []) for lv in _PDF_LEVELS}
+                    for kd, _ in _PDF_KDIMS}
+
+    _C0  = 32.0
+    _CW  = (PAGE_W - _C0) / 6.0
+    _FH  = 6.5
+    _FD  = 7.5
+    _LH  = 3.8
+    _PAD = 1.0
+    _FILL_RBT = (200, 200, 220)
+
+    def _rbt_lines(text, col_w, fsize):
+        cpl = max(1, int(col_w / (fsize * 0.45)))
+        words = text.replace('\n', ' ').split()
+        n, cur = 0, 0
+        for w2 in words:
+            if cur == 0:
+                cur = len(w2); n = 1
+            elif cur + 1 + len(w2) <= cpl:
+                cur += 1 + len(w2)
+            else:
+                n += 1; cur = len(w2)
+        return max(1, n)
+
+    def _rbt_cell_h(texts, col_w, fsize):
+        return max(_rbt_lines(t, col_w, fsize) for t in texts) * _LH + _PAD * 2
+
+    def _draw_rbt_cell(x, y, w, h, text, bold=False, italic=False, fsize=7.0, fill=None):
+        if fill:
+            pdf.set_fill_color(*fill)
+            pdf.rect(x, y, w, h, style='FD')
+        else:
+            pdf.rect(x, y, w, h)
+        style = ('B' if bold else '') + ('I' if italic else '')
+        pdf.set_font("Helvetica", style, fsize)
+        pdf.set_xy(x + _PAD, y + _PAD)
+        pdf.multi_cell(w - _PAD * 2, _LH, _s(text.replace('\n', ' ')), border=0, align='C')
+
+    h0 = _rbt_cell_h(
+        ['KNOWLEDGE DIMENSION'] + [f'{i+1}. {_PDF_LNAMES[i]}' for i in range(6)],
+        _CW - _PAD * 2, _FH)
+    h1 = _rbt_cell_h([''] + _PDF_LVERBS, _CW - _PAD * 2, _FH - 0.5)
+    hd = _rbt_cell_h(['METACOGNITIVE KNOWLEDGE'], _C0 - _PAD * 2, _FD)
+
+    if pdf.get_y() + h0 + h1 + hd * 4 > pdf.h - 18:
+        pdf.add_page()
+
+    _ry = pdf.get_y()
+    _draw_rbt_cell(pdf.l_margin, _ry, _C0, h0, 'KNOWLEDGE\nDIMENSION', bold=True, fsize=_FH, fill=_FILL_RBT)
+    for _i, _nm in enumerate(_PDF_LNAMES):
+        _draw_rbt_cell(pdf.l_margin + _C0 + _i * _CW, _ry, _CW, h0,
+                       f'{_i+1}. {_nm}', bold=True, fsize=_FH, fill=_FILL_RBT)
+    _ry += h0
+
+    _draw_rbt_cell(pdf.l_margin, _ry, _C0, h1, '', fsize=_FH - 0.5, fill=_FILL_RBT)
+    for _i, _vb in enumerate(_PDF_LVERBS):
+        _draw_rbt_cell(pdf.l_margin + _C0 + _i * _CW, _ry, _CW, h1,
+                       _vb, italic=True, fsize=_FH - 0.5, fill=_FILL_RBT)
+    _ry += h1
+
+    for _kd, _kd_lbl in _PDF_KDIMS:
+        _draw_rbt_cell(pdf.l_margin, _ry, _C0, hd, _kd_lbl, bold=True, fsize=_FD)
+        for _j, _lv in enumerate(_PDF_LEVELS):
+            _ct = ', '.join(rbt_pdf_grid[_kd].get(_lv, []))
+            _draw_rbt_cell(pdf.l_margin + _C0 + _j * _CW, _ry, _CW, hd, _ct, fsize=_FD)
+        _ry += hd
+    pdf.set_y(_ry + 3)
 
     # Section 2
     pdf.add_page()
@@ -1468,6 +1684,7 @@ def build_pdf(
     _heading2("Distribution")
     for lbl, cnt in analytics["diff_dist"].items():
         _bar_row(lbl, round(cnt / total_q * 100), cnt)
+    _pdf_chart(_rc.difficulty_pie_chart(analytics["diff_dist"]) if _rc else None)
 
     # Section 7: Scenario Analysis
     pdf.add_page()
@@ -1491,6 +1708,7 @@ def build_pdf(
     qqi_rows = [(co, f"{score}/100") for co, score in analytics["qqi_scores"].items()]
     qqi_rows.append(("Overall QQI", f"{analytics['overall_qqi']}/100"))
     _tbl(["CO", "QQI Score"], qqi_rows, [40, 40])
+    _pdf_chart(_rc.qqi_chart(analytics["qqi_scores"], analytics["overall_qqi"]) if _rc else None)
     qqi_ai = ai.get("qqi_interpretation", {})
     if qqi_ai.get("overall"):
         _body(qqi_ai["overall"])
@@ -1515,6 +1733,7 @@ def build_pdf(
         marks = analytics["co_marks"].get(key, 0)
         pct   = round(marks / analytics["total_marks"] * 100)
         _bar_row(f"CO{key}", pct, f"{marks} marks ({pct}%)")
+    _pdf_chart(_rc.co_marks_chart(cos, analytics["co_marks"], analytics["total_marks"]) if _rc else None)
 
     # Section 10: OBE Compliance
     pdf.add_page()
@@ -1555,6 +1774,7 @@ def build_pdf(
         _tbl(["Metric", "Score", "Status"],
              [(m.get("metric",""), f"{m.get('score','-')}/100", m.get("status","")) for m in km],
              [90, 30, 40])
+        _pdf_chart(_rc.accreditation_metrics_chart(km) if _rc else None)
     if acc_data.get("strengths"):
         _heading2("Strengths")
         _bullets(acc_data["strengths"])

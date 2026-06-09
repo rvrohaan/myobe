@@ -12,10 +12,16 @@ Builds a DOCX/PDF/TXT report covering all Module-4 deliverables:
   9.  Composite SDG Index
  10.  NBA/NAAC Assessment Compliance Checklist
  11.  Assessment Readiness Dashboard
+ 12.  Action Taken Report
 """
 
 import re
 import datetime
+
+try:
+    import report_charts as _rc
+except Exception:
+    _rc = None
 
 
 # ── Analytics ─────────────────────────────────────────────────────────────────
@@ -216,10 +222,6 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         for p in a["po_attainment"]:
             row(f"  {p['po']}".ljust(8), p["name"][:34].ljust(34),
                 f"{p['pct']:.1f}%".ljust(8), str(p["level"]), "Met" if p["target_met"] else "Below")
-        if a["atr_rows"]:
-            lines.append("\n  Action Taken Report (below-target POs):")
-            for p in a["atr_rows"]:
-                lines.append(f"  - {p['po']} ({p['name']}): {p.get('atr', '')}")
     else:
         lines.append("  Run PO Attainment tool to see this section.")
     lines.append("")
@@ -266,13 +268,15 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     has_sdgpo   = bool(a["sdgpo_results"])
     good_att    = a["mean_att_pct"] >= 60
     multi_sdg   = len(a["sdgs_covered"]) >= 2
+    has_atr     = (not a["atr_rows"]) or all(p.get("atr", "").strip() for p in a["atr_rows"])
     checks = [
-        ("CO-PO Mapping generated",           has_pomap),
-        ("CO Attainment calculated",           has_coatt),
-        ("CO-level SDG contribution mapped",   has_sdgco),
-        ("PO-level SDG contribution mapped",   has_sdgpo),
-        ("Mean CO attainment >= 60%",          good_att),
-        ("Multiple SDGs covered",              multi_sdg),
+        ("CO-PO Mapping generated",                    has_pomap),
+        ("CO Attainment calculated",                   has_coatt),
+        ("CO-level SDG contribution mapped",           has_sdgco),
+        ("PO-level SDG contribution mapped",           has_sdgpo),
+        ("Mean CO attainment >= 60%",                  good_att),
+        ("Multiple SDGs covered",                      multi_sdg),
+        ("Action Taken Report documented",             has_atr),
     ]
     for label, ok in checks:
         lines.append(f"  {'[OK]' if ok else '[  ]'}  {label}")
@@ -298,6 +302,23 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     else:
         score = _rule_readiness(a)
         lines.append(f"  Readiness Score: {score}/100")
+    lines.append("")
+
+    h2("12. ACTION TAKEN REPORT")
+    lines.append("  Corrective actions for Programme Outcomes below attainment target.")
+    lines.append("")
+    if not a["po_attainment"]:
+        lines.append("  Run PO Attainment tool to generate this section.")
+    elif not a["atr_rows"]:
+        lines.append("  All Programme Outcomes met attainment target.")
+        lines.append("  No corrective actions required.")
+    else:
+        lines.append(f"  {len(a['atr_rows'])} PO(s) below target:")
+        lines.append("")
+        for p in a["atr_rows"]:
+            lines.append(f"  {p['po']} - {p['name'][:40]}  |  {p['pct']:.1f}%  (Level {p['level']})")
+            lines.append(f"    Action Taken: {p.get('atr', '') or 'Not specified'}")
+            lines.append("")
     lines.append("")
 
     return "\n".join(lines)
@@ -388,6 +409,29 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         r2 = p.add_run(_s(val))
         r2.font.size = Pt(10)
 
+    def _insert_chart(buf, width=5.2):
+        if buf is None:
+            return
+        import tempfile as _tf, os as _os2
+        _fname = None
+        try:
+            with _tf.NamedTemporaryFile(delete=False, suffix='.png') as _f:
+                _f.write(buf.read())
+                _fname = _f.name
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p.add_run()
+            run.add_picture(_fname, width=Inches(width))
+            doc.add_paragraph().paragraph_format.space_after = Pt(4)
+        except Exception:
+            pass
+        finally:
+            if _fname:
+                try:
+                    _os2.unlink(_fname)
+                except Exception:
+                    pass
+
     # Title
     add_title("Module 4 Comprehensive Assessment Report")
     sub = doc.add_paragraph(f"{title} ({code})  |  {sem}Generated: {now}")
@@ -429,6 +473,8 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
                 for run in para.runs:
                     run.bold = True
         doc.add_paragraph()
+    if _rc:
+        _insert_chart(_rc.copo_heatmap(a["pomap_rows"], a["po_keys"]))
 
     # 3. CO Strength Summary
     add_h1("3. CO Strength Summary (Average PO Score)")
@@ -472,6 +518,8 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
                     run.bold = True
     add_kv("Mean CO Attainment", f"{a['mean_att_pct']}%")
     doc.add_paragraph()
+    if _rc:
+        _insert_chart(_rc.co_attainment_chart(a["co_results"], a["thresholds"]))
 
     # 5. PO Attainment Summary
     add_h1("5. PO Attainment Summary")
@@ -509,13 +557,11 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
             for para in cell.paragraphs:
                 for run in para.runs:
                     run.bold = True
-        if a["atr_rows"]:
-            add_para("Action Taken Report (below-target POs):", bold=True, indent=True)
-            for p in a["atr_rows"]:
-                add_para(f"{p['po']} ({p['name']}): {p.get('atr', '')}", indent=True)
     else:
         add_para("Run PO Attainment tool to see this section.", indent=True)
     doc.add_paragraph()
+    if _rc:
+        _insert_chart(_rc.po_attainment_chart(a["po_attainment"]))
 
     # 6. Attainment Level Distribution
     add_h1("6. Attainment Level Distribution")
@@ -530,6 +576,8 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
             for run in para.runs:
                 run.bold = True
     doc.add_paragraph()
+    if _rc:
+        _insert_chart(_rc.attainment_level_chart(a["level_dist"]))
 
     # 7. CO to SDG Contribution
     add_h1("7. CO to SDG Contribution Analysis")
@@ -587,13 +635,15 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
 
     # 10. NBA/NAAC Compliance Checklist
     add_h1("10. NBA/NAAC Assessment Compliance Checklist")
+    has_atr = (not a["atr_rows"]) or all(p.get("atr", "").strip() for p in a["atr_rows"])
     checks = [
-        ("CO-PO Mapping generated",           bool(a["pomap_rows"])),
-        ("CO Attainment calculated",           bool(a["co_results"])),
-        ("CO-level SDG contribution mapped",   bool(a["sdgco_contrib"])),
-        ("PO-level SDG contribution mapped",   bool(a["sdgpo_results"])),
-        ("Mean CO attainment >= 60%",          a["mean_att_pct"] >= 60),
-        ("Multiple SDGs covered",              len(a["sdgs_covered"]) >= 2),
+        ("CO-PO Mapping generated",                    bool(a["pomap_rows"])),
+        ("CO Attainment calculated",                   bool(a["co_results"])),
+        ("CO-level SDG contribution mapped",           bool(a["sdgco_contrib"])),
+        ("PO-level SDG contribution mapped",           bool(a["sdgpo_results"])),
+        ("Mean CO attainment >= 60%",                  a["mean_att_pct"] >= 60),
+        ("Multiple SDGs covered",                      len(a["sdgs_covered"]) >= 2),
+        ("Action Taken Report documented",             has_atr),
     ]
     tbl = doc.add_table(rows=1 + len(checks), cols=2)
     tbl.style = "Table Grid"
@@ -628,6 +678,37 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     else:
         score = _rule_readiness(a)
         add_kv("Readiness Score", f"{score}/100")
+    doc.add_paragraph()
+
+    # 12. Action Taken Report
+    add_h1("12. Action Taken Report")
+    add_para("Corrective actions for Programme Outcomes below attainment target.",
+             size=9, color=GREY, indent=True)
+    if not a["po_attainment"]:
+        add_para("Run PO Attainment tool to generate this section.", indent=True)
+    elif not a["atr_rows"]:
+        add_para("All Programme Outcomes met attainment target. No corrective actions required.",
+                 indent=True, color=GREEN)
+    else:
+        add_para(f"{len(a['atr_rows'])} PO(s) below target — corrective actions recorded below.",
+                 indent=True)
+        tbl = doc.add_table(rows=1 + len(a["atr_rows"]), cols=5)
+        tbl.style = "Table Grid"
+        hdr = tbl.rows[0].cells
+        for i, h in enumerate(["PO", "Name", "Attainment %", "Level", "Action Taken"]):
+            hdr[i].text = h
+        for ridx, p in enumerate(a["atr_rows"]):
+            cells = tbl.rows[ridx + 1].cells
+            cells[0].text = _s(p.get("po", ""))
+            cells[1].text = _s(p.get("name", ""))
+            cells[2].text = f"{p['pct']:.1f}%"
+            cells[3].text = _s(p.get("level", 0))
+            cells[4].text = _s(p.get("atr", "")) or "Not specified"
+        for cell in tbl.rows[0].cells:
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    run.bold = True
+    doc.add_paragraph()
 
     doc.save(output_path)
 
@@ -645,6 +726,30 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
 
     def _s(v): return str(v) if v is not None else ""
 
+    def _safe(s):
+        return str(s).encode("latin-1", "replace").decode("latin-1")
+
+    def _pdf_chart(buf, w=155):
+        if buf is None or _rc is None:
+            return
+        import tempfile as _tf, os as _os2
+        _fname = None
+        try:
+            with _tf.NamedTemporaryFile(delete=False, suffix='.png') as _f:
+                _f.write(buf.read())
+                _fname = _f.name
+            x = pdf.l_margin + (180 - w) / 2
+            pdf.image(_fname, x=x, w=w)
+            pdf.ln(3)
+        except Exception:
+            pdf.set_x(pdf.l_margin)
+        finally:
+            if _fname:
+                try:
+                    _os2.unlink(_fname)
+                except Exception:
+                    pass
+
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
@@ -652,27 +757,28 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     def h1(text):
         pdf.set_font("Helvetica", "B", 13)
         pdf.set_text_color(5, 150, 105)
-        pdf.cell(0, 8, _s(text), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 8, _safe(_s(text)), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.set_text_color(0, 0, 0)
         pdf.ln(1)
 
     def h2(text):
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_text_color(1, 91, 63)
-        pdf.cell(0, 7, _s(text), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(0, 7, _safe(_s(text)), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.set_text_color(0, 0, 0)
 
     def kv(key, val):
+        pdf.set_x(pdf.l_margin)
         pdf.set_font("Helvetica", "B", 9.5)
-        pdf.cell(55, 6, _s(key) + ":", border=0)
+        pdf.cell(55, 6, _safe(_s(key)) + ":", border=0)
         pdf.set_font("Helvetica", "", 9.5)
-        pdf.multi_cell(0, 6, _s(val))
+        pdf.multi_cell(0, 6, _safe(_s(val)), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     # Cover
     h1("Module 4 Comprehensive Assessment Report")
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(107, 114, 128)
-    pdf.cell(0, 5, f"{title} ({code})  |  {sem}Generated: {now}",
+    pdf.cell(0, 5, _safe(f"{title} ({code})  |  {sem}Generated: {now}"),
              new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_text_color(0, 0, 0)
     pdf.ln(4)
@@ -689,21 +795,25 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     # 2. CO-PO Mapping
     h2("2. CO-PO Mapping Table")
     if a["pomap_rows"]:
-        pk  = a["po_keys"]
-        cw  = max(14, min(20, 170 // (1 + len(pk))))
-        pdf.set_font("Helvetica", "B", 8)
+        pk      = a["po_keys"]
+        avail_w = pdf.w - pdf.l_margin - pdf.r_margin
+        co_col  = 28
+        cw      = max(8, int((avail_w - co_col) / max(len(pk), 1)))
+        fs      = 7 if cw < 11 else 8
+        pdf.set_font("Helvetica", "B", fs)
         pdf.set_fill_color(209, 250, 229)
-        pdf.cell(30, 6, "CO", border=1, fill=True, align="C")
+        pdf.cell(co_col, 6, "CO", border=1, fill=True, align="C")
         for k in pk:
             pdf.cell(cw, 6, k, border=1, fill=True, align="C")
         pdf.ln()
-        pdf.set_font("Helvetica", "", 8)
+        pdf.set_font("Helvetica", "", fs)
         for row in a["pomap_rows"]:
-            pdf.cell(30, 5, _s(row.get("co", "")), border=1)
+            pdf.cell(co_col, 5, _s(row.get("co", "")), border=1)
             for k in pk:
                 pdf.cell(cw, 5, _s(row.get("scores", {}).get(k, 0)), border=1, align="C")
             pdf.ln()
     pdf.ln(3)
+    _pdf_chart(_rc.copo_heatmap(a["pomap_rows"], a["po_keys"]) if _rc else None)
 
     # 4. CO Attainment
     h2("4. CO Attainment Analysis")
@@ -725,11 +835,13 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
             pdf.ln()
     kv("Mean CO Attainment", f"{a['mean_att_pct']}%")
     pdf.ln(3)
+    _pdf_chart(_rc.co_attainment_chart(a["co_results"], a["thresholds"]) if _rc else None)
 
     # 5. PO Attainment
     h2("5. PO Attainment Summary")
     if a["po_results"]:
-        col_w = max(14, min(22, 170 // len(a["po_results"])))
+        avail_w = pdf.w - pdf.l_margin - pdf.r_margin
+        col_w = max(10, int(avail_w / max(len(a["po_results"]), 1)))
         pdf.set_font("Helvetica", "B", 8)
         pdf.set_fill_color(209, 250, 229)
         for r in a["po_results"]:
@@ -760,20 +872,11 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
             pdf.cell(15, 5.5, _s(p.get("level", 0)), border=1, align="C")
             pdf.cell(25, 5.5, "Met" if p.get("target_met") else "Below", border=1, align="C")
             pdf.ln()
-        if a["atr_rows"]:
-            pdf.ln(3)
-            pdf.set_font("Helvetica", "B", 9)
-            pdf.cell(0, 6, "Action Taken Report:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-            pdf.set_font("Helvetica", "", 9)
-            for p in a["atr_rows"]:
-                pdf.set_font("Helvetica", "B", 8.5)
-                pdf.cell(22, 5, f"{p['po']}:", border=0)
-                pdf.set_font("Helvetica", "", 8.5)
-                pdf.multi_cell(0, 5, p.get("atr", ""))
     else:
         pdf.set_font("Helvetica", "I", 9)
         pdf.cell(0, 5, "Run PO Attainment tool to populate this section.", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(3)
+    _pdf_chart(_rc.po_attainment_chart(a["po_attainment"]) if _rc else None)
 
     # 7. CO-SDG
     h2("7. CO to SDG Contribution")
@@ -803,9 +906,9 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         pdf.ln()
         pdf.set_font("Helvetica", "", 9)
         for r in a["sdgpo_results"]:
-            pdf.cell(100, 6, _s(r.get("sdg", ""))[:55], border=1)
+            pdf.cell(100, 6, _safe(_s(r.get("sdg", "")))[:55], border=1)
             pdf.cell(40,  6, f"{r.get('contribution', 0):.2f}%", border=1, align="C")
-            pdf.cell(40,  6, _s(r.get("interpretation", "")), border=1, align="C")
+            pdf.cell(40,  6, _safe(_s(r.get("interpretation", ""))), border=1, align="C")
             pdf.ln()
     pdf.ln(3)
 
@@ -819,13 +922,15 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
 
     # 10. Checklist
     h2("10. NBA/NAAC Assessment Compliance Checklist")
+    has_atr = (not a["atr_rows"]) or all(p.get("atr", "").strip() for p in a["atr_rows"])
     checks = [
-        ("CO-PO Mapping generated",           bool(a["pomap_rows"])),
-        ("CO Attainment calculated",           bool(a["co_results"])),
-        ("CO-level SDG contribution mapped",   bool(a["sdgco_contrib"])),
-        ("PO-level SDG contribution mapped",   bool(a["sdgpo_results"])),
-        ("Mean CO attainment >= 60%",          a["mean_att_pct"] >= 60),
-        ("Multiple SDGs covered",              len(a["sdgs_covered"]) >= 2),
+        ("CO-PO Mapping generated",                    bool(a["pomap_rows"])),
+        ("CO Attainment calculated",                   bool(a["co_results"])),
+        ("CO-level SDG contribution mapped",           bool(a["sdgco_contrib"])),
+        ("PO-level SDG contribution mapped",           bool(a["sdgpo_results"])),
+        ("Mean CO attainment >= 60%",                  a["mean_att_pct"] >= 60),
+        ("Multiple SDGs covered",                      len(a["sdgs_covered"]) >= 2),
+        ("Action Taken Report documented",             has_atr),
     ]
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_fill_color(209, 250, 229)
@@ -857,9 +962,47 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
             pdf.cell(0, 6, "Recommendations:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             pdf.set_font("Helvetica", "", 9)
             for i, r in enumerate(recs, 1):
-                pdf.multi_cell(0, 5.5, f"{i}. {r}")
+                pdf.multi_cell(0, 5.5, _safe(f"{i}. {r}"), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     else:
         score = _rule_readiness(a)
         kv("Readiness Score", f"{score}/100")
+    pdf.ln(3)
+
+    # 12. Action Taken Report
+    h2("12. Action Taken Report")
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.cell(0, 5, "Corrective actions for Programme Outcomes below attainment target.",
+             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.ln(1)
+    if not a["po_attainment"]:
+        pdf.set_font("Helvetica", "I", 9)
+        pdf.cell(0, 5, "Run PO Attainment tool to generate this section.",
+                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    elif not a["atr_rows"]:
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(5, 150, 105)
+        pdf.cell(0, 5, "All Programme Outcomes met attainment target. No corrective actions required.",
+                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.set_text_color(0, 0, 0)
+    else:
+        pdf.set_font("Helvetica", "", 9)
+        pdf.cell(0, 5, f"{len(a['atr_rows'])} PO(s) below target:",
+                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(2)
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.set_fill_color(209, 250, 229)
+        for lbl, w in [("PO", 15), ("Name", 55), ("Att%", 18), ("Level", 15), ("Action Taken", 77)]:
+            pdf.cell(w, 7, lbl, border=1, fill=True, align="C")
+        pdf.ln()
+        pdf.set_font("Helvetica", "", 8.5)
+        for p in a["atr_rows"]:
+            atr_text = (_s(p.get("atr", "")) or "Not specified")[:42]
+            pdf.cell(15, 5.5, _s(p.get("po", "")),           border=1)
+            pdf.cell(55, 5.5, _s(p.get("name", ""))[:30],    border=1)
+            pdf.cell(18, 5.5, f"{p['pct']:.1f}%",            border=1, align="C")
+            pdf.cell(15, 5.5, _s(p.get("level", 0)),         border=1, align="C")
+            pdf.cell(77, 5.5, atr_text,                       border=1)
+            pdf.ln()
+    pdf.ln(3)
 
     pdf.output(output_path)

@@ -189,8 +189,17 @@ def split_into_courses(full_text):
 
 
 _KDIMS  = ['Factual', 'Conceptual', 'Procedural', 'Meta-Cognitive']
+_KDIM_LABELS = ['FACTUAL\nKNOWLEDGE', 'CONCEPTUAL\nKNOWLEDGE', 'PROCEDURAL\nKNOWLEDGE', 'METACOGNITIVE\nKNOWLEDGE']
 _LEVELS = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6']
 _LNAMES = ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 'Create']
+_LVERBS = [
+    'Recognizing\nRecalling',
+    'Interpreting\nExemplifying\nClassifying\nSummarizing\nInferring\nComparing\nExplaining',
+    'Executing\nImplementing',
+    'Differentiating\nOrganizing\nAttributing',
+    'Checking\nCritiquing',
+    'Generating\nPlanning\nProducing',
+]
 
 
 _CO_PREFIXES = [
@@ -255,7 +264,7 @@ def generate_cos_stream(client, course_code, course_title, course_text, num_cos=
     """Generator that yields raw text chunks from the API stream."""
     system_prompt = _build_system_prompt(num_cos)
     user_message = f"Course Code: {course_code}\nCourse Title: {course_title}\n\nSyllabus:\n{course_text[:6000]}"
-    max_tokens = 200 + (num_cos * 120)
+    max_tokens = 400 + (num_cos * 200)  # enough for all CO statements + full table
     with client.messages.stream(
         model="claude-haiku-4-5",
         max_tokens=max_tokens,
@@ -275,16 +284,30 @@ def generate_cos_for_course(client, course_code, course_title, course_text, num_
     return result
 
 
+_KDIM_NORM = {
+    'factual': 'Factual',
+    'conceptual': 'Conceptual',
+    'procedural': 'Procedural',
+    'meta-cognitive': 'Meta-Cognitive',
+    'metacognitive': 'Meta-Cognitive',
+    'meta cognitive': 'Meta-Cognitive',
+}
+
 def build_taxonomy_grid(result_text):
     grid = {kd: {lv: [] for lv in _LEVELS} for kd in _KDIMS}
     for line in result_text.split('\n'):
         s = line.strip()
         if s.startswith('|') and s.endswith('|'):
             cells = [c.strip() for c in s.strip('|').split('|')]
-            if len(cells) == 4 and re.match(r'CO\d+', cells[0]):
-                co, _unit, kdim, bloom = cells
+            if len(cells) >= 4 and re.match(r'CO\d+', cells[0]):
+                co       = cells[0]
+                bloom    = cells[-1]   # always last
+                kdim_raw = cells[-2]   # always second-to-last
                 m = re.match(r'(L\d+)', bloom)
-                if m and kdim in grid:
+                if not m:
+                    continue
+                kdim = _KDIM_NORM.get(kdim_raw.lower(), kdim_raw)
+                if kdim in grid:
                     grid[kdim][m.group(1)].append(co)
     return grid
 
@@ -304,29 +327,62 @@ def _taxonomy_txt(grid):
 
 def _add_taxonomy_docx(doc, grid):
     from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Pt
 
     doc.add_heading("Bloom's Taxonomy Matrix", level=1)
-    tbl = doc.add_table(rows=5, cols=7)
+    tbl = doc.add_table(rows=6, cols=7)  # row 0: names, row 1: verbs, rows 2-5: data
     tbl.style = 'Table Grid'
 
-    hdr = tbl.rows[0].cells
-    hdr[0].text = 'Knowledge\nDimension'
-    for i, (lv, ln) in enumerate(zip(_LEVELS, _LNAMES), 1):
-        hdr[i].text = f'{lv}\n{ln}'
-    for cell in hdr:
-        for para in cell.paragraphs:
-            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            if para.runs:
-                para.runs[0].bold = True
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
 
-    for row_idx, kd in enumerate(_KDIMS, 1):
+    def _shd(cell, fill_hex):
+        tc  = cell._tc
+        tcp = tc.get_or_add_tcPr()
+        shd = OxmlElement('w:shd')
+        shd.set(qn('w:val'),   'clear')
+        shd.set(qn('w:color'), 'auto')
+        shd.set(qn('w:fill'),  fill_hex)
+        tcp.append(shd)
+
+    _LVERBS_FLAT = [v.replace('\n', ', ') for v in _LVERBS]
+
+    # Header row 0 — level numbers and names (bold)
+    hdr0 = tbl.rows[0].cells
+    p0   = hdr0[0].paragraphs[0]
+    r0   = p0.add_run('KNOWLEDGE\nDIMENSION')
+    r0.bold = True
+    p0.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p0.paragraph_format.space_before = Pt(0); p0.paragraph_format.space_after = Pt(0)
+    _shd(hdr0[0], 'C8C8C8')
+    for i, ln in enumerate(_LNAMES, 1):
+        p  = hdr0[i].paragraphs[0]
+        r  = p.add_run(f'{i}. {ln.upper()}')
+        r.bold = True
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_before = Pt(0); p.paragraph_format.space_after = Pt(0)
+        _shd(hdr0[i], 'C8C8C8')
+
+    # Header row 1 — verbs (italic, smaller)
+    hdr1 = tbl.rows[1].cells
+    _shd(hdr1[0], 'C8C8C8')
+    for i, verbs in enumerate(_LVERBS_FLAT, 1):
+        p  = hdr1[i].paragraphs[0]
+        r  = p.add_run(verbs)
+        r.italic = True; r.font.size = Pt(7)
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_before = Pt(0); p.paragraph_format.space_after = Pt(0)
+        _shd(hdr1[i], 'C8C8C8')
+
+    # Data rows (indices 2-5)
+    for row_idx, (kd, kd_label) in enumerate(zip(_KDIMS, _KDIM_LABELS), 2):
         row = tbl.rows[row_idx].cells
-        row[0].text = kd
-        if row[0].paragraphs[0].runs:
-            row[0].paragraphs[0].runs[0].bold = True
+        pr  = row[0].paragraphs[0]
+        rr  = pr.add_run(kd_label.replace('\n', ' ')); rr.bold = True
+        pr.alignment = WD_ALIGN_PARAGRAPH.CENTER
         for col_idx, lv in enumerate(_LEVELS, 1):
-            cos = ', '.join(grid[kd].get(lv, []))
-            row[col_idx].text = cos
+            cell_cos = ', '.join(grid[kd].get(lv, []))
+            row[col_idx].text = cell_cos
             row[col_idx].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     doc.add_paragraph()
 
@@ -334,7 +390,7 @@ def _add_taxonomy_docx(doc, grid):
 def _add_taxonomy_pdf(pdf, grid):
     from fpdf import XPos, YPos
 
-    KD_W = 40; LV_W = 25  # 40 + 6×25 = 190mm
+    KD_W = 36; LV_W = 22  # 36 + 6×22 = 168mm — fits A4 with margins
 
     pdf.ln(6)
     pdf.set_font("Helvetica", "B", 11)
@@ -343,20 +399,72 @@ def _add_taxonomy_pdf(pdf, grid):
              new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(2)
 
-    pdf.set_font("Helvetica", "B", 8)
+    # ── Header: two rows so verbs don't overflow ─────────────────────────────
     pdf.set_fill_color(200, 200, 200)
-    pdf.cell(KD_W, 7, 'Knowledge Dimension', border=1, fill=True)
-    for lv, ln in zip(_LEVELS, _LNAMES):
-        pdf.cell(LV_W, 7, f'{lv} - {ln[:3]}', border=1, fill=True, align='C')
-    pdf.ln(7)
+    lm = pdf.l_margin
 
-    for kd in _KDIMS:
-        pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(KD_W, 7, kd, border=1)
-        pdf.set_font("Helvetica", "", 9)
+    # Row 1 — level numbers + names (bold)
+    pdf.set_font("Helvetica", "B", 7)
+    y0 = pdf.get_y()
+    pdf.set_xy(lm, y0)
+    pdf.multi_cell(KD_W, 4, 'KNOWLEDGE\nDIMENSION', border='LTR', fill=True, align='C')
+    h1 = pdf.get_y() - y0  # always 8 (2 lines x 4mm)
+    for i, ln in enumerate(_LNAMES, 1):
+        pdf.set_xy(lm + KD_W + (i - 1) * LV_W, y0)
+        # cell() with full row height so level name cells match KD cell height
+        pdf.cell(LV_W, h1, f'{i}. {ln.upper()}', border='LTR', fill=True, align='C')
+
+    # Row 2 — verbs (smaller, italic): all cells must share the same row height
+    pdf.set_font("Helvetica", "I", 5.5)
+    y1 = y0 + h1
+    _LVERBS_FLAT = [v.replace('\n', ', ') for v in _LVERBS]
+
+    # Pre-compute h2 by simulating word-wrap with actual FPDF font metrics
+    def _wrap_lines(text):
+        words = text.split(' ')
+        lines, cur_w = 1, 0.0
+        sp_w = pdf.get_string_width(' ')
+        for word in words:
+            ww = pdf.get_string_width(word)
+            if cur_w == 0:
+                cur_w = ww
+            elif cur_w + sp_w + ww <= LV_W - 1:
+                cur_w += sp_w + ww
+            else:
+                lines += 1
+                cur_w = ww
+        return lines
+
+    h2 = max(max(_wrap_lines(v) for v in _LVERBS_FLAT) * 3.2, 3.2)
+
+    # KD empty cell: filled rect + LBR border lines
+    pdf.rect(lm, y1, KD_W, h2, style='F')
+    pdf.line(lm, y1, lm, y1 + h2)
+    pdf.line(lm, y1 + h2, lm + KD_W, y1 + h2)
+    pdf.line(lm + KD_W, y1, lm + KD_W, y1 + h2)
+
+    # Verb cells: filled rect at uniform h2, text on top, LBR border lines
+    for i, verbs in enumerate(_LVERBS_FLAT, 1):
+        x = lm + KD_W + (i - 1) * LV_W
+        pdf.rect(x, y1, LV_W, h2, style='F')
+        pdf.set_xy(x, y1)
+        pdf.multi_cell(LV_W, 3.2, verbs, border=0, fill=False, align='C')
+        pdf.line(x, y1, x, y1 + h2)
+        pdf.line(x, y1 + h2, x + LV_W, y1 + h2)
+        pdf.line(x + LV_W, y1, x + LV_W, y1 + h2)
+
+    pdf.set_xy(lm, y1 + h2)
+
+    # ── Data rows ────────────────────────────────────────────────────────────
+    for kd, kd_label in zip(_KDIMS, _KDIM_LABELS):
+        pdf.set_x(lm)
+        pdf.set_font("Helvetica", "B", 7)
+        pdf.cell(KD_W, 8, kd_label.replace('\n', ' '), border=1, align='C')
+        pdf.set_font("Helvetica", "B", 8)
         for lv in _LEVELS:
-            pdf.cell(LV_W, 7, ', '.join(grid[kd].get(lv, [])), border=1, align='C')
-        pdf.ln(7)
+            cos_in_cell = ', '.join(grid[kd].get(lv, []))
+            pdf.cell(LV_W, 8, cos_in_cell, border=1, align='C')
+        pdf.ln(8)
     pdf.ln(6)
 
 
@@ -625,12 +733,15 @@ def filter_cos(result_text, selected):
             continue
         if s.startswith('|') and s.endswith('|'):
             cells = [c.strip() for c in s.strip('|').split('|')]
-            if len(cells) == 4 and re.match(r'CO(\d+)', cells[0]):
+            if len(cells) >= 4 and re.match(r'CO(\d+)', cells[0]):
                 m2 = re.match(r'CO(\d+)', cells[0])
                 if m2:
                     n = int(m2.group(1))
                     if n in sel_set:
-                        table_rows.append((n, cells[1], cells[2], cells[3]))
+                        unit  = ', '.join(cells[1:len(cells)-2])
+                        kdim  = cells[-2]
+                        bloom = cells[-1]
+                        table_rows.append((n, unit, kdim, bloom))
 
     out = [f"CO{new_num[o]}: {rest}" for o, rest in sorted(co_stmts)]
     out.append("")

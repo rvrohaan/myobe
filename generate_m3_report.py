@@ -18,6 +18,11 @@ import re
 import json
 import datetime
 
+try:
+    import report_charts as _rc
+except Exception:
+    _rc = None
+
 
 # ── Rule-based analytics ──────────────────────────────────────────────────────
 
@@ -295,6 +300,29 @@ def build_docx(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
         p = doc.add_paragraph()
         p.paragraph_format.space_after = Pt(2)
 
+    def _insert_chart(buf, width=5.2):
+        if buf is None:
+            return
+        import tempfile as _tf, os as _os2
+        _fname = None
+        try:
+            with _tf.NamedTemporaryFile(delete=False, suffix='.png') as _f:
+                _f.write(buf.read())
+                _fname = _f.name
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p.add_run()
+            run.add_picture(_fname, width=Inches(width))
+            doc.add_paragraph().paragraph_format.space_after = Pt(4)
+        except Exception:
+            pass
+        finally:
+            if _fname:
+                try:
+                    _os2.unlink(_fname)
+                except Exception:
+                    pass
+
     # ── Cover ──
     sem_label = f"  |  Semester {semester}" if semester else ""
     p = doc.add_heading(f"{code}  -  {title}", 0)
@@ -352,6 +380,8 @@ def build_docx(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
              for level, count in bloom_rows],
             col_widths=[2.0, 1.0, 1.0],
         )
+        if _rc:
+            _insert_chart(_rc.bloom_distribution_chart(analytics["bloom_dist"]))
     _spacer()
 
     # ── Section 3: CO-PO-SDG Alignment ──
@@ -465,6 +495,8 @@ def build_docx(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
             cov_rows,
             col_widths=[0.55, 2.8, 0.7, 0.7, 0.9],
         )
+        if _rc:
+            _insert_chart(_rc.co_session_chart(cos, analytics["co_session_tally"]))
     _spacer()
 
     # ── Section 8: Teaching Method Distribution ──
@@ -477,6 +509,8 @@ def build_docx(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
             [(m, str(n), f"{round(n / total_sess * 100)}%") for m, n in method_rows],
             col_widths=[2.5, 1.0, 1.0],
         )
+        if _rc:
+            _insert_chart(_rc.teaching_method_chart(analytics["method_dist"]))
     _spacer()
 
     # ── Section 9: SDG & AI Integration ──
@@ -618,8 +652,7 @@ def build_pdf(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
                 col_ws = [page_w / len(headers)] * len(headers)
 
             def _row(cells, bold=False, fill=False):
-                if self.get_y() + 8 > self.h - 15:
-                    self.add_page()
+                line_h = 5
                 self.set_font("Helvetica", "B" if bold else "", 8.5)
                 if fill:
                     self.set_fill_color(220, 220, 235)
@@ -627,18 +660,22 @@ def build_pdf(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
                     self.set_fill_color(255, 255, 255)
                 x0 = self.l_margin
                 y0 = self.get_y()
-                max_h = 6
+                max_lines = 1
                 for ci, cell_text in enumerate(cells):
                     safe = _safe(str(cell_text))
                     cw = col_ws[ci] if ci < len(col_ws) else col_ws[-1]
-                    nb = self.get_string_width(safe) / max(cw - 2, 1)
-                    max_h = max(max_h, int(nb + 1) * 5 + 2)
+                    if cw > 0:
+                        sw = self.get_string_width(safe)
+                        max_lines = max(max_lines, max(1, int(sw / max(cw - 4, 1)) + 1))
+                max_h = max_lines * line_h + 2
+                if y0 + max_h > self.h - 15:
+                    self.add_page()
+                    y0 = self.get_y()
                 for ci, cell_text in enumerate(cells):
                     safe = _safe(str(cell_text))
                     cw = col_ws[ci] if ci < len(col_ws) else col_ws[-1]
                     self.set_xy(x0 + sum(col_ws[:ci]), y0)
-                    self.multi_cell(cw, max_h / max(len(safe.split('\n')), 1) if '\n' not in safe else 5,
-                                    safe, border=1, fill=fill,
+                    self.multi_cell(cw, line_h, safe, border=1, fill=fill,
                                     new_x=XPos.RIGHT, new_y=YPos.TOP)
                 self.set_xy(x0, y0 + max_h)
 
@@ -646,6 +683,27 @@ def build_pdf(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
             for row in rows:
                 _row(row)
             self.ln(2)
+
+    def _pdf_chart(buf, w=155):
+        if buf is None or _rc is None:
+            return
+        import tempfile as _tf, os as _os2
+        _fname = None
+        try:
+            with _tf.NamedTemporaryFile(delete=False, suffix='.png') as _f:
+                _f.write(buf.read())
+                _fname = _f.name
+            x = pdf.l_margin + (180 - w) / 2
+            pdf.image(_fname, x=x, w=w)
+            pdf.ln(3)
+        except Exception:
+            pass
+        finally:
+            if _fname:
+                try:
+                    _os2.unlink(_fname)
+                except Exception:
+                    pass
 
     pdf = PDF()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -695,6 +753,7 @@ def build_pdf(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
             [(lv, str(n), f"{round(n/analytics['n_cos']*100)}%") for lv, n in bloom_rows],
             col_ratios=[2, 1, 1],
         )
+        _pdf_chart(_rc.bloom_distribution_chart(analytics["bloom_dist"]) if _rc else None)
 
     # 3. CO-PO-SDG
     pdf._section_heading("3. CO-PO-SDG Alignment", 2)
@@ -734,9 +793,9 @@ def build_pdf(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
         pdf._table(
             ["#", "Topic", "CO", "Method", "SDG"],
             [(str(s.get("session", i+1)), s.get("topic","-")[:40],
-              s.get("co","-"), s.get("method","-"), s.get("sdg","-"))
+              s.get("co","-"), s.get("method","-")[:60], s.get("sdg","-"))
              for i, s in enumerate(sp)],
-            col_ratios=[0.3, 3, 0.5, 1, 0.6],
+            col_ratios=[0.3, 3, 0.5, 1.5, 0.6],
         )
 
     # 6. TD Analysis
@@ -772,6 +831,7 @@ def build_pdf(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
             [_co_pdf_row(c) for c in cos],
             col_ratios=[0.5, 3, 0.6, 0.6, 0.9],
         )
+        _pdf_chart(_rc.co_session_chart(cos, analytics["co_session_tally"]) if _rc else None)
 
     # 8. Method Distribution
     pdf._section_heading("8. Teaching Method Distribution", 2)
@@ -779,10 +839,11 @@ def build_pdf(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
         total = sum(analytics["method_dist"].values())
         pdf._table(
             ["Method", "Sessions", "%"],
-            [(m, str(n), f"{round(n/total*100)}%")
+            [(m[:80], str(n), f"{round(n/total*100)}%")
              for m, n in sorted(analytics["method_dist"].items(), key=lambda x: x[1], reverse=True)],
             col_ratios=[2.5, 1, 1],
         )
+        _pdf_chart(_rc.teaching_method_chart(analytics["method_dist"]) if _rc else None)
 
     # 9. SDG & AI
     pdf._section_heading("9. SDG & AI Integration", 2)

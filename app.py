@@ -486,10 +486,13 @@ def upload():
         return jsonify({"error": "No text could be extracted from the file"}), 400
 
     courses = split_into_courses(text)
-    if not courses:
-        return jsonify({"error": "No course codes detected in the file"}), 400
 
     store = _get_store()
+    store["raw_syllabus_text"] = text  # keep for AI fallback
+
+    if not courses:
+        return jsonify({"error": "No course codes detected in the file.", "ai_fallback": True}), 400
+
     store["courses"] = courses
 
     return jsonify({
@@ -500,6 +503,73 @@ def upload():
                 "semester": info["semester"],
                 "has_lab":  info.get("has_lab", False),
             }
+            for code, info in courses.items()
+        ]
+    })
+
+
+@app.route("/upload_ai_extract", methods=["POST"])
+@login_required
+def upload_ai_extract():
+    store = _get_store()
+    text = store.get("raw_syllabus_text", "")
+    if not text:
+        return jsonify({"error": "No syllabus text found. Please re-upload your file."}), 400
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return jsonify({"error": "AI service is not configured."}), 500
+
+    truncated = text[:15000]
+    prompt = (
+        "You are a university syllabus parser. Extract every course/subject listed in this syllabus document.\n\n"
+        "For each course output exactly one line:\n"
+        "CODE | Course Title | Semester Number\n\n"
+        "Rules:\n"
+        "- CODE: the alphanumeric course/subject code (e.g. CS301, 23CS32, MAT-101)\n"
+        "- Course Title: the subject name (max 80 chars)\n"
+        "- Semester Number: integer 1-10, or leave blank if not stated\n"
+        "- Output ONLY data lines — no headers, no explanations, no extra text\n\n"
+        "Syllabus text:\n" + truncated
+    )
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key, timeout=30.0)
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = msg.content[0].text.strip()
+    except Exception as e:
+        return jsonify({"error": f"AI extraction failed: {str(e)}"}), 500
+
+    courses = {}
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line or "|" not in line:
+            continue
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts) < 2 or not parts[0] or not parts[1]:
+            continue
+        code  = parts[0][:20]
+        title = parts[1][:100]
+        semester = None
+        if len(parts) > 2 and parts[2]:
+            try:
+                semester = int(parts[2])
+            except ValueError:
+                pass
+        courses[code] = {"title": title, "semester": semester, "text": text, "has_lab": False}
+
+    if not courses:
+        return jsonify({"error": "No courses could be detected in this file. Please check the file and try again."}), 400
+
+    store["courses"] = courses
+    return jsonify({
+        "courses": [
+            {"code": code, "title": info["title"], "semester": info["semester"], "has_lab": False}
             for code, info in courses.items()
         ]
     })
@@ -582,6 +652,25 @@ def generate():
 
             result = "".join(chunks)
             store["current_result"] = result
+            # Cache per-CO taxonomy so /export never needs to re-parse text
+            _co_tax = {}
+            for _line in result.split('\n'):
+                _s = _line.strip()
+                if not (_s.startswith('|') and _s.endswith('|')):
+                    continue
+                if re.match(r'\|[-| ]+\|', _s):
+                    continue
+                _cells = [c.strip() for c in _s.strip('|').split('|')]
+                if len(_cells) >= 4:
+                    _cm = re.match(r'^CO(\d+)$', _cells[0])
+                    if _cm:
+                        _bm = re.match(r'(L\d+)', _cells[-1])
+                        if _bm:
+                            _co_tax[int(_cm.group(1))] = {
+                                'kdim': _cells[-2].strip(),
+                                'bloom': _bm.group(1)
+                            }
+            store["co_taxonomy"] = _co_tax
             summary = bloom_level_summary(result)
             cos_parsed = _parse_cos_from_raw(result)
             _success = True
@@ -612,7 +701,8 @@ def export():
         return jsonify({"error": "No generated result. Please generate COs first."}), 400
 
     selected_raw = data.get("selected", "all")
-    fmt = data.get("fmt", "txt")
+    fmt          = data.get("fmt", "txt")
+    co_rows_raw  = data.get("coRows", [])   # [{num, kdim, bloom}, ...] from frontend
     if fmt not in ("txt", "docx", "pdf"):
         return jsonify({"error": "Invalid format"}), 400
 
@@ -622,8 +712,41 @@ def export():
         return jsonify({"error": "No valid COs selected"}), 400
 
     filtered = filter_cos(result_text, selected)
-    summary = bloom_level_summary(filtered)
-    grid = build_taxonomy_grid(filtered)
+    summary  = bloom_level_summary(filtered)
+
+    # Build taxonomy grid — primary: cached server-side taxonomy (most reliable)
+    from generate_cos import _KDIMS, _LEVELS, _KDIM_NORM
+    grid = {kd: {lv: [] for lv in _LEVELS} for kd in _KDIMS}
+    co_taxonomy = store.get("co_taxonomy", {})
+    if co_taxonomy:
+        for i, orig in enumerate(sorted(selected), 1):
+            entry = co_taxonomy.get(orig)
+            if not entry:
+                continue
+            kdim = _KDIM_NORM.get(entry['kdim'].lower(), entry['kdim'])
+            bloom_lv = entry['bloom']
+            if kdim in grid and bloom_lv in grid[kdim]:
+                grid[kdim][bloom_lv].append(f'CO{i}')
+    # Fallback 1: frontend coRows
+    if not any(grid[kd][lv] for kd in grid for lv in grid[kd]):
+        if co_rows_raw:
+            new_num_map = {orig: i for i, orig in enumerate(sorted(selected), 1)}
+            for row in co_rows_raw:
+                orig     = row.get('num', 0)
+                kdim_raw = row.get('kdim', '').strip()
+                bloom    = row.get('bloom', '').strip()
+                m        = re.match(r'(L\d+)', bloom)
+                if not m:
+                    continue
+                kdim = _KDIM_NORM.get(kdim_raw.lower(), kdim_raw)
+                if kdim in grid:
+                    new_n = new_num_map.get(orig, orig)
+                    grid[kdim][m.group(1)].append(f'CO{new_n}')
+    # Fallback 2: re-parse from filtered/raw text
+    if not any(grid[kd][lv] for kd in grid for lv in grid[kd]):
+        grid = build_taxonomy_grid(filtered)
+    if not any(grid[kd][lv] for kd in grid for lv in grid[kd]):
+        grid = build_taxonomy_grid(result_text)
 
     sem_label = f"  [Semester {info['semester']}]" if info.get("semester") else ""
     all_output = [
@@ -4602,7 +4725,27 @@ def export_coatt_cos():
     info    = store.get("courses", {}).get(code, {"title": "", "semester": None})
     sem_lbl = f"  [Semester {info['semester']}]" if info.get("semester") else ""
     summary = bloom_level_summary(co_text)
-    grid    = build_taxonomy_grid(co_text)
+
+    # Build taxonomy grid from cached co_taxonomy (most reliable)
+    from generate_cos import _KDIMS, _LEVELS, _KDIM_NORM
+    co_taxonomy = store.get("co_taxonomy", {})
+    grid = {kd: {lv: [] for lv in _LEVELS} for kd in _KDIMS}
+    if co_taxonomy:
+        for c in cos:
+            m = re.search(r'\d+', str(c.get('name', '')))
+            if not m:
+                continue
+            co_num = int(m.group())
+            entry = co_taxonomy.get(co_num)
+            if not entry:
+                continue
+            kdim = _KDIM_NORM.get(entry['kdim'].lower(), entry['kdim'])
+            bloom_lv = entry['bloom']
+            if kdim in grid and bloom_lv in grid[kdim]:
+                grid[kdim][bloom_lv].append(f'CO{co_num}')
+    # Fallback: parse from current_result which has the markdown table
+    if not any(grid[kd][lv] for kd in grid for lv in grid[kd]):
+        grid = build_taxonomy_grid(store.get("current_result", ""))
 
     all_output = [
         f"# Course Outcomes\nCourse: {code} — {info.get('title', '')}{sem_lbl}\n",
@@ -4763,14 +4906,26 @@ def aio_prepare():
 
     info = courses[code]
 
-    # Normalise COs into the {num, statement} format used everywhere
+    # Normalise COs and renumber sequentially (1, 2, 3 …)
     cos_norm = []
+    orig_to_new = {}
     for i, c in enumerate(cos_raw):
-        name = str(c.get("name", ""))
-        m    = re.search(r"\d+", name)
-        num  = int(m.group()) if m else (i + 1)
+        name     = str(c.get("name", ""))
+        m        = re.search(r"\d+", name)
+        orig_num = int(m.group()) if m else (i + 1)
+        new_num  = i + 1
+        orig_to_new[orig_num] = new_num
         stmt = (c.get("statement") or "").strip()
-        cos_norm.append({"num": num, "statement": stmt})
+        cos_norm.append({"num": new_num, "statement": stmt})
+
+    # Remap cached CO taxonomy to new numbers
+    _old_tax = store.get("co_taxonomy", {})
+    if _old_tax and orig_to_new:
+        store["co_taxonomy"] = {
+            new_n: _old_tax[orig_n]
+            for orig_n, new_n in orig_to_new.items()
+            if orig_n in _old_tax
+        }
 
     # Copy course into LP / TD stores
     for key in ("lp_courses", "td_courses"):
@@ -4789,12 +4944,31 @@ def aio_prepare():
     store["lp_uploaded_cos"] = cos_norm if cos_norm else None
     store["td_uploaded_cos"] = cos_norm if cos_norm else None
 
-    # Also update current_result so generate_qbank can pick up these COs if needed
+    # Also update current_result so generate_qbank can pick up these COs if needed.
+    # Preserve the Bloom's table rows from the original result so the M1 report
+    # RBT matrix can still be populated.
     if cos_norm:
-        store["current_result"] = "\n".join(f"CO{c['num']}: {c['statement']}" for c in cos_norm)
+        stmt_lines = [f"CO{c['num']}: {c['statement']}" for c in cos_norm]
+        # Rebuild table rows with renumbered CO references
+        table_lines = []
+        for line in store.get("current_result", "").split("\n"):
+            s = line.strip()
+            if s.startswith("|") and s.endswith("|"):
+                m = re.search(r'CO(\d+)', s)
+                if m:
+                    orig = int(m.group(1))
+                    if orig in orig_to_new:
+                        new = orig_to_new[orig]
+                        table_lines.append(s.replace(f"CO{orig}", f"CO{new}", 1))
+        header = ("| CO | Unit | Knowledge Dimension | Bloom Level |\n"
+                  "|----|------|---------------------|-------------|")
+        store["current_result"] = (
+            "\n".join(stmt_lines) + "\n\n" +
+            (header + "\n" + "\n".join(table_lines) if table_lines else "")
+        )
     store["current_code"] = code
 
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "cos": cos_norm})
 
 
 # ── Module 1 Comprehensive Report ────────────────────────────────────────────
@@ -4885,11 +5059,26 @@ def generate_module1_report():
         "pdf":  "application/pdf",
     }[fmt]
 
+    # Build RBT grid from stored co_taxonomy (most reliable — parsed at generation time)
+    from generate_cos import _KDIMS as _M1_KDIMS, _LEVELS as _M1_LEVELS, _KDIM_NORM as _M1_KDIM_NORM
+    _co_tax = store.get("co_taxonomy", {})
+    if _co_tax:
+        _m1_grid = {kd: {lv: [] for lv in _M1_LEVELS} for kd in _M1_KDIMS}
+        for _co_n, _entry in _co_tax.items():
+            _kdim = _M1_KDIM_NORM.get(_entry['kdim'].lower(), _entry['kdim'])
+            _bl   = _entry['bloom']
+            if _kdim in _m1_grid and _bl in _m1_grid[_kdim]:
+                _m1_grid[_kdim][_bl].append(f'CO{_co_n}')
+        taxonomy_grid = _m1_grid
+    else:
+        taxonomy_grid = None
+
     report_kwargs = dict(
         cos=cos, co_text=co_text, qb_data=qb_data_for_report,
         co_tally=co_tally, bloom_summary=bloom_summary,
         analytics=analytics, ai=ai_data, sample_paper=sample_paper,
         code=code, title=title, semester=semester, is_lab=is_lab,
+        taxonomy_grid=taxonomy_grid,
     )
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
