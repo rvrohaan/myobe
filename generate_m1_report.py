@@ -64,6 +64,65 @@ def _is_direct(text: str) -> bool:
     return any(re.match(pat, t) for pat in _DIRECT_VERBS)
 
 
+# ── Learning analytics constants ─────────────────────────────────────────────
+
+_LA_LEVEL_NAMES = {
+    'L1': 'Remember', 'L2': 'Understand', 'L3': 'Apply',
+    'L4': 'Analyze',  'L5': 'Evaluate',   'L6': 'Create',
+}
+_LA_LEVEL_ORDER = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6']
+_LA_KDIMS_ORDER = ['Factual', 'Conceptual', 'Procedural', 'Meta-Cognitive']
+
+
+def _compute_bloom_analytics(cos: list, taxonomy_grid: dict) -> dict:
+    """Derive cognitive-level learning analytics from the RBT taxonomy grid."""
+    level_co_map = {lv: [] for lv in _LA_LEVEL_ORDER}
+    kdim_co_map  = {kd: [] for kd in _LA_KDIMS_ORDER}
+    co_to_level  = {}
+
+    if taxonomy_grid:
+        for kd, levels in taxonomy_grid.items():
+            kd_clean = kd if kd in _LA_KDIMS_ORDER else 'Factual'
+            for lv, co_list in levels.items():
+                if lv not in _LA_LEVEL_ORDER:
+                    continue
+                for co in co_list:
+                    if co not in co_to_level:
+                        co_to_level[co] = lv
+                    if co not in level_co_map[lv]:
+                        level_co_map[lv].append(co)
+                    if co not in kdim_co_map[kd_clean]:
+                        kdim_co_map[kd_clean].append(co)
+    else:
+        _lv_map = {
+            'Remember': 'L1', 'Understand': 'L2', 'Apply': 'L3',
+            'Analyse': 'L4', 'Evaluate': 'L5', 'Create': 'L6',
+        }
+        for c in cos:
+            co_key = f"CO{c['num']}"
+            lv = _lv_map.get(_detect_bloom(c["statement"]), 'L1')
+            co_to_level[co_key] = lv
+            if co_key not in level_co_map[lv]:
+                level_co_map[lv].append(co_key)
+
+    total_mapped = max(sum(len(v) for v in level_co_map.values()), 1)
+    lots_cos = sum(len(level_co_map[lv]) for lv in ['L1', 'L2', 'L3'])
+    hots_cos = sum(len(level_co_map[lv]) for lv in ['L4', 'L5', 'L6'])
+    weighted_sum = sum((i + 1) * len(level_co_map[lv])
+                       for i, lv in enumerate(_LA_LEVEL_ORDER))
+    progression_score = round(weighted_sum / total_mapped, 1)
+
+    return {
+        'level_co_map': level_co_map,
+        'kdim_co_map':  kdim_co_map,
+        'co_to_level':  co_to_level,
+        'total_mapped': total_mapped,
+        'lots_cos':     lots_cos,
+        'hots_cos':     hots_cos,
+        'progression_score': progression_score,
+    }
+
+
 # ── Quantitative analytics (no AI needed) ────────────────────────────────────
 
 def _compute_lab_analytics(cos: list, lab_tally: dict) -> dict:
@@ -777,6 +836,75 @@ def build_docx(
 
     doc.add_paragraph().paragraph_format.space_after = Pt(4)
 
+    # ── Learning Analytics (RBT-derived) ─────────────────────────────────────
+    _add_heading("Learning Analytics", level=2, color=TEAL)
+    _add_para(
+        "Analytics derived from the RBT mapping — showing the cognitive-level "
+        "distribution of Course Outcomes and their alignment with higher-order "
+        "thinking skills (HOTS) as required for NBA/OBE accreditation.",
+        italic=True, size=9
+    )
+
+    _la = _compute_bloom_analytics(cos, rbt_grid)
+    _la_total = _la['total_mapped']
+
+    _add_heading("A.  Cognitive Level Distribution", level=3, color=TEAL)
+    _add_bar_chart(
+        [(f"L{i+1} - {_LA_LEVEL_NAMES[lv]}", len(_la['level_co_map'][lv]))
+         for i, lv in enumerate(_LA_LEVEL_ORDER)],
+        _la_total, label_header="Bloom's Level"
+    )
+    _level_detail_rows = []
+    for _li, _lv in enumerate(_LA_LEVEL_ORDER, 1):
+        _co_list = _la['level_co_map'][_lv]
+        _pct = round(len(_co_list) / _la_total * 100, 1)
+        _level_detail_rows.append((
+            f"L{_li} - {_LA_LEVEL_NAMES[_lv]}",
+            ', '.join(_co_list) or "—",
+            str(len(_co_list)),
+            f"{_pct}%",
+            "HOTS" if _li >= 4 else "LOTS",
+        ))
+    _add_table(
+        ["Bloom's Level", "COs", "Count", "%", "Type"],
+        _level_detail_rows,
+        col_widths=[1.5, 2.5, 0.5, 0.6, 0.65]
+    )
+
+    _add_heading("B.  Higher vs Lower Order Thinking (HOTS / LOTS)", level=3, color=TEAL)
+    _lots_pct = round(_la['lots_cos'] / _la_total * 100, 1)
+    _hots_pct = round(_la['hots_cos'] / _la_total * 100, 1)
+    _add_table(
+        ["Category", "Levels", "CO Count", "%"],
+        [
+            ("LOTS (Lower Order)", "L1-L3: Remember, Understand, Apply",
+             str(_la['lots_cos']), f"{_lots_pct}%"),
+            ("HOTS (Higher Order)", "L4-L6: Analyze, Evaluate, Create",
+             str(_la['hots_cos']), f"{_hots_pct}%"),
+        ],
+        col_widths=[1.3, 2.8, 0.85, 0.8]
+    )
+    _ps = _la['progression_score']
+    _ps_label = "Strong" if _ps >= 4.0 else "Moderate" if _ps >= 2.5 else "Low"
+    _add_para(
+        f"Bloom's Progression Score: {_ps} / 6.0 ({_ps_label} cognitive ambition). "
+        "NBA/OBE guidelines recommend at least 40% HOTS (L4-L6) coverage.",
+        size=9, italic=True
+    )
+
+    if any(_la['kdim_co_map'].values()):
+        _add_heading("C.  Knowledge Dimension Coverage", level=3, color=TEAL)
+        _kdim_rows = []
+        for _kd in _LA_KDIMS_ORDER:
+            _kd_cos = _la['kdim_co_map'].get(_kd, [])
+            _kd_pct = round(len(_kd_cos) / _la_total * 100, 1)
+            _kdim_rows.append((_kd, ', '.join(_kd_cos) or "—", str(len(_kd_cos)), f"{_kd_pct}%"))
+        _add_table(
+            ["Knowledge Dimension", "COs", "Count", "%"],
+            _kdim_rows,
+            col_widths=[1.6, 3.0, 0.55, 0.6]
+        )
+
     doc.add_page_break()
 
     # ── Section 2: Question Bank Creation ────────────────────────────────────
@@ -1102,6 +1230,45 @@ def build_txt(
     if bloom_summary:
         _sub("Bloom's Taxonomy Summary")
         lines.append(bloom_summary.strip())
+
+    # Learning Analytics
+    _sub("Learning Analytics")
+    _la_txt = _compute_bloom_analytics(cos, taxonomy_grid)
+    _la_txt_total = _la_txt['total_mapped']
+    lines.append("Cognitive Level Distribution")
+    lines.append("-" * 40)
+    _la_level_rows = []
+    for _li2, _lv2 in enumerate(_LA_LEVEL_ORDER, 1):
+        _co_list2 = _la_txt['level_co_map'][_lv2]
+        _pct2 = round(len(_co_list2) / _la_txt_total * 100, 1)
+        _cat2 = "HOTS" if _li2 >= 4 else "LOTS"
+        _la_level_rows.append((
+            f"L{_li2} - {_LA_LEVEL_NAMES[_lv2]}",
+            ', '.join(_co_list2) or "—",
+            str(len(_co_list2)),
+            f"{_pct2}%",
+            _cat2,
+        ))
+    _tbl(["Level", "COs", "N", "%", "Type"], _la_level_rows, [15, 22, 3, 6, 5])
+    _lots_pct2 = round(_la_txt['lots_cos'] / _la_txt_total * 100, 1)
+    _hots_pct2 = round(_la_txt['hots_cos'] / _la_txt_total * 100, 1)
+    _ps2 = _la_txt['progression_score']
+    _ps2_label = "Strong" if _ps2 >= 4.0 else "Moderate" if _ps2 >= 2.5 else "Low"
+    lines.append("")
+    lines.append(f"LOTS (L1-L3 Remember/Understand/Apply) : {_la_txt['lots_cos']} COs ({_lots_pct2}%)")
+    lines.append(f"HOTS (L4-L6 Analyze/Evaluate/Create)   : {_la_txt['hots_cos']} COs ({_hots_pct2}%)")
+    lines.append(f"Bloom's Progression Score               : {_ps2} / 6.0  ({_ps2_label})")
+    lines.append("(NBA/OBE recommend >= 40% HOTS coverage)")
+    if any(_la_txt['kdim_co_map'].values()):
+        lines.append("")
+        lines.append("Knowledge Dimension Coverage")
+        lines.append("-" * 40)
+        _kdim_txt_rows = [
+            (kd, ', '.join(_la_txt['kdim_co_map'].get(kd, [])) or "—",
+             str(len(_la_txt['kdim_co_map'].get(kd, []))))
+            for kd in _LA_KDIMS_ORDER
+        ]
+        _tbl(["Dimension", "COs", "N"], _kdim_txt_rows, [17, 25, 5])
 
     # Section 2: Question Bank
     _sec(2, "Lab Question Bank Creation" if is_lab else "Intelligent Question Bank Creation")
@@ -1544,6 +1711,58 @@ def build_pdf(
             _draw_rbt_cell(pdf.l_margin + _C0 + _j * _CW, _ry, _CW, hd, _ct, fsize=_FD)
         _ry += hd
     pdf.set_y(_ry + 3)
+
+    # Learning Analytics (PDF)
+    _heading2("Learning Analytics")
+    _body(
+        "Analytics derived from the RBT mapping — cognitive-level distribution "
+        "of COs and alignment with higher-order thinking skills (HOTS)."
+    )
+    _la_pdf = _compute_bloom_analytics(cos, rbt_pdf_grid)
+    _la_pdf_total = _la_pdf['total_mapped']
+
+    _heading2("Cognitive Level Distribution")
+    _la_pdf_level_rows = []
+    for _li3, _lv3 in enumerate(_LA_LEVEL_ORDER, 1):
+        _co_list3 = _la_pdf['level_co_map'][_lv3]
+        _pct3 = round(len(_co_list3) / _la_pdf_total * 100, 1)
+        _cat3 = "HOTS" if _li3 >= 4 else "LOTS"
+        _la_pdf_level_rows.append((
+            f"L{_li3} - {_LA_LEVEL_NAMES[_lv3]}",
+            ', '.join(_co_list3) or "-",
+            str(len(_co_list3)),
+            f"{_pct3}%",
+            _cat3,
+        ))
+    _tbl(["Bloom's Level", "COs", "N", "%", "Type"],
+         _la_pdf_level_rows, [45, 62, 10, 16, 17])
+
+    _lots_pct3 = round(_la_pdf['lots_cos'] / _la_pdf_total * 100, 1)
+    _hots_pct3 = round(_la_pdf['hots_cos'] / _la_pdf_total * 100, 1)
+    _tbl(
+        ["Category", "Levels", "Count", "%"],
+        [
+            ("LOTS (Lower Order)", "L1-L3: Remember, Understand, Apply",
+             str(_la_pdf['lots_cos']), f"{_lots_pct3}%"),
+            ("HOTS (Higher Order)", "L4-L6: Analyze, Evaluate, Create",
+             str(_la_pdf['hots_cos']), f"{_hots_pct3}%"),
+        ],
+        [42, 80, 20, 18]
+    )
+    _ps3 = _la_pdf['progression_score']
+    _ps3_label = "Strong" if _ps3 >= 4.0 else "Moderate" if _ps3 >= 2.5 else "Low"
+    _body(
+        f"Bloom's Progression Score: {_ps3} / 6.0 ({_ps3_label} cognitive ambition). "
+        "NBA/OBE guidelines recommend >= 40% HOTS (L4-L6) coverage."
+    )
+    if any(_la_pdf['kdim_co_map'].values()):
+        _heading2("Knowledge Dimension Coverage")
+        _kdim_pdf_rows = [
+            (kd, ', '.join(_la_pdf['kdim_co_map'].get(kd, [])) or "-",
+             str(len(_la_pdf['kdim_co_map'].get(kd, []))))
+            for kd in _LA_KDIMS_ORDER
+        ]
+        _tbl(["Knowledge Dimension", "COs", "Count"], _kdim_pdf_rows, [55, 97, 18])
 
     # Section 2
     pdf.add_page()
