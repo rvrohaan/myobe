@@ -34,13 +34,18 @@ _PEDAGOGICAL_INNOVATIONS = [
     {"method": "ICT Enabled Learning",      "desc": "Interactive visualization tools"},
 ]
 
-_ASSESSMENT_FRAMEWORK = [
-    {"method": "Internal Test",       "cos": "CO1–CO5", "bloom": "Understand–Analyze", "marks": 30,  "evidence": "Answer scripts"},
-    {"method": "Coding Assignment",   "cos": "CO2, CO4", "bloom": "Apply",              "marks": 20,  "evidence": "GitHub"},
-    {"method": "SDG Mini Project",    "cos": "CO5",      "bloom": "Create",             "marks": 20,  "evidence": "Project report"},
-    {"method": "Quiz",                "cos": "CO1, CO2", "bloom": "Remember",           "marks": 10,  "evidence": "Quiz sheets"},
-    {"method": "SEE",                 "cos": "CO1–CO5",  "bloom": "All Levels",         "marks": 100, "evidence": "Answer booklets"},
-]
+def _build_assessment_framework(num_cos: int) -> list:
+    last = f"CO{num_cos}"
+    co_range = f"CO1–{last}"
+    mid = f"CO{min(4, num_cos - 1)}" if num_cos >= 3 else "CO2"
+    coding_cos = f"CO2, {mid}" if mid != "CO2" else "CO2"
+    return [
+        {"method": "Internal Test",     "cos": co_range,    "bloom": "Understand–Analyze", "marks": 30,  "evidence": "Answer scripts"},
+        {"method": "Coding Assignment", "cos": coding_cos,  "bloom": "Apply",              "marks": 20,  "evidence": "GitHub"},
+        {"method": "SDG Mini Project",  "cos": last,        "bloom": "Create",             "marks": 20,  "evidence": "Project report"},
+        {"method": "Quiz",              "cos": "CO1, CO2",  "bloom": "Remember",           "marks": 10,  "evidence": "Quiz sheets"},
+        {"method": "SEE",               "cos": co_range,    "bloom": "All Levels",         "marks": 100, "evidence": "Answer booklets"},
+    ]
 
 _IMPACT_MEASUREMENT = [
     {"indicator": "CO Attainment",      "method": "Direct assessment",   "evidence": "Marks analysis"},
@@ -104,7 +109,7 @@ REQUIREMENTS:
 {co_requirement}
 - Detect units from the syllabus; generate one entry per unit found (typically 5)
 - Each session in the session_plan should map to one topic from one unit
-- Generate 4 sessions total (one per major unit, representative not exhaustive)
+- Generate exactly {num_cos} sessions total (one per CO), ensuring every CO from CO1 to CO{num_cos} appears exactly once in the session_plan
 - Generate 3 mini projects
 - CO-PO scores use 0/1/2/3 scale (3=Major, 2=Moderate, 1=Minor, 0=None)
 - SDG goals: SDG4 (Quality Education), SDG7 (Clean Energy), SDG9 (Industry Innovation), SDG13 (Climate Action)
@@ -200,6 +205,8 @@ def generate_lesson_plan(client, course_code: str, course_title: str,
                          num_cos: int = 5,
                          existing_cos: list | None = None) -> dict:
     """Call Claude and return parsed lesson plan dict. Raises on failure."""
+    if existing_cos:
+        num_cos = len(existing_cos)
     prompt = _build_prompt(course_code, course_title, course_text, num_cos, meta,
                            existing_cos=existing_cos)
     response = client.messages.create(
@@ -531,10 +538,11 @@ def build_docx(data: dict, meta: dict, course_code: str, course_title: str,
 
     # ── 11. Course Assessment Framework ───────────────────────────────────────
     _heading(doc, "11. COURSE ASSESSMENT FRAMEWORK")
+    _assessment = _build_assessment_framework(len(data.get("cos", [])) or 5)
     _make_table(doc,
         ["Assessment Method", "COs Assessed", "Bloom's Level", "Marks", "Evidence"],
         [(r["method"], r["cos"], r["bloom"], str(r["marks"]), r["evidence"])
-         for r in _ASSESSMENT_FRAMEWORK]
+         for r in _assessment]
     )
     doc.add_paragraph()
 
@@ -829,7 +837,8 @@ def build_pdf(data: dict, meta: dict, course_code: str, course_title: str,
     story.append(Paragraph("11. COURSE ASSESSMENT FRAMEWORK", heading_style))
     af_headers = ["Assessment Method", "COs Assessed", "Bloom's Level", "Marks", "Evidence"]
     af_rows = [af_headers]
-    for r in _ASSESSMENT_FRAMEWORK:
+    _assessment = _build_assessment_framework(len(data.get("cos", [])) or 5)
+    for r in _assessment:
         af_rows.append([_wrap(r["method"]), _wrap(r["cos"]), _wrap(r["bloom"]),
                          _wrap(str(r["marks"])), _wrap(r["evidence"])])
     cw_af = W / 5
@@ -969,10 +978,11 @@ def build_txt(data: dict, meta: dict, course_code: str, course_title: str,
     )
 
     sec("11. COURSE ASSESSMENT FRAMEWORK")
+    _assessment = _build_assessment_framework(len(data.get("cos", [])) or 5)
     table_txt(
         ["Assessment Method", "COs Assessed", "Bloom's Level", "Marks", "Evidence"],
         [(r["method"], r["cos"], r["bloom"], str(r["marks"]), r["evidence"])
-         for r in _ASSESSMENT_FRAMEWORK]
+         for r in _assessment]
     )
 
     sec("12. COURSE IMPACT MEASUREMENT")

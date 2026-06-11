@@ -38,13 +38,15 @@ def _build_prompt(course_code: str, course_title: str, course_text: str,
     n_lab = min(n_lab, 10) if is_lab else 0
 
     if existing_cos:
+        num_cos = len(existing_cos)
         co_block = "\n".join(f"CO{c['num']}: {c['statement']}" for c in existing_cos)
         co_section = f"""PRE-DEFINED COURSE OUTCOMES (use EXACTLY as given):
 {co_block}"""
-        co_req = f"- Use the {len(existing_cos)} pre-defined COs above EXACTLY"
+        co_req = f"- Use the {num_cos} pre-defined COs above EXACTLY"
     else:
         co_section = ""
         co_req = f"- Generate exactly {num_cos} Course Outcomes (CO1–CO{num_cos})"
+    cos_addressed = ", ".join(f"CO{i}" for i in range(1, num_cos + 1))
 
     return f"""Generate a complete Teaching Diary for the following engineering course.
 
@@ -80,7 +82,7 @@ OUTPUT — return ONLY this JSON (no markdown, no explanation):
     {{"num": 1, "statement": "<CO statement>", "bloom": "<Bloom level>", "knowledge": "<type>"}}
   ],
   "integration_summary": {{
-    "cos_addressed": "CO1, CO2, CO3, CO4, CO5",
+    "cos_addressed": "{cos_addressed}",
     "pos_addressed": "PO1, PO2, PO3, PO4, PO5",
     "psos": "PSO1, PSO2",
     "cep": "<complex engineering problem type>",
@@ -163,6 +165,8 @@ def generate_teaching_diary(client, course_code: str, course_title: str,
                              num_cos: int = 5,
                              existing_cos: list | None = None,
                              is_lab: bool = False) -> dict:
+    if existing_cos:
+        num_cos = len(existing_cos)
     prompt = _build_prompt(course_code, course_title, course_text, num_cos,
                            meta, existing_cos=existing_cos, is_lab=is_lab)
     response = client.messages.create(
