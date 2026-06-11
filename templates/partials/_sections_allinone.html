@@ -216,6 +216,9 @@
     <div class="actions">
       <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
     </div>
+    <div id="aio-done-nav" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:.75rem;font-weight:700;color:var(--muted);">Go to:</span>
+    </div>
   </div>
 
   <!-- ── Module 3 Report Preview ──────────────────────────────────────────── -->
@@ -289,6 +292,12 @@
         &#11015; Download Report
       </button>
       <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
+    </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:.75rem;font-weight:700;color:var(--muted);">Go to:</span>
+      <button class="btn btn-ghost" onclick="startOver(); selectMode('module1')" style="border-color:#6366f1;color:#6366f1;font-size:.79rem;padding:5px 12px;">Module 1 →</button>
+      <button class="btn btn-ghost" onclick="startOver(); selectMode('module2')" style="border-color:#0284c7;color:#0284c7;font-size:.79rem;padding:5px 12px;">Module 2 →</button>
+      <button class="btn btn-ghost" onclick="startOver(); selectMode('module4')" style="border-color:#059669;color:#059669;font-size:.79rem;padding:5px 12px;">Module 4 →</button>
     </div>
     <div class="uni-progress hidden" id="dl-m3-progress">
       <span class="uni-progress-label">Generating document&#8230;</span>
@@ -368,6 +377,12 @@
         &#11015; Download Report
       </button>
       <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
+    </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:.75rem;font-weight:700;color:var(--muted);">Go to:</span>
+      <button class="btn btn-ghost" onclick="startOver(); selectMode('module1')" style="border-color:#6366f1;color:#6366f1;font-size:.79rem;padding:5px 12px;">Module 1 →</button>
+      <button class="btn btn-ghost" onclick="startOver(); selectMode('module2')" style="border-color:#0284c7;color:#0284c7;font-size:.79rem;padding:5px 12px;">Module 2 →</button>
+      <button class="btn btn-ghost" onclick="startOver(); selectMode('module3')" style="border-color:#e11d48;color:#e11d48;font-size:.79rem;padding:5px 12px;">Module 3 →</button>
     </div>
     <div class="uni-progress hidden" id="dl-m4-progress">
       <span class="uni-progress-label">Generating document&#8230;</span>

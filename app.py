@@ -5510,7 +5510,8 @@ def export_po_attainment():
                     pdf.set_font("Helvetica", "B", 9)
                     pdf.cell(30, 5, f"{p['po']}:", border=0)
                     pdf.set_font("Helvetica", "", 9)
-                    pdf.multi_cell(0, 5, p.get("atr", ""))
+                    pdf.multi_cell(0, 5, p.get("atr", ""),
+                                   new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             pdf.output(tmp.name)
 
         with open(tmp.name, "rb") as fh:

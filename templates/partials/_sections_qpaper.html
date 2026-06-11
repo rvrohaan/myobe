@@ -225,6 +225,12 @@
       <button class="btn btn-primary" id="btn-dl-edited-paper" onclick="downloadEditedPaper()">⬇ Download Paper</button>
       <button class="btn btn-ghost" onclick="startOver()">Start Over</button>
     </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:.75rem;font-weight:700;color:var(--muted);">Go to:</span>
+      <button class="btn btn-ghost" onclick="startOver(); selectMode('module1')" style="border-color:#6366f1;color:#6366f1;font-size:.79rem;padding:5px 12px;">Module 1 →</button>
+      <button class="btn btn-ghost" onclick="startOver(); selectMode('module3')" style="border-color:#e11d48;color:#e11d48;font-size:.79rem;padding:5px 12px;">Module 3 →</button>
+      <button class="btn btn-ghost" onclick="startOver(); selectMode('module4')" style="border-color:#059669;color:#059669;font-size:.79rem;padding:5px 12px;">Module 4 →</button>
+    </div>
     <div class="uni-progress hidden" id="dl-paper-progress">
       <span class="uni-progress-label">Generating document…</span>
       <div class="uni-progress-track"><div class="uni-progress-fill"></div></div>
