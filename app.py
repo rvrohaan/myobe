@@ -9,7 +9,7 @@ import threading
 import resend
 from functools import wraps
 
-from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for, flash, make_response, after_this_request
+from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for, flash, make_response, after_this_request, stream_with_context
 from werkzeug.security import check_password_hash, generate_password_hash
 from dotenv import load_dotenv
 
@@ -680,7 +680,7 @@ def generate():
                 _refund_tokens(1)
 
     return Response(
-        event_stream(),
+        stream_with_context(event_stream()),
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -1128,7 +1128,7 @@ def generate_qbank_route():
         yield _ev({"type": "done", "num_units": num_units})
 
     return Response(
-        event_stream(),
+        stream_with_context(event_stream()),
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -2679,7 +2679,7 @@ def generate_po_mapping_route():
         yield f"data: {json.dumps({'done': True, 'rows': rows})}\n\n"
 
     return Response(
-        event_stream(),
+        stream_with_context(event_stream()),
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -2874,6 +2874,11 @@ def generate_lp():
                     _refund_tokens(3)
                     yield f"data: {json.dumps({'error': item['error']})}\n\n"
                     return
+                if "heartbeat" in item:
+                    # SSE comment: keeps the connection alive during generation,
+                    # ignored by the browser's EventSource.
+                    yield ": ping\n\n"
+                    continue
                 if "progress" in item:
                     yield f"data: {json.dumps({'progress': item['progress']})}\n\n"
                 if "done" in item:
@@ -2884,7 +2889,7 @@ def generate_lp():
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return Response(
-        event_stream(),
+        stream_with_context(event_stream()),
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -3088,6 +3093,11 @@ def generate_td():
                     _refund_tokens(3)
                     yield f"data: {json.dumps({'error': item['error']})}\n\n"
                     return
+                if "heartbeat" in item:
+                    # SSE comment: keeps the connection alive during generation,
+                    # ignored by the browser's EventSource.
+                    yield ": ping\n\n"
+                    continue
                 if "progress" in item:
                     yield f"data: {json.dumps({'progress': item['progress']})}\n\n"
                 if "done" in item:
@@ -3098,7 +3108,7 @@ def generate_td():
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return Response(
-        event_stream(),
+        stream_with_context(event_stream()),
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

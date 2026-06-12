@@ -1,4 +1,36 @@
 ﻿<script>
+/* ── Inline SVG icons (Lucide-style, currentColor) ─────────────────────────────
+   Decorative icons used across the dynamic UI. Sized via the host font-size
+   (1em) so existing icon containers keep controlling their size and colour. */
+const SVG_ICONS = {
+  target:          '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  'book-open':     '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  map:             '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>',
+  calendar:        '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>',
+  notebook:        '<path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M16 2v20"/>',
+  'bar-chart':     '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  globe:           '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  'trending-up':   '<path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>',
+  flask:           '<path d="M10 2v7.31"/><path d="M14 9.3V1.99"/><path d="M8.5 2h7"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/><path d="M5.58 16.5h12.85"/>',
+  'clipboard-list':'<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  mic:             '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>',
+  zap:             '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  landmark:        '<line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/>',
+  'file-text':     '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  book:            '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/>',
+  microscope:      '<path d="M6 18h8"/><path d="M3 22h18"/><path d="M14 22a7 7 0 1 0 0-14h-1"/><path d="M9 14h2"/><path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z"/><path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3"/>',
+  'circle-help':   '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  'square-pen':    '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>',
+  files:           '<path d="M20 7h-3a2 2 0 0 1-2-2V2"/><path d="M9 18a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h7l4 4v8a2 2 0 0 1-2 2Z"/><path d="M3 7.6v12.8A1.6 1.6 0 0 0 4.6 22h9.8"/>',
+  pencil:          '<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/><path d="m15 5 4 4"/>',
+};
+function svgIcon(name) {
+  return '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    + 'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '
+    + 'style="vertical-align:-0.125em;flex-shrink:0" aria-hidden="true">'
+    + (SVG_ICONS[name] || '') + '</svg>';
+}
+
 /* ── State ─────────────────────────────────────────────────────────────────── */
 const S = {
   mode: null,       // 'cos' | 'qbank' | 'qpaper'
@@ -218,7 +250,7 @@ function renderCourses(q = '') {
       <span class="course-code">${esc(c.code)}</span>
       <span class="course-title">${esc(c.title)}</span>
       ${c.semester ? `<span class="sem-badge">Sem ${c.semester}</span>` : ''}
-      ${detectLabCourse(c.code, c.title, c.has_lab) ? `<span class="sem-badge" style="background:rgba(245,158,11,.15);color:#fbbf24;border-color:rgba(245,158,11,.35);">🔬 Lab</span>` : ''}
+      ${detectLabCourse(c.code, c.title, c.has_lab) ? `<span class="sem-badge" style="background:rgba(245,158,11,.15);color:#fbbf24;border-color:rgba(245,158,11,.35);">${svgIcon('microscope')} Lab</span>` : ''}
     </div>`).join('');
 }
 
@@ -298,7 +330,7 @@ function renderQBPreview(d) {
   S.qbIsLab = d.is_lab || false;
   const sem = d.semester ? ` — Semester ${d.semester}` : '';
   const labBadge = S.qbIsLab
-    ? ' &nbsp;<span style="font-size:.75rem;background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.35);border-radius:6px;padding:2px 8px;font-weight:600;">🔬 Lab</span>'
+    ? ` &nbsp;<span style="font-size:.75rem;background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.35);border-radius:6px;padding:2px 8px;font-weight:600;">${svgIcon('microscope')} Lab</span>`
     : '';
   document.getElementById('qb-preview-sub').innerHTML =
     `<strong>${esc(d.course_code)}</strong>: ${esc(d.course_title)}${esc(sem)} &nbsp;·&nbsp; ${d.num_units} unit(s)${labBadge}`;
@@ -383,25 +415,25 @@ function renderLabTemplates(ptype) {
 
   const TEMPLATES = ptype === 'practical'
     ? [
-        { id: 'lab-all',      icon: '🧪', label: 'Full Pool',
+        { id: 'lab-all',      icon: 'flask', label: 'Full Pool',
           desc: 'All experiments listed — student draws one (spot exam format)' },
-        { id: 'lab-per-unit', icon: '📋', label: 'One Per Unit',
+        { id: 'lab-per-unit', icon: 'clipboard-list', label: 'One Per Unit',
           desc: 'One representative experiment per unit for balanced coverage' },
-        { id: 'lab-spot-5',   icon: '🎯', label: 'Spot-5',
+        { id: 'lab-spot-5',   icon: 'target', label: 'Spot-5',
           desc: 'Five experiments across all units for spot practical test' },
       ]
     : [
-        { id: 'viva-all',      icon: '🎤', label: 'Full Viva',
+        { id: 'viva-all',      icon: 'mic', label: 'Full Viva',
           desc: 'Viva questions drawn from all available experiments' },
-        { id: 'viva-per-unit', icon: '📚', label: 'Unit-wise',
+        { id: 'viva-per-unit', icon: 'book-open', label: 'Unit-wise',
           desc: 'One experiment\'s viva per unit — covers all modules' },
-        { id: 'viva-quick',    icon: '⚡', label: 'Quick Viva',
+        { id: 'viva-quick',    icon: 'zap', label: 'Quick Viva',
           desc: '3–4 key experiments for a focused short viva' },
       ];
 
   grid.innerHTML = TEMPLATES.map(t => `
     <div class="tpl-sel-card lab-tpl-card" data-tpl="${t.id}" onclick="applyLabTemplate('${t.id}')">
-      <div class="tpl-sel-icon">${t.icon}</div>
+      <div class="tpl-sel-icon">${svgIcon(t.icon)}</div>
       <div class="tpl-sel-name">${t.label}</div>
       <div class="tpl-sel-desc">${t.desc}</div>
     </div>`).join('');
@@ -489,19 +521,19 @@ function renderPartsConfig() {
 
   const TEMPLATES = S.paperPtype === 'internal'
     ? [
-        { id: 'cia-standard', label: 'CIE Standard', icon: '🏛️', desc: '5×2m + 2×10m · 30 marks' },
-        { id: 'cia-module',   label: 'Module-wise',  icon: '📚', desc: '3 of 6×10m with OR · 30 marks' },
-        { id: 'cia-mixed',    label: 'Mixed 30',     icon: '📝', desc: '5×2m + 2×5m + 1×10m · 30 marks' },
+        { id: 'cia-standard', label: 'CIE Standard', icon: 'landmark', desc: '5×2m + 2×10m · 30 marks' },
+        { id: 'cia-module',   label: 'Module-wise',  icon: 'book-open', desc: '3 of 6×10m with OR · 30 marks' },
+        { id: 'cia-mixed',    label: 'Mixed 30',     icon: 'file-text', desc: '5×2m + 2×5m + 1×10m · 30 marks' },
       ]
     : [
-        { id: 'be-standard', label: 'B.E. Standard', icon: '🏛️', desc: '5 units · 2×10m · with OR' },
-        { id: 'pg-mixed',    label: 'PG / Mixed',    icon: '📘', desc: '10m + 5m + 5m per question'  },
-        { id: 'pg-short',    label: 'PG Short',      icon: '📝', desc: '4×5m sub-questions per unit' },
+        { id: 'be-standard', label: 'B.E. Standard', icon: 'landmark', desc: '5 units · 2×10m · with OR' },
+        { id: 'pg-mixed',    label: 'PG / Mixed',    icon: 'book', desc: '10m + 5m + 5m per question'  },
+        { id: 'pg-short',    label: 'PG Short',      icon: 'file-text', desc: '4×5m sub-questions per unit' },
       ];
 
   const tplCards = TEMPLATES.map(tpl => `
     <div class="tpl-sel-card" data-tpl="${tpl.id}" onclick="applyPaperTemplate('${tpl.id}')">
-      <div class="tpl-sel-icon">${tpl.icon}</div>
+      <div class="tpl-sel-icon">${svgIcon(tpl.icon)}</div>
       <div class="tpl-sel-name">${tpl.label}</div>
       <div class="tpl-sel-desc">${tpl.desc}</div>
     </div>`).join('');
@@ -511,7 +543,7 @@ function renderPartsConfig() {
     <div class="tpl-sel-grid">
       ${tplCards}
       <div class="tpl-sel-card" data-tpl="custom" onclick="applyPaperTemplate('custom')">
-        <div class="tpl-sel-icon">✏️</div>
+        <div class="tpl-sel-icon">${svgIcon('pencil')}</div>
         <div class="tpl-sel-name">Custom</div>
         <div class="tpl-sel-desc">Set your own counts</div>
       </div>
@@ -1965,9 +1997,9 @@ function _renderAiSuggestions(suggestions) {
   if (!list) return;
 
   const LABELS = {
-    clarity:      '✏️ Clarity',
-    co_alignment: '🎯 CO Alignment',
-    blooms:       '📊 Bloom\'s Taxonomy',
+    clarity:      `${svgIcon('pencil')} Clarity`,
+    co_alignment: `${svgIcon('target')} CO Alignment`,
+    blooms:       `${svgIcon('bar-chart')} Bloom's Taxonomy`,
   };
 
   if (!suggestions.length) {
@@ -2394,23 +2426,23 @@ async function module2GenerateQB() {
 }
 
 const AIO_TOOLS = [
-  { id: 'cos',           label: 'Course Outcomes',        icon: '🎯', tokens: 1, canEdit: true,  canRegen: true,
+  { id: 'cos',           label: 'Course Outcomes',        icon: 'target', tokens: 1, canEdit: true,  canRegen: true,
     desc: 'Generate CO statements aligned to Bloom\'s taxonomy' },
-  { id: 'qbank',         label: 'Question Bank',          icon: '📚', tokens: 3, canEdit: false, canRegen: false,
+  { id: 'qbank',         label: 'Question Bank',          icon: 'book-open', tokens: 3, canEdit: false, canRegen: false,
     desc: 'Auto-generate 2, 5, 10-mark questions organised by unit' },
-  { id: 'pomap',         label: 'CO–PO Mapping',          icon: '🗺️', tokens: 1, canEdit: false, canRegen: true,
+  { id: 'pomap',         label: 'CO–PO Mapping',          icon: 'map', tokens: 1, canEdit: false, canRegen: true,
     desc: 'NBA-compliant CO-PO mapping table with 3/2/1/0 scores' },
-  { id: 'lessonplan',    label: 'Lesson Plan',            icon: '📅', tokens: 3, canEdit: false, canRegen: true,
+  { id: 'lessonplan',    label: 'Lesson Plan',            icon: 'calendar', tokens: 3, canEdit: false, canRegen: true,
     desc: 'Complete lesson plan with NBA/NAAC alignment' },
-  { id: 'teachingdiary', label: 'Teaching Diary',         icon: '📓', tokens: 3, canEdit: false, canRegen: true,
+  { id: 'teachingdiary', label: 'Teaching Diary',         icon: 'notebook', tokens: 3, canEdit: false, canRegen: true,
     desc: 'Full-semester teaching diary with session delivery plan' },
-  { id: 'sdgco',         label: 'CO → SDG',              icon: '📊', tokens: 1, canEdit: false, canRegen: true,
+  { id: 'sdgco',         label: 'CO → SDG',              icon: 'bar-chart', tokens: 1, canEdit: false, canRegen: true,
     desc: 'Analyse CO-level SDG contributions via CO→PO→SDG pipeline' },
-  { id: 'sdgpo',         label: 'PO → SDG',              icon: '🌍', tokens: 1, canEdit: false, canRegen: true,
+  { id: 'sdgpo',         label: 'PO → SDG',              icon: 'globe', tokens: 1, canEdit: false, canRegen: true,
     desc: 'Calculate how Programme Outcomes contribute to UN SDGs' },
-  { id: 'coatt',         label: 'CO Attainment',         icon: '📈', tokens: 1, canEdit: false, canRegen: true,
+  { id: 'coatt',         label: 'CO Attainment',         icon: 'trending-up', tokens: 1, canEdit: false, canRegen: true,
     desc: 'AI-estimated CO attainment levels and PO attainment' },
-  { id: 'poatt',         label: 'PO Attainment',         icon: '📊', tokens: 1, canEdit: false, canRegen: true,
+  { id: 'poatt',         label: 'PO Attainment',         icon: 'bar-chart', tokens: 1, canEdit: false, canRegen: true,
     desc: 'NBA-standard PO attainment levels with ATR for below-threshold POs' },
 ];
 
@@ -2542,7 +2574,7 @@ function _aioShowSelectScreen() {
              style="margin-top:3px;flex-shrink:0;accent-color:var(--primary);width:15px;height:15px;cursor:pointer;">
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
-          <span style="font-size:1.15rem;line-height:1;">${t.icon}</span>
+          <span style="font-size:1.15rem;line-height:1;color:var(--primary);">${svgIcon(t.icon)}</span>
           <span style="font-weight:700;font-size:.9rem;">${t.label}</span>
           <span style="font-size:.7rem;background:rgba(99,102,241,.12);color:var(--primary);padding:2px 8px;border-radius:99px;font-weight:700;margin-left:auto;white-space:nowrap;">${t.tokens} token${t.tokens > 1 ? 's' : ''}</span>
         </div>
@@ -2623,7 +2655,7 @@ function _aioRunStep() {
   const tool   = AIO_TOOLS.find(t => t.id === toolId);
 
   // Update header
-  document.getElementById('aio-run-icon').textContent  = tool.icon;
+  document.getElementById('aio-run-icon').innerHTML    = svgIcon(tool.icon);
   document.getElementById('aio-run-title').textContent = `Generating ${tool.label}…`;
   document.getElementById('aio-run-sub').textContent   = `Step ${_aio.queueStep + 1} of ${_aio.queue.length}`;
 
@@ -4079,7 +4111,7 @@ function _aioShowDone() {
                 background:linear-gradient(135deg,rgba(99,102,241,.07),rgba(139,92,246,.07));
                 margin-bottom:6px;">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-        <span style="font-size:1.8rem;flex-shrink:0;">📑</span>
+        <span style="font-size:1.8rem;flex-shrink:0;color:#6366f1;">${svgIcon('files')}</span>
         <div style="flex:1;min-width:180px;">
           <p style="font-weight:800;font-size:.97rem;margin:0 0 4px;color:var(--text);">
             Module 1 Comprehensive Report
@@ -4111,7 +4143,7 @@ function _aioShowDone() {
                 background:linear-gradient(135deg,rgba(3,105,161,.07),rgba(14,165,233,.07));
                 margin-bottom:6px;">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-        <span style="font-size:1.8rem;flex-shrink:0;">📝</span>
+        <span style="font-size:1.8rem;flex-shrink:0;color:#0369a1;">${svgIcon('file-text')}</span>
         <div style="flex:1;min-width:180px;">
           <p style="font-weight:800;font-size:.97rem;margin:0 0 4px;color:var(--text);">
             Question Bank Ready — Compose Your Paper
@@ -4142,7 +4174,7 @@ function _aioShowDone() {
                 background:linear-gradient(135deg,rgba(225,29,72,.06),rgba(251,113,133,.07));
                 margin-bottom:6px;">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-        <span style="font-size:1.8rem;flex-shrink:0;">📋</span>
+        <span style="font-size:1.8rem;flex-shrink:0;color:#e11d48;">${svgIcon('clipboard-list')}</span>
         <div style="flex:1;min-width:180px;">
           <p style="font-weight:800;font-size:.97rem;margin:0 0 4px;color:var(--text);">
             Module 3 Comprehensive Report
@@ -4174,7 +4206,7 @@ function _aioShowDone() {
                 background:linear-gradient(135deg,rgba(5,150,105,.06),rgba(52,211,153,.07));
                 margin-bottom:6px;">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-        <span style="font-size:1.8rem;flex-shrink:0;">&#128202;</span>
+        <span style="font-size:1.8rem;flex-shrink:0;color:#059669;">${svgIcon('bar-chart')}</span>
         <div style="flex:1;min-width:180px;">
           <p style="font-weight:800;font-size:.97rem;margin:0 0 4px;color:var(--text);">
             Module 4 Comprehensive Assessment Report
@@ -4204,7 +4236,7 @@ function _aioShowDone() {
     const tool = AIO_TOOLS.find(t => t.id === toolId);
     return `
       <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;flex-wrap:wrap;">
-        <span style="font-size:1.5rem;flex-shrink:0;">${tool.icon}</span>
+        <span style="font-size:1.5rem;flex-shrink:0;color:var(--primary);">${svgIcon(tool.icon)}</span>
         <div style="flex:1;min-width:120px;">
           <p style="font-weight:700;font-size:.92rem;margin:0 0 2px;">${tool.label}</p>
           <p style="font-size:.77rem;color:var(--muted);margin:0;">Generated successfully</p>

@@ -601,11 +601,11 @@
   </style>
   <script>(function(){ if(localStorage.getItem('myobe-theme')==='light') document.documentElement.classList.add('light-theme'); })();</script>
   <link rel="stylesheet" href="/static/expandable-tabs.css">
-  <!-- Three.js for the hero beams effect — loaded from CDN, no build step -->
+  <!-- Three.js for the hero beams effect — self-hosted (no CDN round-trip, browser-cacheable) -->
   <script type="importmap">
   {
     "imports": {
-      "three": "https://esm.sh/three@0.160.0"
+      "three": "/static/three.module.js"
     }
   }
   </script>

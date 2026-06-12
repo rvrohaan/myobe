@@ -228,18 +228,41 @@ def generate_lesson_plan_stream(client, course_code: str, course_title: str,
                                 course_text: str, meta: dict,
                                 num_cos: int = 5,
                                 existing_cos: list | None = None):
-    """Yield SSE-style progress dicts. Last item has key 'done' and 'data'."""
+    """Yield SSE-style progress dicts. Last item has key 'done' and 'data'.
+
+    Streams the model response so the SSE connection keeps receiving bytes.
+    A single blocking call sends nothing for tens of seconds while the large
+    JSON is generated, which a hosting proxy treats as an idle connection and
+    drops — surfacing client-side as a generic "Connection error". The
+    periodic 'heartbeat' items keep the connection alive (the route emits them
+    as SSE comments that the browser ignores).
+    """
     if existing_cos:
+        num_cos = len(existing_cos)
         yield {"progress": f"Using {len(existing_cos)} uploaded COs — generating lesson plan sections…"}
     else:
         yield {"progress": "Generating COs and lesson plan sections via AI…"}
+
+    prompt = _build_prompt(course_code, course_title, course_text, num_cos, meta,
+                           existing_cos=existing_cos)
+    raw = ""
     try:
-        data = generate_lesson_plan(
-            client, course_code, course_title, course_text, meta,
-            num_cos=num_cos, existing_cos=existing_cos
-        )
+        with client.messages.stream(
+            model="claude-sonnet-4-6",
+            max_tokens=8192,
+            system=_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+        ) as stream:
+            for chunk in stream.text_stream:
+                raw += chunk
+                yield {"heartbeat": True}
     except Exception as e:
         yield {"error": str(e)}
+        return
+
+    data = _extract_json(raw)
+    if not data:
+        yield {"error": f"AI returned invalid JSON. Raw response (first 300 chars): {raw[:300]}"}
         return
     yield {"done": True, "data": data}
 
