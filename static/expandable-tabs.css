@@ -1,0 +1,148 @@
+/* ============================================================================
+ * expandable-tabs.css — vanilla port of the shadcn/Framer "Expandable Tabs"
+ * Rounded pill bar of icon tabs that expand to reveal their label on hover or
+ * when active. No JS required for the motion (CSS spring-ish easing); a small
+ * scroll-spy (expandable-tabs.js) only toggles `.active` for in-page anchors.
+ * ========================================================================== */
+
+.nav-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0 0 0 28px;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.nav-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 8px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.62);
+  white-space: nowrap;
+  transition: background 0.3s ease, color 0.3s ease,
+    padding 0.45s cubic-bezier(0.25, 1.3, 0.4, 1);
+}
+
+.nav-tab svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.nav-tab-label {
+  max-width: 0;
+  opacity: 0;
+  margin-left: 0;
+  overflow: hidden;
+  transition: max-width 0.5s cubic-bezier(0.25, 1.3, 0.4, 1),
+    opacity 0.35s ease, margin-left 0.45s cubic-bezier(0.25, 1.3, 0.4, 1);
+}
+
+.nav-tab:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.nav-tab:hover,
+.nav-tab.active {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.nav-tab:hover .nav-tab-label,
+.nav-tab.active .nav-tab-label {
+  max-width: 170px;
+  opacity: 1;
+  margin-left: 0.5rem;
+}
+
+.nav-tab.active {
+  color: var(--primary, #6366f1);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.nav-tab-sep {
+  width: 1.2px;
+  height: 22px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.16);
+  margin: 0 2px;
+}
+
+/* Inline variant for the right-side action group (no left margin) */
+.nav-tabs-inline {
+  margin-left: 0;
+}
+
+/* Destructive action (Sign Out) — separated + danger tint on hover/active */
+.nav-tab-danger:hover,
+.nav-tab-danger.active {
+  color: #fb7185;
+  background: rgba(239, 68, 68, 0.12);
+}
+html.light-theme .nav-tab-danger:hover,
+html.light-theme .nav-tab-danger.active {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+/* ── Light theme ── */
+html.light-theme .nav-tabs {
+  border-color: rgba(37, 99, 235, 0.18);
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
+}
+html.light-theme .nav-tab {
+  color: rgba(30, 41, 59, 0.62);
+}
+html.light-theme .nav-tab:hover {
+  color: #1e293b;
+  background: rgba(37, 99, 235, 0.08);
+}
+html.light-theme .nav-tab.active {
+  color: var(--primary, #2563eb);
+  background: rgba(37, 99, 235, 0.1);
+}
+html.light-theme .nav-tab-sep {
+  background: rgba(37, 99, 235, 0.18);
+}
+
+/* ── Mobile: keep the bar visible (icon-only), tighten spacing ── */
+@media (max-width: 560px) {
+  .nav-tabs {
+    margin-left: 0;
+    gap: 0.15rem;
+    padding: 4px;
+  }
+  /* Don't let an active label force horizontal overflow on small screens */
+  .nav-tab.active:not(:hover) .nav-tab-label {
+    max-width: 0;
+    opacity: 0;
+    margin-left: 0;
+  }
+  .nav-tab.active:not(:hover) {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-tab,
+  .nav-tab-label {
+    transition: none;
+  }
+}

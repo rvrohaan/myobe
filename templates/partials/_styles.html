@@ -8,7 +8,7 @@
       --bg:            #080618;
       --card:          rgba(255,255,255,.06);
       --text:          #f1f5f9;
-      --muted:         rgba(255,255,255,.48);
+      --muted:         rgba(255,255,255,.66);
       --border:        rgba(255,255,255,.1);
       --success:       #10b981;
       --error:         #ef4444;
@@ -21,7 +21,7 @@
       background: linear-gradient(135deg, #080618 0%, #0d0b26 40%, #12103a 70%, #080618 100%);
       background-attachment: fixed;
       color: var(--text);
-      min-height: 100vh;
+      min-height: 100vh; min-height: 100dvh;
       padding-bottom: 60px;
     }
 
@@ -792,7 +792,7 @@
       --primary-light: rgba(37,99,235,.12);
       --card:          rgba(255,255,255,.85);
       --text:          #1e293b;
-      --muted:         rgba(30,41,59,.55);
+      --muted:         rgba(30,41,59,.66);
       --border:        rgba(37,99,235,.2);
       --success:       #059669;
       --error:         #dc2626;
@@ -844,7 +844,7 @@
     html.light-theme .greeting-stat strong { color: #1e293b; }
     html.light-theme .greeting-stat span { color: rgba(30,41,59,.5); }
     html.light-theme .card h2 { color: #1e293b; }
-    html.light-theme .card .sub { color: rgba(30,41,59,.55); }
+    html.light-theme .card .sub { color: rgba(30,41,59,.66); }
     html.light-theme .card { background: rgba(255,255,255,.8); border-color: rgba(37,99,235,.1); }
     html.light-theme .steps { background: rgba(255,255,255,.8); }
     html.light-theme .step-dot { background: rgba(30,41,59,.12); color: rgba(30,41,59,.45); }
@@ -890,7 +890,7 @@
   </style>
   <script>
     (function(){
-      if(localStorage.getItem('edugen-theme')==='light')
+      if(localStorage.getItem('myobe-theme')==='light')
         document.documentElement.classList.add('light-theme');
     })();
   </script>

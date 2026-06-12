@@ -1,0 +1,104 @@
+/* ============================================================================
+ * a11y.css — global accessibility fixes from the UI audit.
+ * Loaded LAST on every page so its rules win. Covers:
+ *   1. Visible keyboard focus (templates blanket-set `outline:none`)
+ *   2. prefers-reduced-motion (heavy continuous animation everywhere)
+ *   3. Skip-to-content link
+ * Token/contrast and emoji-icon fixes are applied directly in the templates.
+ * ========================================================================== */
+
+/* 1. ── Visible keyboard focus ───────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--primary, #6366f1);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Keep mouse clicks ring-free; only show the ring for keyboard focus */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+/* Inputs set inline `outline:none`, so override with !important to restore a ring */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible,
+[contenteditable]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--primary, #6366f1) !important;
+  outline-offset: 2px !important;
+}
+
+/* 2. ── Respect reduced-motion ───────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* 3. ── Skip to main content ─────────────────────────────────────────────── */
+.skip-link {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: var(--primary, #6366f1);
+  color: #fff;
+  font: 700 0.9rem/1 system-ui, sans-serif;
+  text-decoration: none;
+  transform: translateY(-160%);
+  transition: transform 0.18s ease;
+}
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+[id="main"]:focus {
+  outline: none; /* the target shouldn't show a ring when focused via skip-link */
+}
+
+/* 4. ── SVG icons replacing emoji (audit: no-emoji-icons) ────────────────── */
+/* Inherit the container's font-size so swapped icons keep the emoji's size */
+.module-icon svg,
+.gen-all-icon svg,
+.upload-icon svg,
+.brand-icon svg,
+.footer-logo-icon svg {
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  vertical-align: middle;
+  stroke: currentColor;
+}
+/* Icons sit on a coloured tile → render them white */
+.brand-icon,
+.footer-logo-icon {
+  color: #fff;
+}
+/* Theme toggle: show sun in dark mode, moon in light mode (no JS needed) */
+.theme-toggle-btn svg {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+}
+/* Sun shows only in dark mode → warm/light stroke; moon only in light mode → dark stroke */
+.theme-toggle-btn .icon-sun {
+  stroke: #fcd34d;
+}
+.theme-toggle-btn .icon-moon {
+  display: none;
+  stroke: #475569;
+}
+html.light-theme .theme-toggle-btn .icon-sun {
+  display: none;
+}
+html.light-theme .theme-toggle-btn .icon-moon {
+  display: inline-block;
+}

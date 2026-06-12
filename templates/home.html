@@ -26,7 +26,7 @@
       background: linear-gradient(135deg, #080618 0%, #0d0b26 40%, #12103a 70%, #080618 100%);
       background-attachment: fixed;
       color: var(--text);
-      min-height: 100vh;
+      min-height: 100vh; min-height: 100dvh;
     }
 
     /* ── Navbar ── */
@@ -82,7 +82,7 @@
 
     /* ── HERO ── */
     .hero {
-      min-height: 100vh;
+      min-height: 100vh; min-height: 100dvh;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       text-align: center; padding: 120px 5% 80px;
       position: relative; overflow: hidden;
@@ -122,7 +122,21 @@
       background-size: 60px 60px;
       pointer-events: none; z-index: 0;
     }
-    .hero-inner { position: relative; z-index: 1; max-width: 800px; }
+    /* 3D beams canvas — sits behind hero content, above the page gradient */
+    .hero-beams {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      z-index: 0; pointer-events: none; display: block;
+      opacity: 0; transition: opacity .8s ease;
+    }
+    .hero-beams[data-beams-ready] { opacity: 1; }
+    /* Vignette so hero text stays readable on top of the beams */
+    .hero-veil {
+      position: absolute; inset: 0; z-index: 1; pointer-events: none;
+      background:
+        radial-gradient(ellipse 70% 60% at 50% 45%, transparent 0%, rgba(8,6,24,.55) 100%),
+        linear-gradient(to top, rgba(8,6,24,.85) 0%, transparent 35%, transparent 70%, rgba(8,6,24,.4) 100%);
+    }
+    .hero-inner { position: relative; z-index: 2; max-width: 800px; }
     .hero-badge {
       display: inline-flex; align-items: center; gap: 7px;
       background: rgba(99,102,241,.18); border: 1px solid rgba(99,102,241,.35);
@@ -516,26 +530,33 @@
     }
     html.light-theme nav { background: rgba(255,255,255,0); border-bottom-color: transparent; }
     html.light-theme nav.scrolled { background: rgba(219,234,254,.92); border-bottom-color: rgba(37,99,235,.12); }
-    html.light-theme .nav-brand { color: #1e293b; }
-    html.light-theme .nav-links a { color: rgba(30,41,59,.65); }
-    html.light-theme .nav-links a:hover,
-    html.light-theme .nav-links a.active { color: #1e293b; background: rgba(37,99,235,.1); }
-    html.light-theme .nav-username { color: rgba(30,41,59,.5); }
-    html.light-theme .nav-token-badge { background: rgba(37,99,235,.12); color: #2563eb; }
-    html.light-theme .btn-nav-ghost { background: rgba(255,255,255,.3); border-color: rgba(37,99,235,.3); color: rgba(30,41,59,.8); }
-    html.light-theme .btn-nav-ghost:hover { background: rgba(37,99,235,.08); border-color: #2563eb; color: #1e293b; }
+    /* Hero stays a dark band in both themes so the white hero text + beams stay
+       readable. In light mode the body is light, so give the hero its own dark
+       background (otherwise the half-transparent veil shows the light body and
+       the light beams blend into it). */
+    html.light-theme .hero {
+      background: linear-gradient(135deg, #080618 0%, #0d0b26 40%, #12103a 70%, #080618 100%);
+    }
+    /* Light-theme nav is transparent over the dark hero at the top → keep the
+       base (light) text/tabs there; switch to dark text only once scrolled
+       onto the light page content. */
+    html.light-theme nav.scrolled .nav-brand { color: #1e293b; }
+    html.light-theme nav.scrolled .nav-username { color: rgba(30,41,59,.5); }
+    html.light-theme nav.scrolled .nav-token-badge { background: rgba(37,99,235,.12); color: #2563eb; }
+    html.light-theme nav.scrolled .btn-nav-ghost { background: rgba(255,255,255,.3); border-color: rgba(37,99,235,.3); color: rgba(30,41,59,.8); }
+    html.light-theme nav.scrolled .btn-nav-ghost:hover { background: rgba(37,99,235,.08); border-color: #2563eb; color: #1e293b; }
     html.light-theme .theme-toggle-btn { border-color: rgba(37,99,235,.3); }
-    html.light-theme .hero h1 { color: #1e293b; }
-    html.light-theme .hero h1 .tw-line { background: linear-gradient(90deg, #2563eb, #7c3aed, #0ea5e9); -webkit-background-clip: text; background-clip: text; }
-    html.light-theme .tw-cursor { -webkit-text-fill-color: #2563eb; }
-    html.light-theme .hero-sub { color: rgba(30,41,59,.65); }
-    html.light-theme .hero-sub-secondary { color: rgba(37,99,235,.7); }
-    html.light-theme .hero-badge { background: rgba(37,99,235,.1); border-color: rgba(37,99,235,.25); color: #1d4ed8; }
-    html.light-theme .hero-badge-dot { background: #2563eb; }
-    html.light-theme .hero-stat strong { background: linear-gradient(90deg, #2563eb, #1d4ed8); -webkit-background-clip: text; background-clip: text; }
-    html.light-theme .hero-stat span { color: rgba(30,41,59,.4); }
-    html.light-theme .hero-stats { border-top-color: rgba(30,41,59,.1); }
-    html.light-theme .hero-stat { border-right-color: rgba(30,41,59,.1); }
+    /* Expandable tabs: dark/translucent over the hero, white pills once scrolled */
+    html.light-theme nav:not(.scrolled) .nav-tabs { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.14); }
+    html.light-theme nav:not(.scrolled) .nav-tab { color: rgba(255,255,255,.7); }
+    html.light-theme nav:not(.scrolled) .nav-tab:hover,
+    html.light-theme nav:not(.scrolled) .nav-tab.active { color: #fff; background: rgba(255,255,255,.12); }
+    html.light-theme nav:not(.scrolled) .nav-tab-sep { background: rgba(255,255,255,.18); }
+    /* Moon icon is dark by default (for light backgrounds); lighten it while the
+       toggle sits over the dark hero at the top. */
+    html.light-theme nav:not(.scrolled) .theme-toggle-btn .icon-moon { stroke: #cbd5e1; }
+    /* Hero text intentionally keeps its dark-theme white styling in light mode
+       (the hero band stays dark), so the light-theme overrides are omitted here. */
     html.light-theme .section-label { background: linear-gradient(90deg, #2563eb, #7c3aed); -webkit-background-clip: text; background-clip: text; }
     html.light-theme .section-title { color: #1e293b; }
     html.light-theme .section-sub { color: rgba(30,41,59,.6); }
@@ -575,44 +596,82 @@
     html.light-theme .footer-links ul a { color: rgba(30,41,59,.55); }
     html.light-theme .footer-links ul a:hover { color: #2563eb; }
     html.light-theme .footer-bottom { color: rgba(30,41,59,.35); }
-    html.light-theme .btn-cta-ghost { background: rgba(37,99,235,.08); border-color: rgba(37,99,235,.25); color: rgba(30,41,59,.85); }
-    html.light-theme .btn-cta-ghost:hover { background: rgba(37,99,235,.14); border-color: #2563eb; }
+    /* .btn-cta-ghost lives only in the (dark) hero, so keep its base white text
+       in light mode too rather than darkening it. */
   </style>
-  <script>(function(){ if(localStorage.getItem('edugen-theme')==='light') document.documentElement.classList.add('light-theme'); })();</script>
+  <script>(function(){ if(localStorage.getItem('myobe-theme')==='light') document.documentElement.classList.add('light-theme'); })();</script>
+  <link rel="stylesheet" href="/static/expandable-tabs.css">
+  <!-- Three.js for the hero beams effect — loaded from CDN, no build step -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://esm.sh/three@0.160.0"
+    }
+  }
+  </script>
+  <link rel="stylesheet" href="/static/a11y.css">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to main content</a>
 
 <!-- ── Navbar ── -->
 <nav id="main-nav">
   <a class="nav-brand" href="/">
-    <div class="nav-brand-icon">🎓</div>MyOBE
+    <div class="nav-brand-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg></div>MyOBE
   </a>
-  <ul class="nav-links">
-    <li><a href="/#how">How it works</a></li>
-    <li><a href="/#modules">Modules</a></li>
-    <li><a href="/#fields">Fields</a></li>
-    <li><a href="/#pricing">Pricing</a></li>
+  <ul class="nav-tabs" role="list">
+    <li><a class="nav-tab" href="/#how" data-spy="#how">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/></svg>
+      <span class="nav-tab-label">How it works</span>
+    </a></li>
+    <li><a class="nav-tab" href="/#modules" data-spy="#modules">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+      <span class="nav-tab-label">Modules</span>
+    </a></li>
+    <li><a class="nav-tab" href="/#fields" data-spy="#fields">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
+      <span class="nav-tab-label">Fields</span>
+    </a></li>
+    <li class="nav-tab-sep" aria-hidden="true"></li>
+    <li><a class="nav-tab" href="/#pricing" data-spy="#pricing">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+      <span class="nav-tab-label">Pricing</span>
+    </a></li>
   </ul>
   <div class="nav-actions">
     {% if session.logged_in %}
       <span class="nav-username">{{ session.username }}</span>
       <span class="nav-token-badge">&#9711; {{ session.tokens or 0 }} tokens</span>
-      <a href="/app" class="btn-nav-ghost">Dashboard</a>
-      <a href="/settings" class="btn-nav-ghost">Settings</a>
-      <a href="/logout" class="btn-nav-ghost">Sign Out</a>
+      <div class="nav-tabs nav-tabs-inline" role="list">
+        <a class="nav-tab{% if request.path == '/app' %} active{% endif %}" href="/app">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+          <span class="nav-tab-label">Dashboard</span>
+        </a>
+        <a class="nav-tab{% if request.path == '/settings' %} active{% endif %}" href="/settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span class="nav-tab-label">Settings</span>
+        </a>
+        <span class="nav-tab-sep" aria-hidden="true"></span>
+        <a class="nav-tab nav-tab-danger" href="/logout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+          <span class="nav-tab-label">Sign Out</span>
+        </a>
+      </div>
     {% else %}
       <a href="/login" class="btn-nav-ghost">Sign In</a>
       <a href="/login?tab=register" class="btn-nav-primary">Get Started Free</a>
     {% endif %}
-    <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle theme">☀️</button>
+    <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark theme" aria-label="Toggle theme">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+    </button>
   </div>
 </nav>
 
 <!-- ── HERO ── -->
-<section class="hero">
-  <div class="hero-orb hero-orb-1"></div>
-  <div class="hero-orb hero-orb-2"></div>
-  <div class="hero-orb hero-orb-3"></div>
+<section class="hero" id="main" tabindex="-1">
+  <canvas class="hero-beams" data-beams data-light-color="#818cf8" data-light-color-light="#a8d2fe" data-rotation="43" aria-hidden="true"></canvas>
+  <div class="hero-veil" aria-hidden="true"></div>
   <div class="hero-inner">
     <div class="hero-badge">
       <span class="hero-badge-dot"></span>
@@ -688,7 +747,7 @@
       <div class="module-card-inner">
         <div class="module-card-front">
           <div class="module-num-label" style="background:rgba(99,102,241,.15);color:#a5b4fc;border:1px solid rgba(99,102,241,.25)">Module 1</div>
-          <span class="module-icon">📘</span>
+          <span class="module-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></span>
           <h3>Course Documentation</h3>
           <p>Generate Bloom's taxonomy-aligned Course Outcomes, a full CO-tagged Question Bank, and a Comprehensive Module Report — all from your syllabus in one run.</p>
           <ul class="module-tools">
@@ -720,7 +779,7 @@
       <div class="module-card-inner">
         <div class="module-card-front">
           <div class="module-num-label" style="background:rgba(14,165,233,.15);color:#7dd3fc;border:1px solid rgba(14,165,233,.25)">Module 2</div>
-          <span class="module-icon">📋</span>
+          <span class="module-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></span>
           <h3>Question Paper Composer</h3>
           <p>Compose Assignment, Quiz, Internal Assessment (CIE), or Final Exam papers with custom marks and CO coverage. Full support for Lab, Practical, and Viva formats.</p>
           <ul class="module-tools">
@@ -753,7 +812,7 @@
       <div class="module-card-inner">
         <div class="module-card-front">
           <div class="module-num-label" style="background:rgba(244,63,94,.15);color:#fda4af;border:1px solid rgba(244,63,94,.25)">Module 3</div>
-          <span class="module-icon">📅</span>
+          <span class="module-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg></span>
           <h3>Lesson Plan &amp; Teaching Diary</h3>
           <p>Generate a full-semester Lesson Plan with CO-PO-SDG mapping and a complete Teaching Diary with delivery records and attainment evidence — plus a Comprehensive Module Report.</p>
           <ul class="module-tools">
@@ -785,7 +844,7 @@
       <div class="module-card-inner">
         <div class="module-card-front">
           <div class="module-num-label" style="background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.25)">Module 4</div>
-          <span class="module-icon">📊</span>
+          <span class="module-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>
           <h3>Attainment &amp; SDG Analysis</h3>
           <p>NBA-compliant CO-PO Mapping, CO &amp; PO Attainment, CO/PO to UN SDG contributions — all from a single upload. Includes a Comprehensive Assessment Report.</p>
           <ul class="module-tools">
@@ -823,14 +882,14 @@
     <p class="section-sub" style="margin:0 auto">OBE and NBA documentation requirements differ across disciplines &mdash; MyOBE adapts to your field.</p>
   </div>
   <div class="fields-wrap reveal" style="transition-delay:.1s">
-    <div class="field-pill">&#9881;&#65039; Engineering</div>
-    <div class="field-pill">&#128188; Management</div>
-    <div class="field-pill">&#128138; Pharmacy</div>
-    <div class="field-pill">&#129514; Medical</div>
-    <div class="field-pill">&#129463; Dental</div>
-    <div class="field-pill">&#9878;&#65039; Law</div>
-    <div class="field-pill">&#127963;&#65039; Architecture &amp; Planning</div>
-    <div class="field-pill">&#127807; Agriculture &amp; Allied Sciences</div>
+    <div class="field-pill">Engineering</div>
+    <div class="field-pill">Management</div>
+    <div class="field-pill">Pharmacy</div>
+    <div class="field-pill">Medical</div>
+    <div class="field-pill">Dental</div>
+    <div class="field-pill">Law</div>
+    <div class="field-pill">Architecture &amp; Planning</div>
+    <div class="field-pill">Agriculture &amp; Allied Sciences</div>
   </div>
 </section>
 
@@ -916,7 +975,7 @@
   <div class="footer-inner">
     <div class="footer-brand">
       <a href="/" class="footer-logo">
-        <div class="footer-logo-icon">🎓</div>MyOBE
+        <div class="footer-logo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg></div>MyOBE
       </a>
       <p>Automates NBA/NAAC-compliant academic documentation for Engineering, Management, Pharmacy, Medical, Law, and more.</p>
     </div>
@@ -949,13 +1008,8 @@
   /* ── Theme toggle ── */
   function toggleTheme() {
     const isLight = document.documentElement.classList.toggle('light-theme');
-    localStorage.setItem('edugen-theme', isLight ? 'light' : 'dark');
-    document.getElementById('themeToggleBtn').textContent = isLight ? '🌙' : '☀️';
+    localStorage.setItem('myobe-theme', isLight ? 'light' : 'dark');
   }
-  (function(){
-    if(document.documentElement.classList.contains('light-theme'))
-      document.getElementById('themeToggleBtn').textContent = '🌙';
-  })();
 
   /* ── Navbar scroll ── */
   const nav = document.getElementById('main-nav');
@@ -1014,5 +1068,10 @@
     });
   });
 </script>
+
+<!-- Hero beams (auto-inits the [data-beams] canvas; degrades gracefully) -->
+<script type="module" src="/static/beams.js"></script>
+<!-- Expandable nav tabs: scroll-spy active state -->
+<script src="/static/expandable-tabs.js" defer></script>
 </body>
 </html>

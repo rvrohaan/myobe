@@ -12,7 +12,7 @@
       --primary:      #6366f1;
       --primary-dark: #4f46e5;
       --text:         #f1f5f9;
-      --muted:        rgba(255,255,255,.48);
+      --muted:        rgba(255,255,255,.66);
       --border:       rgba(255,255,255,.1);
       --radius:       14px;
     }
@@ -22,7 +22,7 @@
       background: linear-gradient(135deg, #080618 0%, #0d0b26 40%, #12103a 70%, #080618 100%);
       background-attachment: fixed;
       color: var(--text);
-      min-height: 100vh;
+      min-height: 100vh; min-height: 100dvh;
       display: flex;
       flex-direction: column;
     }
@@ -227,7 +227,7 @@
     .theme-toggle-btn:hover { border-color: var(--primary); }
 
     /* ── Light Theme ── */
-    html.light-theme { --primary: #2563eb; --primary-dark: #1d4ed8; --text: #1e293b; --muted: rgba(30,41,59,.55); --border: rgba(37,99,235,.2); }
+    html.light-theme { --primary: #2563eb; --primary-dark: #1d4ed8; --text: #1e293b; --muted: rgba(30,41,59,.66); --border: rgba(37,99,235,.2); }
     html.light-theme body { background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 40%, #eff6ff 70%, #dbeafe 100%); background-attachment: fixed; color: #1e293b; }
     html.light-theme nav { background: rgba(219,234,254,.92); border-bottom-color: rgba(37,99,235,.12); }
     html.light-theme .nav-brand { color: #1e293b; }
@@ -256,19 +256,21 @@
     html.light-theme .alert-error { background: rgba(220,38,38,.08); border-color: rgba(220,38,38,.2); color: #991b1b; }
     html.light-theme .alert-success { background: rgba(5,150,105,.1); border-color: rgba(5,150,105,.25); color: #065f46; }
   </style>
-  <script>(function(){ if(localStorage.getItem('edugen-theme')==='light') document.documentElement.classList.add('light-theme'); })();</script>
+  <script>(function(){ if(localStorage.getItem('myobe-theme')==='light') document.documentElement.classList.add('light-theme'); })();</script>
+  <link rel="stylesheet" href="/static/a11y.css">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to main content</a>
 
 <div class="bg-orb bg-orb-1"></div>
 <div class="bg-orb bg-orb-2"></div>
 
 {% include 'partials/_navbar.html' %}
 
-<main class="login-main">
+<main class="login-main" id="main" tabindex="-1">
 
 <div class="brand">
-  <div class="brand-icon">🎓</div>
+  <div class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg></div>
   <h1>CO Generator</h1>
   <p>Course Outcome &amp; Academic Content Generator</p>
 </div>
