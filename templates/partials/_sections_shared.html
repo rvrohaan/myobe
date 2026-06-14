@@ -23,6 +23,12 @@
   <div id="sec-courses" class="card hidden">
     <h2>Select a Course</h2>
     <p class="sub">Found <strong id="course-count">0</strong> courses in the syllabus. Click one to select it.</p>
+    <div id="syllabus-reuse-banner" class="hidden"
+         style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px;padding:10px 14px;border:1px solid rgba(16,185,129,.35);border-radius:10px;background:rgba(16,185,129,.08);">
+      <span style="color:#10b981;font-weight:700;font-size:.82rem;">&#10003; Using the syllabus you uploaded earlier.</span>
+      <button type="button" class="btn btn-ghost" style="margin-left:auto;font-size:.78rem;padding:5px 14px;"
+              onclick="aioUploadDifferentSyllabus()">Upload a different syllabus</button>
+    </div>
     <input class="search-box" id="course-search" type="text" placeholder="Search by code or title…">
     <div class="course-list" id="course-list"></div>
 

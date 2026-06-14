@@ -4,6 +4,7 @@ import json
 import uuid
 import time
 import secrets
+import hashlib
 import tempfile
 import threading
 import resend
@@ -54,7 +55,7 @@ from generate_qpaper import (
 )
 
 from generate_po_mapping import (
-    parse_cos_for_mapping, parse_course_header,
+    parse_cos_for_mapping, parse_course_header, parse_pos_from_text,
     generate_mapping_stream, parse_mapping_response,
     POS as _ENG_POS,           # kept for backward compat
     POS_BY_TYPE, COLLEGE_TYPE_META, get_pos_for_type,
@@ -264,6 +265,36 @@ def _refund_tokens(cost):
         _save_users(users)
 
 
+def _charge_report(module, sig_material, cost=2):
+    """Charge `cost` tokens for generating a comprehensive module report.
+
+    A comprehensive report is generated once for the editable preview and again
+    each time the user downloads it (DOCX/PDF). We charge only the first time a
+    given report is produced: re-rendering the same report (identical data
+    signature) in the same session — whether re-previewing or downloading in
+    any format — is free. Changing the underlying data (which requires paid
+    regeneration of the deliverables) produces a new signature and is charged.
+
+    Returns ``(charged, error_response)`` — ``error_response`` is non-None only
+    when the user has too few tokens (the view should return it directly).
+    """
+    sig = hashlib.md5(sig_material.encode("utf-8", "ignore")).hexdigest()
+    key = f"{module}_report_sig"
+    if session.get(key) == sig:
+        return False, None
+    username = session.get("username")
+    users = load_users()
+    balance = users.get(username, {}).get("tokens", 0)
+    if balance < cost:
+        err = f"Not enough tokens. You need {cost} token(s) but have {balance}. Top up in Settings."
+        return False, (jsonify({"error": err}), 403)
+    users[username]["tokens"] = balance - cost
+    _save_users(users)
+    session["tokens"] = users[username]["tokens"]
+    session[key] = sig
+    return True, None
+
+
 def _sid():
     if "sid" not in session:
         session["sid"] = str(uuid.uuid4())
@@ -447,7 +478,12 @@ def home():
 @app.route("/app")
 @login_required
 def dashboard():
-    return render_template("index.html", username=session.get("username"))
+    ct = session.get("college_type", "engineering")
+    ct_meta = COLLEGE_TYPE_META.get(ct, COLLEGE_TYPE_META["engineering"])
+    return render_template("index.html", username=session.get("username"),
+                           college_type=ct,
+                           college_type_label=ct_meta["label"],
+                           college_type_accreditation=ct_meta["accreditation"])
 
 
 @app.route("/upload", methods=["POST"])
@@ -2183,6 +2219,285 @@ def m1_report_ai_suggest():
         return jsonify({"error": str(e)})
 
 
+# -- Module 1 "Apply improvement tip" (regenerate COs / QB) -------------------
+
+def _m1_apply_tip_to_cos(client, store, code, title, tip):
+    """Revise the stored COs to incorporate an improvement tip.
+
+    May rewrite statements and — when the tip calls for it (e.g. raising higher-order
+    thinking or broadening knowledge dimensions) — change a CO's Bloom level and/or
+    knowledge dimension. The CO statement lines, the markdown taxonomy table, and the
+    cached co_taxonomy are all updated so the rebuilt report stays consistent.
+    """
+    import json as _json
+    from generate_qbank import parse_cos_from_text
+    from generate_cos import _LNAMES, _KDIM_NORM
+
+    co_text = store.get("current_result", "")
+    cos     = parse_cos_from_text(co_text)
+    if not cos:
+        raise ValueError("No Course Outcomes found to improve")
+
+    def _bloom_idx(s):
+        m = re.search(r"L\s*([1-6])", str(s), re.I)
+        if m:
+            return int(m.group(1))
+        sl = str(s).lower()
+        for i, nm in enumerate(_LNAMES, 1):
+            if nm.lower() in sl:
+                return i
+        return None
+
+    co_block = "\n".join(
+        f'CO{c["num"]}: {c["statement"]}  (level: {c.get("bloom") or "?"}, '
+        f'dimension: {c.get("kdim") or "?"})'
+        for c in cos
+    )
+    levels_help = " | ".join(f"L{i} - {n}" for i, n in enumerate(_LNAMES, 1))
+    prompt = (
+        "You are an NBA/NAAC accreditation expert for an Indian engineering college.\n"
+        f"Course: {title} ({code})\n\n"
+        f"Current Course Outcomes (with their Bloom level and knowledge dimension):\n"
+        f"{co_block}\n\n"
+        f"Improvement to apply: {tip}\n\n"
+        "Revise the Course Outcomes to incorporate this improvement. Keep the SAME number "
+        "of COs and the SAME CO numbers. Only change a CO's Bloom level and/or knowledge "
+        "dimension if the improvement calls for it; otherwise keep them unchanged. Whenever "
+        "you raise a CO's level, use a stronger action verb in its statement.\n"
+        f"Valid Bloom levels: {levels_help}\n"
+        "Valid knowledge dimensions: Factual | Conceptual | Procedural | Meta-Cognitive\n\n"
+        'Return ONLY a JSON object mapping CO number to an object, e.g. '
+        '{"1": {"statement": "...", "bloom": "L4 - Analyze", "kdim": "Conceptual"}}. '
+        "No markdown, no commentary."
+    )
+    resp = client.messages.create(
+        model="claude-haiku-4-5-20251001", max_tokens=2000,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = resp.content[0].text.strip()
+    raw = re.sub(r"```[a-zA-Z]*", "", raw).replace("```", "").strip()
+    start, end = raw.find("{"), raw.rfind("}")
+    data = _json.loads(raw[start:end + 1]) if (start >= 0 and end > start) else {}
+    if not data:
+        raise ValueError("AI did not return improved Course Outcomes")
+
+    improved = {}
+    for n, obj in data.items():
+        ns = re.sub(r"\D", "", str(n))
+        if not ns or not isinstance(obj, dict):
+            continue
+        rec = {}
+        if obj.get("statement"):
+            rec["statement"] = str(obj["statement"]).strip()
+        bi = _bloom_idx(obj.get("bloom", ""))
+        if bi:
+            rec["bloom_code"] = f"L{bi}"
+            rec["bloom_full"] = f"L{bi} - {_LNAMES[bi - 1]}"
+        kd = _KDIM_NORM.get(str(obj.get("kdim", "")).strip().lower())
+        if kd:
+            rec["kdim"] = kd
+        if rec:
+            improved[ns] = rec
+    if not improved:
+        raise ValueError("AI did not return usable Course Outcomes")
+
+    # Rewrite statement lines + taxonomy table cells in current_result
+    out = []
+    for line in co_text.split("\n"):
+        s = line.strip()
+        m = re.match(r"(CO(\d+):\s*)(.*)", s)
+        if m and m.group(2) in improved and improved[m.group(2)].get("statement"):
+            out.append(f'{m.group(1)}{improved[m.group(2)]["statement"]}')
+            continue
+        if s.startswith("|") and s.endswith("|"):
+            cells = [c.strip() for c in s.strip("|").split("|")]
+            if len(cells) == 4:
+                mm = re.match(r"CO(\d+)$", cells[0])
+                if mm and mm.group(1) in improved:
+                    rec = improved[mm.group(1)]
+                    if rec.get("kdim"):
+                        cells[2] = rec["kdim"]
+                    if rec.get("bloom_full"):
+                        cells[3] = rec["bloom_full"]
+                    out.append("| " + " | ".join(cells) + " |")
+                    continue
+        out.append(line)
+    store["current_result"] = "\n".join(out)
+
+    # Update cached co_taxonomy so the rebuilt report's RBT grid reflects the changes
+    tax = dict(store.get("co_taxonomy", {}))
+    for ns, rec in improved.items():
+        ni  = int(ns)
+        ent = dict(tax.get(ni, {}))
+        if rec.get("bloom_code"):
+            ent["bloom"] = rec["bloom_code"]
+        if rec.get("kdim"):
+            ent["kdim"] = rec["kdim"]
+        if ent.get("bloom") and ent.get("kdim"):
+            tax[ni] = ent
+    store["co_taxonomy"] = tax
+
+
+def _m1_apply_tip_to_qbank(client, store, code, title, tip, metric):
+    """Append targeted questions addressing an improvement tip to the Question Bank."""
+    from generate_qbank import parse_cos_from_text, count_co_questions
+
+    blocks  = list(store.get("qbank_all_blocks", []))
+    co_text = store.get("qbank_co_raw") or store.get("current_result", "")
+    cos     = parse_cos_from_text(co_text)
+    co_list = "\n".join(f'CO{c["num"]}: {c["statement"]}' for c in cos) or "CO1, CO2, CO3"
+
+    prompt = (
+        "You are an NBA/NAAC question-bank expert for an Indian engineering college.\n"
+        f"Course: {title} ({code})\n\n"
+        f"Course Outcomes:\n{co_list}\n\n"
+        f"Improvement to apply: {tip}\n\n"
+        "Generate 6 ADDITIONAL examination questions that directly address this "
+        "improvement, distributed across the COs above. Use EXACTLY this plain-text "
+        "format and output nothing else:\n"
+        "[2 Marks]\n"
+        "Q1. <question text> [CO1]\n"
+        "Q2. <question text> [CO2]\n"
+        "[5 Marks]\n"
+        "Q1. <question text> [CO3]\n"
+        "Q2. <question text> [CO4]\n"
+        "[10 Marks]\n"
+        "Q1. <question text> [CO1]\n"
+        "Q2. <question text> [CO5]\n"
+        "Every question MUST end with a [COn] tag matching one of the COs above. "
+        "No markdown fences, no commentary."
+    )
+    resp = client.messages.create(
+        model="claude-haiku-4-5-20251001", max_tokens=1300,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    add_text = resp.content[0].text.strip()
+    add_text = re.sub(r"```[a-zA-Z]*", "", add_text).replace("```", "").strip()
+    if not re.search(r"\[CO\d+\]", add_text):
+        raise ValueError("AI did not return questions in the expected format")
+
+    header = f"\n## Improvement Additions{(' - ' + metric) if metric else ''}\n"
+    blocks.append(header + add_text + "\n")
+    store["qbank_all_blocks"] = blocks
+    store["qbank_co_tally"]   = count_co_questions(blocks)
+
+
+def _m1_weak_for_panel(store):
+    """Current weak actions filtered to the frozen baseline, so the improvement
+    panel only ever shrinks as fixes are applied (regeneration side-effects on
+    other metrics are not surfaced as new to-do items)."""
+    allw     = store.get("m1_weak_actions_all", [])
+    baseline = store.get("m1_weak_baseline")
+    if baseline is None:
+        return allw
+    bset = set(baseline)
+    return [w for w in allw if w.get("metric") in bset]
+
+
+@app.route("/m1_report_meta", methods=["GET"])
+@login_required
+def m1_report_meta():
+    """Return the (baseline-filtered) weak-metric actions for the preview panel.
+    Used when refreshing after an Apply/Undo — does NOT change the baseline."""
+    store = _get_store()
+    return jsonify({
+        "weak_actions": _m1_weak_for_panel(store),
+        "can_undo":     bool(store.get("m1_undo")),
+    })
+
+
+@app.route("/m1_improve_start", methods=["POST"])
+@login_required
+def m1_improve_start():
+    """Freeze the current weak metrics as the improvement baseline (called when the
+    user opens the 'Suggest ways to improve' panel) and return them."""
+    store = _get_store()
+    allw  = store.get("m1_weak_actions_all", [])
+    store["m1_weak_baseline"] = [w.get("metric") for w in allw]
+    return jsonify({
+        "weak_actions": allw,
+        "can_undo":     bool(store.get("m1_undo")),
+    })
+
+
+@app.route("/m1_apply_tip", methods=["POST"])
+@tokens_required(2)
+def m1_apply_tip():
+    """Apply an improvement tip by regenerating the COs or the Question Bank, then
+    let the client rebuild the whole report. Keeps a one-level undo snapshot."""
+    import copy
+    import anthropic as _ant
+
+    store  = _get_store()
+    body   = request.get_json() or {}
+    target = (body.get("target") or "").strip()
+    tip    = (body.get("tip")    or "").strip()
+    metric = (body.get("metric") or "").strip()
+
+    if target not in ("cos", "qbank"):
+        return jsonify({"error": "Invalid target"}), 400
+    if not tip:
+        return jsonify({"error": "Missing improvement tip"}), 400
+    if target == "qbank" and store.get("qbank_is_lab"):
+        return jsonify({"error": "Applying tips to lab question banks is not supported yet."}), 400
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return jsonify({"error": "API key not configured"}), 500
+
+    code  = (store.get("qbank_code") or store.get("current_code", "COURSE")).strip().upper()
+    info  = store.get("courses", {}).get(code, {})
+    title = info.get("title", "Untitled")
+
+    if target == "cos" and not store.get("current_result", "").strip():
+        return jsonify({"error": "No COs in session. Generate Module 1 first."}), 400
+    if target == "qbank" and not store.get("qbank_all_blocks"):
+        return jsonify({"error": "No Question Bank in session. Generate Module 1 first."}), 400
+
+    # One-level undo snapshot of everything the report is built from
+    store["m1_undo"] = {
+        "current_result":   store.get("current_result", ""),
+        "co_taxonomy":      copy.deepcopy(store.get("co_taxonomy", {})),
+        "qbank_all_blocks": list(store.get("qbank_all_blocks", [])),
+        "qbank_co_tally":   copy.deepcopy(store.get("qbank_co_tally", {})),
+        "metric":           metric,
+    }
+
+    try:
+        client = _ant.Anthropic(api_key=api_key, timeout=60.0)
+        if target == "cos":
+            _m1_apply_tip_to_cos(client, store, code, title, tip)
+        else:
+            _m1_apply_tip_to_qbank(client, store, code, title, tip, metric)
+    except _ant.APITimeoutError:
+        store.pop("m1_undo", None); _refund_tokens(2)
+        return jsonify({"error": "AI request timed out — try again"}), 504
+    except _ant.APIConnectionError:
+        store.pop("m1_undo", None); _refund_tokens(2)
+        return jsonify({"error": "Could not reach the AI service"}), 503
+    except Exception as e:
+        store.pop("m1_undo", None); _refund_tokens(2)
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"ok": True, "target": target})
+
+
+@app.route("/m1_undo_tip", methods=["POST"])
+@login_required
+def m1_undo_tip():
+    """Restore the COs/QB to the snapshot taken before the last applied tip."""
+    store = _get_store()
+    snap  = store.get("m1_undo")
+    if not snap:
+        return jsonify({"error": "Nothing to undo"}), 400
+    store["current_result"]   = snap["current_result"]
+    store["co_taxonomy"]      = snap["co_taxonomy"]
+    store["qbank_all_blocks"] = snap["qbank_all_blocks"]
+    store["qbank_co_tally"]   = snap["qbank_co_tally"]
+    store.pop("m1_undo", None)
+    return jsonify({"ok": True})
+
+
 # -- Lesson Plan AI suggestion routes -----------------------------------------
 
 @app.route("/lp_ai_review", methods=["POST"])
@@ -2610,6 +2925,47 @@ def upload_co_pomap():
         "course_title": course_title,
         "cos": [{"num": co["num"], "statement": co["statement"]} for co in cos],
     })
+
+
+@app.route("/upload_po_pomap", methods=["POST"])
+@login_required
+def upload_po_pomap():
+    """Parse an uploaded Programme Outcome file into a custom PO list.
+
+    Used by Module 4's "Upload Syllabus + PO File" option so the user's own
+    POs drive the whole pipeline instead of the standard NBA POs. The parsed
+    POs are returned to the client, which then configures them via
+    /configure_po_mapping (same path as manually-entered custom POs)."""
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    f   = request.files["file"]
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in (".txt", ".docx", ".doc", ".pdf"):
+        return jsonify({"error": f"Unsupported type '{ext}'. Use TXT, DOCX, or PDF."}), 400
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+    try:
+        f.save(tmp.name)
+        tmp.close()
+        if ext == ".pdf":
+            from generate_cos import extract_pdf
+            po_text = extract_pdf(tmp.name)
+        else:
+            po_text = extract(tmp.name)
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse PO file: {e}"}), 500
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+    pos = parse_pos_from_text(po_text)
+    if not pos:
+        return jsonify({"error": "No Programme Outcomes (PO1, PO2, ...) found in the file."}), 400
+
+    return jsonify({"pos": pos})
 
 
 @app.route("/configure_po_mapping", methods=["POST"])
@@ -5006,6 +5362,10 @@ def generate_module1_report():
     if not qbank_blocks:
         return jsonify({"error": "No Question Bank found in session. Run Module 1 generation first."}), 400
 
+    charged, err = _charge_report("m1", co_text + "\x01" + "\n".join(qbank_blocks))
+    if err:
+        return err
+
     # Parse COs and Bloom's data
     from generate_qbank import parse_cos_from_text
     from generate_cos import bloom_level_summary
@@ -5058,17 +5418,6 @@ def generate_module1_report():
         except Exception:
             ai_data = {}
 
-    fmt = body.get("fmt", "docx")
-    if fmt not in ("txt", "docx", "pdf"):
-        return jsonify({"error": "Invalid format"}), 400
-
-    suffix = {"txt": ".txt", "docx": ".docx", "pdf": ".pdf"}[fmt]
-    mime   = {
-        "txt":  "text/plain",
-        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "pdf":  "application/pdf",
-    }[fmt]
-
     # Build RBT grid from stored co_taxonomy (most reliable — parsed at generation time)
     from generate_cos import _KDIMS as _M1_KDIMS, _LEVELS as _M1_LEVELS, _KDIM_NORM as _M1_KDIM_NORM
     _co_tax = store.get("co_taxonomy", {})
@@ -5082,6 +5431,33 @@ def generate_module1_report():
         taxonomy_grid = _m1_grid
     else:
         taxonomy_grid = None
+
+    # Replace the AI's free-form, non-deterministic key metrics with deterministic,
+    # data-driven ones spanning the WHOLE report, so the dashboard and the improvement
+    # panel stay stable across rebuilds (applying a fix then measurably moves the right
+    # metric and the weak list converges instead of churning new names each time).
+    _la = _m1r._compute_bloom_analytics(cos, taxonomy_grid)
+    _acc = ai_data.setdefault("accreditation_readiness", {})
+    _km  = _m1r.build_key_metrics(analytics, la=_la, cos=cos)
+    _acc["key_metrics"] = _km
+    if not _acc.get("overall_score") and _km:
+        _acc["overall_score"] = round(sum(m["score"] for m in _km) / len(_km))
+    # Full current weak set; the panel filters this against a frozen baseline (see
+    # /m1_improve_start) so applying fixes can only shrink the list, never grow it.
+    store["m1_weak_actions_all"] = _m1r.weak_metric_actions(_km)
+
+    fmt = body.get("fmt", "docx")
+    if fmt not in ("txt", "docx", "pdf"):
+        if charged:
+            _refund_tokens(2)
+        return jsonify({"error": "Invalid format"}), 400
+
+    suffix = {"txt": ".txt", "docx": ".docx", "pdf": ".pdf"}[fmt]
+    mime   = {
+        "txt":  "text/plain",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "pdf":  "application/pdf",
+    }[fmt]
 
     report_kwargs = dict(
         cos=cos, co_text=co_text, qb_data=qb_data_for_report,
@@ -5103,6 +5479,8 @@ def generate_module1_report():
         with open(tmp.name, "rb") as fh:
             content = fh.read()
     except Exception as e:
+        if charged:
+            _refund_tokens(2)
         return jsonify({"error": str(e)}), 500
     finally:
         try:
@@ -5120,6 +5498,162 @@ def generate_module1_report():
 
 import generate_m3_report as _m3r
 import generate_m4_report as _m4r
+
+
+# ── "Suggest ways to improve" context builders (Modules 3 & 4) ────────────────
+# Suggestions-only panels (unlike Module 1, there is no source data to regenerate).
+# At report-generation time we distil the analytics + AI summary into a compact text
+# brief, store it in the session, and feed it to /module_report_suggest on demand.
+
+def _fmt_metrics(metrics):
+    rows = []
+    for m in metrics or []:
+        if not isinstance(m, dict):
+            continue
+        name   = str(m.get("metric", "")).strip()
+        status = str(m.get("status", "")).strip()
+        score  = m.get("score")
+        if name:
+            tail = f" ({status}{', ' + str(score) + '/100' if score is not None else ''})" if status else ""
+            rows.append(f"  - {name}{tail}")
+    return "\n".join(rows)
+
+
+def _m3_suggest_context(analytics, ai_data):
+    """Compact improvement brief for the Module 3 (delivery) report."""
+    a    = analytics or {}
+    ai   = ai_data or {}
+    acc  = ai.get("accreditation_readiness", {}) or {}
+    obe  = ai.get("obe_compliance", {}) or {}
+    miss = [c for c in a.get("cos", []) if f"CO{c.get('num')}" not in set(a.get("cos_in_sessions", []))]
+    parts = [
+        f"Report type: Module 3 - Course Delivery (lesson plan + teaching diary).",
+        f"CO-session coverage: {a.get('lp_co_coverage_pct', '?')}% "
+        f"({len(miss)} of {a.get('n_cos', 0)} COs not yet mapped to a session).",
+        f"Sessions planned: {a.get('n_sessions', 0)} | Teaching methods used: "
+        f"{', '.join(f'{k}({v})' for k, v in (a.get('method_dist') or {}).items()) or 'none recorded'}.",
+        f"SDGs covered: {', '.join(a.get('all_sdgs', [])) or 'none'}.",
+        f"Readiness: {acc.get('readiness_level', '?')} ({acc.get('overall_score', '?')}/100).",
+    ]
+    km = _fmt_metrics(acc.get("key_metrics"))
+    if km:
+        parts.append("Readiness metrics:\n" + km)
+    recs = (obe.get("recommendations") or []) + (acc.get("action_items") or [])
+    if recs:
+        parts.append("Existing recommendations:\n" + "\n".join(f"  - {r}" for r in recs[:6]))
+    return "\n".join(parts)
+
+
+def _m4_suggest_context(analytics, ai_data):
+    """Compact improvement brief for the Module 4 (attainment) report."""
+    a   = analytics or {}
+    ai  = ai_data or {}
+    th  = a.get("thresholds", {}) or {}
+    t3  = th.get("t3", 50)
+    weak_cos = [r.get("co", "") for r in a.get("co_results", []) if (r.get("pct") or 0) < t3]
+    below_po = [p.get("po", "") for p in a.get("atr_rows", [])]
+    parts = [
+        f"Report type: Module 4 - CO/PO Attainment & SDG mapping.",
+        f"Mean CO attainment: {a.get('mean_att_pct', '?')}% across {a.get('n_cos', 0)} COs "
+        f"(target floor {t3}%).",
+        f"CO attainment level spread (L3/L2/L1/L0): "
+        f"{'/'.join(str((a.get('level_dist') or {}).get(l, 0)) for l in (3, 2, 1, 0))}.",
+        f"COs below the attainment floor: {', '.join(weak_cos) or 'none'}.",
+        f"POs not meeting target: {', '.join(below_po) or 'none'}.",
+        f"Target SDG: {a.get('target_sdg') or 'not set'} | SDGs covered: "
+        f"{', '.join(a.get('sdgs_covered', [])) or 'none'}.",
+        f"Readiness score: {ai.get('readiness_score', '?')}/100.",
+    ]
+    recs = ai.get("recommendations") or []
+    if recs:
+        parts.append("Existing recommendations:\n" + "\n".join(f"  - {r}" for r in recs[:6]))
+    return "\n".join(parts)
+
+
+_SUGGEST_MODULES = {
+    "m3": ("Module 3 (Course Delivery)",
+           "course delivery quality, CO-session coverage, teaching-method variety, "
+           "Bloom alignment, SDG integration and NBA/NAAC delivery evidence"),
+    "m4": ("Module 4 (CO/PO Attainment)",
+           "CO and PO attainment levels, attainment gaps, CO-PO mapping strength, "
+           "SDG coverage and NBA/NAAC attainment evidence"),
+}
+
+
+@app.route("/module_report_suggest", methods=["POST"])
+@tokens_required(1)
+def module_report_suggest():
+    """Return prioritised, actionable improvement suggestions for a Module 3 or 4 report.
+    Suggestions-only: nothing is regenerated, the faculty applies the advice themselves."""
+    import anthropic as _ant
+    import json as _json
+
+    body   = request.get_json() or {}
+    module = (body.get("module") or "").strip().lower()
+    if module not in _SUGGEST_MODULES:
+        _refund_tokens(1)
+        return jsonify({"error": "Unknown module"}), 400
+
+    store = _get_store()
+    ctx   = store.get(f"{module}_suggest_ctx")
+    if not ctx or not ctx.get("context"):
+        _refund_tokens(1)
+        return jsonify({"error": f"No report in session. Generate the {_SUGGEST_MODULES[module][0]} report first."}), 400
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        _refund_tokens(1)
+        return jsonify({"error": "API key not configured"}), 500
+
+    label, focus = _SUGGEST_MODULES[module]
+    prompt = (
+        "You are an NBA/NAAC accreditation quality advisor for an Indian engineering college.\n"
+        f"You are reviewing the {label} report for {ctx.get('title', 'a course')} "
+        f"({ctx.get('code', '')}). Focus on {focus}.\n\n"
+        "Report brief:\n"
+        f"{ctx['context']}\n\n"
+        "Identify the most impactful ways the faculty can improve this report's weak areas. "
+        "Return 3 to 5 suggestions, hardest-hitting first. For each, give a short area title, "
+        "a severity, and one or two sentences of concrete, specific advice the faculty can act "
+        "on (no generic filler). If the report already looks strong, return fewer items.\n\n"
+        'Return ONLY a JSON object of this exact shape, no markdown, no commentary:\n'
+        '{"suggestions": [{"area": "CO-Session Coverage", "severity": "High", '
+        '"advice": "Map CO3 and CO5 to specific sessions ..."}]}\n'
+        "severity must be one of: High, Medium, Low."
+    )
+
+    try:
+        client   = _ant.Anthropic(api_key=api_key, timeout=40.0)
+        response = client.messages.create(
+            model      = "claude-haiku-4-5-20251001",
+            max_tokens = 900,
+            messages   = [{"role": "user", "content": prompt}],
+        )
+        raw = response.content[0].text.strip()
+        raw = re.sub(r"```[a-zA-Z]*", "", raw).replace("```", "").strip()
+        start, end = raw.find("{"), raw.rfind("}")
+        data = _json.loads(raw[start:end + 1]) if (start >= 0 and end > start) else {}
+        out  = []
+        for s in (data.get("suggestions") or []):
+            if not isinstance(s, dict):
+                continue
+            area   = str(s.get("area", "")).strip()
+            advice = str(s.get("advice", "")).strip()
+            sev    = str(s.get("severity", "")).strip().title()
+            if sev not in ("High", "Medium", "Low"):
+                sev = "Medium"
+            if area and advice:
+                out.append({"area": area, "severity": sev, "advice": advice})
+        return jsonify({"suggestions": out})
+    except _ant.APITimeoutError:
+        _refund_tokens(1)
+        return jsonify({"error": "AI request timed out - try again"}), 504
+    except _ant.APIConnectionError:
+        _refund_tokens(1)
+        return jsonify({"error": "Could not reach the AI service"}), 503
+    except Exception as e:
+        _refund_tokens(1)
+        return jsonify({"error": str(e)}), 500
 
 
 # ── Module 3 Comprehensive Report ────────────────────────────────────────────
@@ -5144,6 +5678,13 @@ def generate_module3_report():
     if not lp_data and not td_data:
         return jsonify({"error": "No Module 3 data in session. Run Module 3 generation first."}), 400
 
+    charged, err = _charge_report(
+        "m3",
+        json.dumps(lp_data or {}, sort_keys=True, default=str)
+        + json.dumps(td_data or {}, sort_keys=True, default=str))
+    if err:
+        return err
+
     analytics = _m3r.compute_analytics(lp_data or {}, td_data or {})
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -5156,8 +5697,16 @@ def generate_module3_report():
         except Exception:
             ai_data = {}
 
+    # Brief for the "Suggest ways to improve" panel (see /module_report_suggest)
+    store["m3_suggest_ctx"] = {
+        "code": code, "title": title,
+        "context": _m3_suggest_context(analytics, ai_data),
+    }
+
     fmt = body.get("fmt", "docx")
     if fmt not in ("txt", "docx", "pdf"):
+        if charged:
+            _refund_tokens(2)
         return jsonify({"error": "Invalid format"}), 400
 
     suffix = {"txt": ".txt", "docx": ".docx", "pdf": ".pdf"}[fmt]
@@ -5185,6 +5734,8 @@ def generate_module3_report():
         with open(tmp.name, "rb") as fh:
             content = fh.read()
     except Exception as e:
+        if charged:
+            _refund_tokens(2)
         return jsonify({"error": str(e)}), 500
     finally:
         try:
@@ -5564,6 +6115,13 @@ def generate_module4_report():
     if not pomap_rows and not coatt_data and not sdgco_data and not sdgpo_data:
         return jsonify({"error": "No Module 4 data found. Run Module 4 generation first."}), 400
 
+    charged, err = _charge_report(
+        "m4",
+        json.dumps([pomap_rows, coatt_data, poatt_data, sdgco_data, sdgpo_data],
+                   sort_keys=True, default=str))
+    if err:
+        return err
+
     analytics = _m4r.compute_analytics(pomap_rows, coatt_data, poatt_data, sdgco_data, sdgpo_data)
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -5576,8 +6134,16 @@ def generate_module4_report():
         except Exception:
             ai_data = {}
 
+    # Brief for the "Suggest ways to improve" panel (see /module_report_suggest)
+    store["m4_suggest_ctx"] = {
+        "code": code, "title": title,
+        "context": _m4_suggest_context(analytics, ai_data),
+    }
+
     fmt = body.get("fmt", "docx")
     if fmt not in ("txt", "docx", "pdf"):
+        if charged:
+            _refund_tokens(2)
         return jsonify({"error": "Invalid format"}), 400
 
     suffix = {"txt": ".txt", "docx": ".docx", "pdf": ".pdf"}[fmt]
@@ -5606,6 +6172,8 @@ def generate_module4_report():
         with open(tmp.name, "rb") as fh:
             content = fh.read()
     except Exception as e:
+        if charged:
+            _refund_tokens(2)
         return jsonify({"error": str(e)}), 500
     finally:
         try:

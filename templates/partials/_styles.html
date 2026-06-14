@@ -71,6 +71,10 @@
 
     .container { max-width: 860px; margin: 0 auto; padding: 28px 16px; transition: max-width .25s ease; }
     .container.wide { max-width: min(1440px, 96vw); }
+    .app-footer { max-width: 860px; margin: 8px auto 32px; padding: 18px 16px 0; text-align: center; border-top: 1px solid rgba(148,163,184,.18); }
+    .app-footer p { font-size: .85rem; color: var(--muted, #94a3b8); margin: 0; }
+    .app-footer a { color: var(--primary, #6366f1); text-decoration: none; }
+    .app-footer a:hover { text-decoration: underline; }
 
     /* ── Step indicator ── */
     .steps {
@@ -418,6 +422,60 @@
     @keyframes uni-slide { 0%{left:-40%} 100%{left:100%} }
     .uni-progress-fill.is-forward { width: 0%; transition: none; animation: uni-fill-fwd 120s cubic-bezier(.15,.5,.4,1) forwards; }
     @keyframes uni-fill-fwd { 0%{width:0%} 40%{width:55%} 70%{width:72%} 90%{width:82%} 100%{width:88%} }
+
+    /* ── Branded confirm modal + busy overlay (replaces native confirm/alert) ── */
+    .ui-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+      background: rgba(8,6,24,.66); backdrop-filter: blur(6px);
+      opacity: 0; transition: opacity .18s ease;
+    }
+    .ui-overlay.show { opacity: 1; }
+    .ui-modal {
+      width: 100%; max-width: 440px;
+      background: var(--bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 16px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.55);
+      padding: 22px 22px 18px;
+      transform: scale(.94) translateY(8px); opacity: 0;
+      transition: transform .2s cubic-bezier(.2,.8,.3,1), opacity .2s ease;
+    }
+    .ui-overlay.show .ui-modal { transform: none; opacity: 1; }
+    .ui-modal-icon {
+      width: 42px; height: 42px; border-radius: 11px; margin-bottom: 13px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(99,102,241,.14); color: var(--primary);
+    }
+    .ui-modal-icon svg { width: 22px; height: 22px; }
+    .ui-modal-title { font-size: 1.06rem; font-weight: 700; margin: 0 0 7px; }
+    .ui-modal-body  { font-size: .86rem; line-height: 1.6; color: var(--text); opacity: .9; margin: 0 0 13px; }
+    .ui-modal-note  {
+      display: flex; gap: 8px; align-items: flex-start;
+      font-size: .76rem; line-height: 1.5; color: var(--muted);
+      background: rgba(99,102,241,.08); border: 1px solid var(--border);
+      border-radius: 9px; padding: 8px 10px; margin: 0 0 18px;
+    }
+    .ui-modal-note svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; color: var(--primary); }
+    .ui-modal-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+    .ui-modal-actions .btn { min-height: 44px; padding: 10px 18px; justify-content: center; }
+
+    /* busy / regenerating overlay */
+    .ui-busy-card {
+      width: 100%; max-width: 384px; text-align: center;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 16px; box-shadow: 0 24px 60px rgba(0,0,0,.55);
+      padding: 28px 26px 24px;
+    }
+    .ui-busy-card .spinner { width: 38px; height: 38px; border-width: 3px; margin: 0 auto 16px; }
+    .ui-busy-title  { font-size: 1.02rem; font-weight: 700; margin: 0 0 5px; }
+    .ui-busy-status { font-size: .84rem; color: var(--muted); margin: 0 0 16px; min-height: 1.25em; transition: opacity .25s ease; }
+    .ui-busy-hint   { font-size: .72rem; color: var(--muted); opacity: .75; margin: 13px 0 0; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ui-overlay, .ui-modal, .ui-busy-status { transition: none; }
+      .ui-modal { transform: none; }
+      .ui-busy-card .spinner, .uni-progress-fill.is-indeterminate { animation-duration: 0s; }
+    }
 
     /* ── Toggle ── */
     .toggle-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
@@ -843,6 +901,12 @@
     html.light-theme .greeting-stat { background: rgba(255,255,255,.65); border-color: rgba(37,99,235,.12); }
     html.light-theme .greeting-stat strong { color: #1e293b; }
     html.light-theme .greeting-stat span { color: rgba(30,41,59,.5); }
+    html.light-theme .greeting-inst-label { color: rgba(30,41,59,.6); }
+    html.light-theme .greeting-inst-value { background: rgba(37,99,235,.1); border-color: rgba(37,99,235,.2); color: #1d4ed8; }
+    html.light-theme .greeting-inst-value svg { color: #2563eb; }
+    html.light-theme .greeting-inst-change { color: #1d4ed8; }
+    html.light-theme .greeting-inst-change:hover { color: #1e3a8a; background: rgba(37,99,235,.12); }
+    html.light-theme .greeting-inst-change:focus-visible { outline-color: #2563eb; color: #1e3a8a; }
     html.light-theme .card h2 { color: #1e293b; }
     html.light-theme .card .sub { color: rgba(30,41,59,.66); }
     html.light-theme .card { background: rgba(255,255,255,.8); border-color: rgba(37,99,235,.1); }

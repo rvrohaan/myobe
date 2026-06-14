@@ -16,12 +16,135 @@ Builds a DOCX/PDF/TXT report covering all Module-4 deliverables:
 """
 
 import re
+import textwrap
 import datetime
 
 try:
     import report_charts as _rc
 except Exception:
     _rc = None
+
+
+# ── Section explanations ──────────────────────────────────────────────────────
+# Plain-language notes that interpret each section's results for the reader.
+# They explain WHY the numbers look the way they do without exposing any of the
+# underlying scoring formulas.
+
+def build_explanations(a, ai=None):
+    """Return a dict of section-key -> explanation paragraph(s).
+
+    Each note is data-aware where it helps, but never reveals how a value is
+    computed - only what it means and why it turned out that way.
+    """
+    mean = a.get("mean_att_pct", 0)
+    ld   = a.get("level_dist", {}) or {}
+    high = ld.get(3, 0) + ld.get(2, 0)
+    low  = ld.get(1, 0) + ld.get(0, 0)
+    comp = a.get("sdgpo_composite", 0)
+    n_sdg = len(a.get("sdgs_covered", []) or [])
+
+    comp_band = ("a strong overall alignment" if comp >= 70 else
+                 "a moderate alignment"        if comp >= 50 else
+                 "a developing alignment")
+    dist_read = ("most outcomes were attained at a high standard"
+                 if high >= low else
+                 "a sizeable share of outcomes still sit at the lower levels")
+    mean_read = ("the cohort cleared the bulk of the intended outcomes"
+                 if mean >= 60 else
+                 "several outcomes fell short of the expected bar")
+
+    return {
+        "overview": (
+            "This section sets the scope of the assessment - the number of course "
+            "outcomes and programme outcomes evaluated and the average level at "
+            f"which students achieved the COs. A mean CO attainment of {mean}% means "
+            f"that, on balance, {mean_read}. The remaining sections break this "
+            "headline down outcome by outcome."
+        ),
+        "copo": (
+            "Each value shows how strongly a course outcome supports a programme "
+            "outcome: a 3 means the CO contributes heavily to that PO, while a 0 "
+            "means it has little bearing on it. The mix of strong and blank cells "
+            "reflects the natural fit between what each CO teaches and the broader "
+            "competencies the programme expects - design- and skill-oriented COs "
+            "tend to map strongly to more POs, which is why their rows look denser."
+        ),
+        "co_strength": (
+            "The average here tells you how broadly each CO reaches across the "
+            "programme outcomes. Outcomes marked 'Strong' touch many POs at a high "
+            "level and so carry real weight in shaping graduate attributes, whereas "
+            "'Low' ones are more narrowly focused. This highlights which COs are "
+            "doing the heavy lifting in the curriculum."
+        ),
+        "co_att": (
+            "The attainment percentage reflects how the cohort actually performed on "
+            "the work tied to each CO, and the level is set by comparing that figure "
+            "against the thresholds shown above. A higher level means more students "
+            "cleared the expected standard. COs sitting at lower levels are where "
+            "performance lagged and are the natural candidates for revised teaching "
+            "or assessment."
+        ),
+        "po_summary": (
+            "PO attainment is carried over from CO performance: each PO draws its "
+            "strength from the COs mapped to it and how well those COs were attained. "
+            "POs supported by many well-attained COs therefore score higher, while "
+            "those resting on a few weaker COs score lower - which is why these "
+            "values broadly track the CO results above."
+        ),
+        "po_nba": (
+            "This view weighs each PO's attainment against its target. 'Met' means "
+            "the cohort cleared the expected bar for that competency; 'Below' flags a "
+            "graduate attribute that is not yet being fully achieved. The summary at "
+            "the top gives a one-glance read on overall programme health."
+        ),
+        "level_dist": (
+            "This shows how the COs are spread across attainment levels. Here, "
+            f"{dist_read}. A distribution weighted toward the higher levels signals a "
+            "strong course, while a cluster at the lower levels points to outcomes "
+            "that need attention - a quick way to gauge overall quality at a glance."
+        ),
+        "co_sdg": (
+            "This shows how each course outcome contributes to the chosen Sustainable "
+            "Development Goal. COs with a larger share are the ones whose content and "
+            "skills align most closely with that goal's themes. A more even spread "
+            "means the SDG is supported across the whole course rather than by a "
+            "single outcome."
+        ),
+        "po_sdg": (
+            "This estimates how the programme outcomes collectively support each SDG. "
+            "A higher contribution percentage means the attributes developed in this "
+            "course align well with that goal, and the interpretation label puts that "
+            "percentage into plain language. The spread reflects which goals the "
+            "course speaks to most naturally."
+        ),
+        "composite": (
+            "The composite index rolls the individual SDG contributions into a single "
+            f"figure for the course's overall sustainability alignment, indicating "
+            f"{comp_band}. A higher value means the course, taken as a whole, supports "
+            f"the development goals more strongly; here {n_sdg} SDG(s) feed into it. "
+            "Use the interpretation band as a quick benchmark."
+        ),
+        "checklist": (
+            "This checklist tracks whether the evidence required for NBA/NAAC review "
+            "is in place. 'Met' items are complete and documented; 'Needs Attention' "
+            "items are gaps to close before an audit. It is a readiness self-check, "
+            "not a formal score - the aim is to surface missing pieces early."
+        ),
+        "readiness": (
+            "The readiness score blends how complete your data is with the quality of "
+            "the attainment and SDG results into a single indicator of how prepared "
+            "this course is for assessment review. The notes and recommendations that "
+            "follow point to the strongest aspects and the areas most worth improving "
+            "before submission."
+        ),
+        "atr": (
+            "This section records the corrective actions planned for any programme "
+            "outcome that fell short of its target. Closing the loop in this way - "
+            "naming the weak POs and stating what will be done about them - is a core "
+            "expectation of outcome-based education and is how continuous improvement "
+            "is demonstrated to accreditors."
+        ),
+    }
 
 
 # ── Analytics ─────────────────────────────────────────────────────────────────
@@ -158,11 +281,23 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     a    = analytics
     now  = datetime.datetime.now().strftime("%d %b %Y")
     sem  = f"Semester {semester}  |  " if semester else ""
+    expl = build_explanations(a, ai)
     lines = []
 
     def h1(t): lines.extend([t, "=" * len(t), ""])
     def h2(t): lines.extend([t, "-" * len(t), ""])
     def row(*cols): lines.append("  ".join(str(c) for c in cols))
+
+    def note(key):
+        text = expl.get(key)
+        if not text:
+            return
+        wrapped = textwrap.wrap(text, width=76)
+        lines.append("")
+        lines.append("  Why this result:")
+        for w in wrapped:
+            lines.append(f"  {w}")
+        lines.append("")
 
     h1(f"MODULE 4 COMPREHENSIVE ASSESSMENT REPORT")
     lines.append(f"Course: {title} ({code})  |  {sem}Generated: {now}")
@@ -174,7 +309,7 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     lines.append(f"  Mean CO Attainment: {a['mean_att_pct']}%")
     lines.append(f"  SDG Focus (CO)    : {a['target_sdg'] or 'N/A'}")
     lines.append(f"  SDG Coverage (PO) : {len(a['sdgs_covered'])} SDGs")
-    lines.append("")
+    note("overview")
 
     h2("2. CO-PO MAPPING TABLE  (3=Strong  2=Moderate  1=Low  0=None)")
     if a["pomap_rows"]:
@@ -186,13 +321,13 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
             row(r.get("co", "").ljust(8), *sc)
     else:
         lines.append("  No mapping data.")
-    lines.append("")
+    note("copo")
 
     h2("3. CO STRENGTH SUMMARY")
     for co, avg in a["co_strength"].items():
         bar = "#" * int(avg / 3 * 20)
         lines.append(f"  {co:<8} avg={avg:.2f}  {bar}")
-    lines.append("")
+    note("co_strength")
 
     h2("4. CO ATTAINMENT ANALYSIS")
     t = a["thresholds"]
@@ -203,13 +338,13 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     for r in a["co_results"]:
         row(f"  {r['co']}".ljust(10), f"{r['pct']:.2f}%".ljust(14), r["level"])
     lines.append(f"\n  Mean: {a['mean_att_pct']}%")
-    lines.append("")
+    note("co_att")
 
     h2("5. PO ATTAINMENT SUMMARY")
     if a["po_results"]:
         row("  " + "  ".join(f"{r['po']}".ljust(5) for r in a["po_results"]))
         row("  " + "  ".join(f"{r['attainment']:.2f}".ljust(5) for r in a["po_results"]))
-    lines.append("")
+    note("po_summary")
 
     h2("5b. PO ATTAINMENT ANALYSIS  (NBA Method)")
     if a["po_attainment"]:
@@ -224,14 +359,14 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
                 f"{p['pct']:.1f}%".ljust(8), str(p["level"]), "Met" if p["target_met"] else "Below")
     else:
         lines.append("  Run PO Attainment tool to see this section.")
-    lines.append("")
+    note("po_nba")
 
     h2("6. ATTAINMENT LEVEL DISTRIBUTION")
     ld = a["level_dist"]
     for lv in [3, 2, 1, 0]:
         bar = "#" * ld.get(lv, 0)
         lines.append(f"  Level {lv}: {ld.get(lv, 0):>2} CO(s)  {bar}")
-    lines.append("")
+    note("level_dist")
 
     h2("7. CO TO SDG CONTRIBUTION ANALYSIS")
     if a["sdgco_contrib"]:
@@ -243,7 +378,7 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         lines.append(f"\n  Total score: {a['sdgco_total']}")
     else:
         lines.append("  No CO-SDG data.")
-    lines.append("")
+    note("co_sdg")
 
     h2("8. PO TO SDG CONTRIBUTION ANALYSIS")
     if a["sdgpo_results"]:
@@ -251,7 +386,7 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
             lines.append(f"  {r['sdg']:<48}  {r['contribution']:.2f}%  ({r['interpretation']})")
     else:
         lines.append("  No PO-SDG data.")
-    lines.append("")
+    note("po_sdg")
 
     h2("9. COMPOSITE SDG INDEX")
     lines.append(f"  Composite SDG Index: {a['sdgpo_composite']:.2f}%")
@@ -259,7 +394,7 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
               "Strong"    if a["sdgpo_composite"] >= 70 else
               "Moderate"  if a["sdgpo_composite"] >= 50 else "Weak")
     lines.append(f"  Interpretation: {interp}")
-    lines.append("")
+    note("composite")
 
     h2("10. NBA/NAAC ASSESSMENT COMPLIANCE CHECKLIST")
     has_pomap   = bool(a["pomap_rows"])
@@ -280,7 +415,7 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     ]
     for label, ok in checks:
         lines.append(f"  {'[OK]' if ok else '[  ]'}  {label}")
-    lines.append("")
+    note("checklist")
 
     h2("11. ASSESSMENT READINESS DASHBOARD")
     if ai:
@@ -302,7 +437,7 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     else:
         score = _rule_readiness(a)
         lines.append(f"  Readiness Score: {score}/100")
-    lines.append("")
+    note("readiness")
 
     h2("12. ACTION TAKEN REPORT")
     lines.append("  Corrective actions for Programme Outcomes below attainment target.")
@@ -319,7 +454,7 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
             lines.append(f"  {p['po']} - {p['name'][:40]}  |  {p['pct']:.1f}%  (Level {p['level']})")
             lines.append(f"    Action Taken: {p.get('atr', '') or 'Not specified'}")
             lines.append("")
-    lines.append("")
+    note("atr")
 
     return "\n".join(lines)
 
@@ -354,9 +489,10 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     from docx.shared import Pt, RGBColor, Inches
     from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-    a   = analytics
-    now = datetime.datetime.now().strftime("%d %b %Y")
-    sem = f"Semester {semester}  |  " if semester else ""
+    a    = analytics
+    now  = datetime.datetime.now().strftime("%d %b %Y")
+    sem  = f"Semester {semester}  |  " if semester else ""
+    expl = build_explanations(a, ai)
 
     doc = Document()
 
@@ -409,6 +545,24 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         r2 = p.add_run(_s(val))
         r2.font.size = Pt(10)
 
+    def note(key):
+        text = expl.get(key)
+        if not text:
+            return
+        p = doc.add_paragraph()
+        p.paragraph_format.left_indent = Inches(0.25)
+        p.paragraph_format.space_before = Pt(2)
+        p.paragraph_format.space_after  = Pt(8)
+        r1 = p.add_run("Why this result:  ")
+        r1.font.bold  = True
+        r1.font.italic = True
+        r1.font.size  = Pt(9)
+        r1.font.color.rgb = DGREEN
+        r2 = p.add_run(text)
+        r2.font.italic = True
+        r2.font.size   = Pt(9)
+        r2.font.color.rgb = GREY
+
     def _insert_chart(buf, width=5.2):
         if buf is None:
             return
@@ -448,6 +602,7 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     add_kv("Mean CO Attainment",   f"{a['mean_att_pct']}%")
     add_kv("SDG Focus (CO-level)", a["target_sdg"] or "N/A")
     add_kv("SDGs Covered (PO)",    len(a["sdgs_covered"]))
+    note("overview")
     doc.add_paragraph()
 
     # 2. CO-PO Mapping Table
@@ -475,6 +630,7 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         doc.add_paragraph()
     if _rc:
         _insert_chart(_rc.copo_heatmap(a["pomap_rows"], a["po_keys"]))
+    note("copo")
 
     # 3. CO Strength Summary
     add_h1("3. CO Strength Summary (Average PO Score)")
@@ -495,6 +651,7 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
                 for run in para.runs:
                     run.bold = True
         doc.add_paragraph()
+    note("co_strength")
 
     # 4. CO Attainment Analysis
     add_h1("4. CO Attainment Analysis")
@@ -520,6 +677,7 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     doc.add_paragraph()
     if _rc:
         _insert_chart(_rc.co_attainment_chart(a["co_results"], a["thresholds"]))
+    note("co_att")
 
     # 5. PO Attainment Summary
     add_h1("5. PO Attainment Summary")
@@ -534,6 +692,7 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
                 for run in para.runs:
                     run.bold = True
     doc.add_paragraph()
+    note("po_summary")
 
     # 5b. PO Attainment Analysis
     add_h1("5b. PO Attainment Analysis (NBA Method)")
@@ -562,6 +721,7 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     doc.add_paragraph()
     if _rc:
         _insert_chart(_rc.po_attainment_chart(a["po_attainment"]))
+    note("po_nba")
 
     # 6. Attainment Level Distribution
     add_h1("6. Attainment Level Distribution")
@@ -578,6 +738,7 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     doc.add_paragraph()
     if _rc:
         _insert_chart(_rc.attainment_level_chart(a["level_dist"]))
+    note("level_dist")
 
     # 7. CO to SDG Contribution
     add_h1("7. CO to SDG Contribution Analysis")
@@ -602,6 +763,7 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     else:
         add_para("No CO-SDG data available.", indent=True)
     doc.add_paragraph()
+    note("co_sdg")
 
     # 8. PO to SDG Contribution
     add_h1("8. PO to SDG Contribution Analysis")
@@ -623,6 +785,7 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     else:
         add_para("No PO-SDG data available.", indent=True)
     doc.add_paragraph()
+    note("po_sdg")
 
     # 9. Composite SDG Index
     add_h1("9. Composite SDG Index")
@@ -632,6 +795,7 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     add_kv("Composite SDG Index", f"{a['sdgpo_composite']:.2f}%")
     add_kv("Interpretation",      interp)
     doc.add_paragraph()
+    note("composite")
 
     # 10. NBA/NAAC Compliance Checklist
     add_h1("10. NBA/NAAC Assessment Compliance Checklist")
@@ -657,6 +821,7 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
             for run in para.runs:
                 run.bold = True
     doc.add_paragraph()
+    note("checklist")
 
     # 11. Assessment Readiness Dashboard
     add_h1("11. Assessment Readiness Dashboard")
@@ -679,6 +844,7 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         score = _rule_readiness(a)
         add_kv("Readiness Score", f"{score}/100")
     doc.add_paragraph()
+    note("readiness")
 
     # 12. Action Taken Report
     add_h1("12. Action Taken Report")
@@ -709,6 +875,7 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
                 for run in para.runs:
                     run.bold = True
     doc.add_paragraph()
+    note("atr")
 
     doc.save(output_path)
 
@@ -720,9 +887,10 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     from fpdf import FPDF
     from fpdf.enums import XPos, YPos
 
-    a   = analytics
-    now = datetime.datetime.now().strftime("%d %b %Y")
-    sem = f"Semester {semester}  |  " if semester else ""
+    a    = analytics
+    now  = datetime.datetime.now().strftime("%d %b %Y")
+    sem  = f"Semester {semester}  |  " if semester else ""
+    expl = build_explanations(a, ai)
 
     def _s(v): return str(v) if v is not None else ""
 
@@ -774,6 +942,22 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         pdf.set_font("Helvetica", "", 9.5)
         pdf.multi_cell(0, 6, _safe(_s(val)), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
+    def note(key):
+        text = expl.get(key)
+        if not text:
+            return
+        pdf.ln(1)
+        pdf.set_x(pdf.l_margin)
+        pdf.set_font("Helvetica", "BI", 8.5)
+        pdf.set_text_color(1, 91, 63)
+        pdf.cell(0, 5, "Why this result:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.set_font("Helvetica", "I", 8.5)
+        pdf.set_text_color(107, 114, 128)
+        pdf.set_x(pdf.l_margin)
+        pdf.multi_cell(0, 4.6, _safe(text), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.set_text_color(0, 0, 0)
+        pdf.ln(2)
+
     # Cover
     h1("Module 4 Comprehensive Assessment Report")
     pdf.set_font("Helvetica", "", 9)
@@ -791,6 +975,7 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     kv("SDG Focus (CO)", a["target_sdg"] or "N/A")
     kv("SDGs Covered (PO)", len(a["sdgs_covered"]))
     pdf.ln(3)
+    note("overview")
 
     # 2. CO-PO Mapping
     h2("2. CO-PO Mapping Table")
@@ -814,6 +999,7 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
             pdf.ln()
     pdf.ln(3)
     _pdf_chart(_rc.copo_heatmap(a["pomap_rows"], a["po_keys"]) if _rc else None)
+    note("copo")
 
     # 4. CO Attainment
     h2("4. CO Attainment Analysis")
@@ -836,6 +1022,7 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     kv("Mean CO Attainment", f"{a['mean_att_pct']}%")
     pdf.ln(3)
     _pdf_chart(_rc.co_attainment_chart(a["co_results"], a["thresholds"]) if _rc else None)
+    note("co_att")
 
     # 5. PO Attainment
     h2("5. PO Attainment Summary")
@@ -852,6 +1039,7 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
             pdf.cell(col_w, 5, f"{r['attainment']:.2f}", border=1, align="C")
         pdf.ln()
     pdf.ln(3)
+    note("po_summary")
 
     # 5b. PO Attainment
     h2("5b. PO Attainment Analysis (NBA Method)")
@@ -877,6 +1065,7 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         pdf.cell(0, 5, "Run PO Attainment tool to populate this section.", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(3)
     _pdf_chart(_rc.po_attainment_chart(a["po_attainment"]) if _rc else None)
+    note("po_nba")
 
     # 7. CO-SDG
     h2("7. CO to SDG Contribution")
@@ -895,6 +1084,7 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
             pdf.ln()
         kv("Total Score", a["sdgco_total"])
     pdf.ln(3)
+    note("co_sdg")
 
     # 8. PO-SDG
     h2("8. PO to SDG Contribution")
@@ -911,6 +1101,7 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
             pdf.cell(40,  6, _safe(_s(r.get("interpretation", ""))), border=1, align="C")
             pdf.ln()
     pdf.ln(3)
+    note("po_sdg")
 
     # 9. Composite SDG
     h2("9. Composite SDG Index")
@@ -919,6 +1110,7 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
               "Moderate"  if a["sdgpo_composite"] >= 50 else "Weak")
     kv("Composite SDG Index", f"{a['sdgpo_composite']:.2f}%  ({interp})")
     pdf.ln(3)
+    note("composite")
 
     # 10. Checklist
     h2("10. NBA/NAAC Assessment Compliance Checklist")
@@ -943,6 +1135,7 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         pdf.cell(50,  6, "Met" if ok else "Needs Attention", border=1, align="C")
         pdf.ln()
     pdf.ln(3)
+    note("checklist")
 
     # 11. Dashboard
     h2("11. Assessment Readiness Dashboard")
@@ -967,6 +1160,7 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         score = _rule_readiness(a)
         kv("Readiness Score", f"{score}/100")
     pdf.ln(3)
+    note("readiness")
 
     # 12. Action Taken Report
     h2("12. Action Taken Report")
@@ -1004,5 +1198,6 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
             pdf.cell(77, 5.5, atr_text,                       border=1)
             pdf.ln()
     pdf.ln(3)
+    note("atr")
 
     pdf.output(output_path)

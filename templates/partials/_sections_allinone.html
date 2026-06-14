@@ -166,7 +166,10 @@
       </div>
     </div>
 
-<div class="alert alert-error hidden" id="aio-run-err"></div>
+<div class="alert alert-error hidden" id="aio-run-err" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span id="aio-run-err-msg" style="flex:1;min-width:180px;"></span>
+      <button class="btn btn-ghost" id="aio-run-retry-btn" onclick="aioRetryStep()" style="flex-shrink:0;">&#8635; Retry this step</button>
+    </div>
   </div>
 
   <!-- Module 3 Option A: CO file upload (between course selection and generation) -->
@@ -206,6 +209,43 @@
     </div>
   </div>
 
+  <!-- Module 4 Option C: PO file upload (between course selection and generation) -->
+  <div id="sec-aio-po-upload" class="card hidden">
+    <h2>Upload Programme Outcomes</h2>
+    <p class="sub">Upload your own Programme Outcomes file to use instead of the standard set. Supported formats: TXT, DOCX, PDF. List one PO per line, e.g. <em>PO1: Engineering Knowledge - Apply...</em>. These POs will drive CO-PO Mapping, CO/PO Attainment and the SDG contributions. COs are auto-generated from the syllabus.</p>
+
+    <div style="margin:20px 0;padding:18px 20px;border:1.5px dashed var(--border);border-radius:12px;background:rgba(13,148,136,.04);">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:1.4rem;color:#0d9488;"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.125em" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+        <div style="flex:1;">
+          <div style="font-size:.88rem;font-weight:700;margin-bottom:4px;">PO File</div>
+          <div id="aio-po-upload-status" style="font-size:.78rem;color:var(--muted);">
+            No file selected — choose a TXT, DOCX, or PDF file.
+          </div>
+        </div>
+        <label class="btn btn-primary" style="cursor:pointer;font-size:.82rem;">
+          Choose File
+          <input type="file" id="aio-po-file-input" accept=".txt,.docx,.doc,.pdf"
+                 style="display:none;" onchange="aioPoUploadFile(this)">
+        </label>
+      </div>
+      <div class="uni-progress hidden" id="aio-po-upload-loading" style="margin-top:12px;">
+        <span class="uni-progress-label">Parsing PO file&#8230;</span>
+        <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+      </div>
+    </div>
+
+    <div class="alert alert-error hidden" id="aio-po-upload-err" style="margin-bottom:12px;"></div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goBack('aio-po-upload')">&#8592; Back</button>
+      <span class="spacer"></span>
+      <button class="btn btn-primary" id="btn-aio-po-next" onclick="aioPoUploadNext()" disabled>
+        Generate &#8594;
+      </button>
+    </div>
+  </div>
+
   <!-- Step 5: Done -->
   <div id="sec-aio-done" class="card hidden">
     <h2>All Done!</h2>
@@ -238,6 +278,19 @@
           <span class="ai-panel-toggle" id="m3-ai-panel-toggle">&#9664;</span>
         </div>
         <div class="ai-panel-body">
+
+          <!-- ── Suggest ways to improve (suggestions only) ── -->
+          <div id="m3-improve-trigger" style="margin-bottom:12px;">
+            <button class="btn btn-ghost"
+              style="width:100%;font-size:.78rem;padding:7px 0;justify-content:center;border-color:#e11d48;color:#e11d48;"
+              onclick="_moduleShowImprove('m3')">Suggest ways to improve</button>
+          </div>
+          <div id="m3-improve-wrap" style="display:none;margin-bottom:12px;">
+            <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;">Improvement Suggestions</div>
+            <div id="m3-improve-list"></div>
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:0 0 12px;">
 
           <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Edit Content</div>
           <button id="m3-rephrase-btn" class="btn btn-primary"
@@ -295,9 +348,9 @@
     </div>
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
       <span style="font-size:.75rem;font-weight:700;color:var(--muted);">Go to:</span>
-      <button class="btn btn-ghost" onclick="startOver(); selectMode('module1')" style="border-color:#6366f1;color:#6366f1;font-size:.79rem;padding:5px 12px;">Module 1 →</button>
-      <button class="btn btn-ghost" onclick="startOver(); selectMode('module2')" style="border-color:#0284c7;color:#0284c7;font-size:.79rem;padding:5px 12px;">Module 2 →</button>
-      <button class="btn btn-ghost" onclick="startOver(); selectMode('module4')" style="border-color:#059669;color:#059669;font-size:.79rem;padding:5px 12px;">Module 4 →</button>
+      <button class="btn btn-ghost" onclick="aioSwitchModule('module1')" style="border-color:#6366f1;color:#6366f1;font-size:.79rem;padding:5px 12px;">Module 1 →</button>
+      <button class="btn btn-ghost" onclick="aioSwitchModule('module2')" style="border-color:#0284c7;color:#0284c7;font-size:.79rem;padding:5px 12px;">Module 2 →</button>
+      <button class="btn btn-ghost" onclick="aioSwitchModule('module4')" style="border-color:#059669;color:#059669;font-size:.79rem;padding:5px 12px;">Module 4 →</button>
     </div>
     <div class="uni-progress hidden" id="dl-m3-progress">
       <span class="uni-progress-label">Generating document&#8230;</span>
@@ -323,6 +376,19 @@
           <span class="ai-panel-toggle" id="m4-ai-panel-toggle">&#9664;</span>
         </div>
         <div class="ai-panel-body">
+
+          <!-- ── Suggest ways to improve (suggestions only) ── -->
+          <div id="m4-improve-trigger" style="margin-bottom:12px;">
+            <button class="btn btn-ghost"
+              style="width:100%;font-size:.78rem;padding:7px 0;justify-content:center;border-color:#059669;color:#059669;"
+              onclick="_moduleShowImprove('m4')">Suggest ways to improve</button>
+          </div>
+          <div id="m4-improve-wrap" style="display:none;margin-bottom:12px;">
+            <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;">Improvement Suggestions</div>
+            <div id="m4-improve-list"></div>
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:0 0 12px;">
 
           <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Edit Content</div>
           <button id="m4-rephrase-btn" class="btn btn-primary"
@@ -380,9 +446,9 @@
     </div>
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
       <span style="font-size:.75rem;font-weight:700;color:var(--muted);">Go to:</span>
-      <button class="btn btn-ghost" onclick="startOver(); selectMode('module1')" style="border-color:#6366f1;color:#6366f1;font-size:.79rem;padding:5px 12px;">Module 1 →</button>
-      <button class="btn btn-ghost" onclick="startOver(); selectMode('module2')" style="border-color:#0284c7;color:#0284c7;font-size:.79rem;padding:5px 12px;">Module 2 →</button>
-      <button class="btn btn-ghost" onclick="startOver(); selectMode('module3')" style="border-color:#e11d48;color:#e11d48;font-size:.79rem;padding:5px 12px;">Module 3 →</button>
+      <button class="btn btn-ghost" onclick="aioSwitchModule('module1')" style="border-color:#6366f1;color:#6366f1;font-size:.79rem;padding:5px 12px;">Module 1 →</button>
+      <button class="btn btn-ghost" onclick="aioSwitchModule('module2')" style="border-color:#0284c7;color:#0284c7;font-size:.79rem;padding:5px 12px;">Module 2 →</button>
+      <button class="btn btn-ghost" onclick="aioSwitchModule('module3')" style="border-color:#e11d48;color:#e11d48;font-size:.79rem;padding:5px 12px;">Module 3 →</button>
     </div>
     <div class="uni-progress hidden" id="dl-m4-progress">
       <span class="uni-progress-label">Generating document&#8230;</span>

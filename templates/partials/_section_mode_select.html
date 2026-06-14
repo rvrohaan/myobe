@@ -27,6 +27,32 @@
       text-transform: uppercase; letter-spacing: .05em;
     }
     .greeting-plan-dot { width: 6px; height: 6px; border-radius: 50%; background: #818cf8; }
+    .greeting-institution {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
+      margin-top: 12px;
+    }
+    .greeting-inst-label {
+      font-size: .68rem; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; color: rgba(255,255,255,.6);
+    }
+    .greeting-inst-value {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18);
+      color: #e0e7ff; font-size: .76rem; font-weight: 700;
+      padding: 4px 12px; border-radius: 999px;
+    }
+    .greeting-inst-value svg { width: 14px; height: 14px; flex-shrink: 0; color: #a5b4fc; }
+    .greeting-inst-change {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: .73rem; font-weight: 600; color: #c7d2fe;
+      text-decoration: none; padding: 5px 8px; border-radius: 8px;
+      transition: color .15s, background .15s;
+    }
+    .greeting-inst-change svg { width: 13px; height: 13px; flex-shrink: 0; }
+    .greeting-inst-change:hover { color: #fff; background: rgba(255,255,255,.1); }
+    .greeting-inst-change:focus-visible {
+      outline: 2px solid #a5b4fc; outline-offset: 2px; color: #fff;
+    }
     .greeting-right { display: flex; gap: 10px; flex-wrap: wrap; }
     .greeting-stat {
       background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1);
@@ -107,24 +133,48 @@
       padding: 3px 10px; border-radius: 999px; margin-left: auto;
     }
 
-    /* ── Generate All button ── */
-    .gen-all-btn {
-      display: flex; align-items: center; gap: 14px;
-      background: linear-gradient(135deg, var(--mc-bg1, #6366f1), var(--mc-bg2, #8b5cf6));
-      color: #fff; border-radius: 14px; padding: 16px 20px;
-      cursor: pointer; border: none; width: 100%; margin-bottom: 22px;
-      text-align: left; transition: opacity .15s, transform .15s;
-      box-shadow: 0 4px 18px rgba(0,0,0,.15);
+    /* ── Option cards (module sub-screen choices) ──
+       Dark surface + per-card accent (set via --opt-rgb). Far calmer than four
+       full-bleed gradients: cohesive chrome, differentiated by icon + accent. */
+    .gen-opt-card {
+      display: flex; align-items: center; gap: 15px;
+      width: 100%; text-align: left; cursor: pointer;
+      font-family: inherit;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 4px solid rgb(var(--opt-rgb));
+      border-radius: 14px; padding: 15px 18px;
+      transition: transform .2s cubic-bezier(.2,.8,.4,1), box-shadow .2s, border-color .2s, background .2s;
     }
-    .gen-all-btn:hover { opacity: .93; transform: translateY(-2px); }
-    .gen-all-icon  { font-size: 1.6rem; flex-shrink: 0; line-height: 1; }
-    .gen-all-text  { flex: 1; min-width: 0; }
-    .gen-all-label { font-weight: 800; font-size: .95rem; }
-    .gen-all-sub   { font-size: .74rem; opacity: .85; margin-top: 3px; line-height: 1.4; }
-    .gen-all-token {
-      background: rgba(255,255,255,.22); border-radius: 999px;
-      padding: 4px 12px; font-size: .72rem; font-weight: 700;
-      white-space: nowrap; flex-shrink: 0;
+    .gen-opt-card:hover {
+      transform: translateY(-2px);
+      border-color: rgb(var(--opt-rgb) / .6);
+      border-left-color: rgb(var(--opt-rgb));
+      background: rgb(var(--opt-rgb) / .07);
+      box-shadow: 0 12px 30px rgba(0,0,0,.3);
+    }
+    .gen-opt-card:focus-visible { outline: 2px solid rgb(var(--opt-rgb)); outline-offset: 2px; }
+    .gen-opt-icon {
+      flex-shrink: 0; width: 46px; height: 46px; border-radius: 12px;
+      display: grid; place-items: center;
+      color: rgb(var(--opt-rgb));
+      background: rgb(var(--opt-rgb) / .14);
+      border: 1px solid rgb(var(--opt-rgb) / .28);
+    }
+    .gen-opt-icon svg { width: 23px; height: 23px; }
+    .gen-opt-text  { flex: 1; min-width: 0; }
+    .gen-opt-label { display: block; font-weight: 800; font-size: .92rem; color: var(--text); margin-bottom: 3px; }
+    .gen-opt-sub   { display: block; font-size: .76rem; color: var(--muted); line-height: 1.5; }
+    .gen-opt-token {
+      flex-shrink: 0; align-self: center;
+      background: rgb(var(--opt-rgb) / .15);
+      color: rgb(var(--opt-rgb));
+      border: 1px solid rgb(var(--opt-rgb) / .3);
+      border-radius: 999px; padding: 5px 13px;
+      font-size: .72rem; font-weight: 800; white-space: nowrap;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .gen-opt-card, .gen-opt-card:hover { transition: none; transform: none; }
     }
 
     /* ── Module tool cards ── */
@@ -177,6 +227,17 @@
         <span class="greeting-plan-dot"></span>
         <span id="greeting-token-count">{{ session.tokens or 0 }}</span> tokens remaining
       </div>
+      <div class="greeting-institution">
+        <span class="greeting-inst-label">Institution type</span>
+        <span class="greeting-inst-value">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01"/><path d="M9 13h.01"/><path d="M9 17h.01"/></svg>
+          <span>{{ college_type_label or 'Engineering' }}{% if college_type_accreditation %} &middot; {{ college_type_accreditation }}{% endif %}</span>
+        </span>
+        <a class="greeting-inst-change" href="/settings" aria-label="Change institution type in settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Change in settings</span>
+        </a>
+      </div>
     </div>
     <div class="greeting-right" id="greeting-stats">
       <!-- filled by JS from localStorage -->
@@ -203,7 +264,7 @@
           <span class="module-feature-chip">Bloom's Taxonomy</span>
           <span class="module-feature-chip">OBE/NBA/NAAC</span>
         </div>
-        <span class="module-cta">Explore Tools →</span>
+        <span class="module-cta">Get Started with Module 1 →</span>
       </div>
 
       <!-- Module 2: Question Paper (compose from QB) -->
@@ -219,7 +280,7 @@
           <span class="module-feature-chip">Quiz</span>
           <span class="module-feature-chip">Internal / Final Exam</span>
         </div>
-        <span class="module-cta">Explore Tools →</span>
+        <span class="module-cta">Get Started with Module 2 →</span>
       </div>
 
       <!-- Module 3: Course Delivery -->
@@ -235,7 +296,7 @@
           <span class="module-feature-chip">HoD Monitoring</span>
           <span class="module-feature-chip">Analytics</span>
         </div>
-        <span class="module-cta">Explore Tools →</span>
+        <span class="module-cta">Get Started with Module 3 →</span>
       </div>
 
       <!-- Module 4: Assessment Methods -->
@@ -251,7 +312,7 @@
           <span class="module-feature-chip">SDG Contributions</span>
           <span class="module-feature-chip">ATR Reports</span>
         </div>
-        <span class="module-cta">Explore Tools →</span>
+        <span class="module-cta">Get Started with Module 4 →</span>
       </div>
 
     </div>
@@ -268,14 +329,13 @@
     <div class="alert alert-error hidden" id="mod1-token-err"
          style="margin-bottom:12px;font-size:.85rem;"></div>
 
-    <button class="gen-all-btn" onclick="moduleGenerateAll('module1')"
-            style="--mc-bg1:#6366f1; --mc-bg2:#8b5cf6;">
-      <span class="gen-all-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></span>
-      <div class="gen-all-text">
-        <div class="gen-all-label">Generate All in Module 1</div>
-        <div class="gen-all-sub">Auto-generate Bloom's taxonomy-aligned COs + complete Question Bank, then download the comprehensive 11-section report — Sample Paper, Bloom's Compliance, CO Coverage, Difficulty Analysis, Scenario Analysis, QQI, Marks Distribution, OBE/NBA Compliance &amp; Accreditation Readiness Dashboard. All in one click.</div>
-      </div>
-      <span class="gen-all-token" id="mod-token-cost-module1">6 tokens</span>
+    <button class="gen-opt-card" onclick="moduleGenerateAll('module1')" style="--opt-rgb: 99 102 241;">
+      <span class="gen-opt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></span>
+      <span class="gen-opt-text">
+        <span class="gen-opt-label">Generate All in Module 1</span>
+        <span class="gen-opt-sub">Auto-generate Bloom's taxonomy-aligned COs + complete Question Bank, then download the comprehensive 11-section report — Sample Paper, Bloom's Compliance, CO Coverage, Difficulty Analysis, Scenario Analysis, QQI, Marks Distribution, OBE/NBA Compliance &amp; Accreditation Readiness Dashboard. All in one click.</span>
+      </span>
+      <span class="gen-opt-token" id="mod-token-cost-module1">6 tokens</span>
     </button>
   </div>
 
@@ -291,32 +351,30 @@
          style="margin-bottom:12px;font-size:.85rem;"></div>
 
     <!-- Option A: Upload existing QB -->
-    <button class="gen-all-btn" onclick="module2ComposePaper()"
-            style="--mc-bg1:#0284c7; --mc-bg2:#38bdf8; margin-bottom:10px;">
-      <span class="gen-all-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></span>
-      <div class="gen-all-text">
-        <div class="gen-all-label">Upload Question Bank</div>
-        <div class="gen-all-sub">Upload an existing Question Bank (or use one from Module 1) to compose Assignment, Quiz, Internal Assessment, or Final Exam papers with CO-tag filtering and editable preview.</div>
-      </div>
-      <span class="gen-all-token">2 tokens</span>
+    <button class="gen-opt-card" onclick="module2ComposePaper()" style="--opt-rgb: 14 165 233;">
+      <span class="gen-opt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></span>
+      <span class="gen-opt-text">
+        <span class="gen-opt-label">Upload Question Bank</span>
+        <span class="gen-opt-sub">Upload an existing Question Bank (or use one from Module 1) to compose Assignment, Quiz, Internal Assessment, or Final Exam papers with CO-tag filtering and editable preview.</span>
+      </span>
+      <span class="gen-opt-token">2 tokens</span>
     </button>
 
     <!-- OR divider -->
-    <div style="display:flex;align-items:center;gap:12px;margin:4px 0 14px;">
+    <div style="display:flex;align-items:center;gap:12px;margin:12px 0;">
       <div style="flex:1;height:1px;background:var(--border);"></div>
       <span style="font-size:.75rem;font-weight:800;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;">or</span>
       <div style="flex:1;height:1px;background:var(--border);"></div>
     </div>
 
     <!-- Option B: Generate QB from syllabus -->
-    <button class="gen-all-btn" onclick="module2GenerateQB()"
-            style="--mc-bg1:#0369a1; --mc-bg2:#0ea5e9;">
-      <span class="gen-all-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></span>
-      <div class="gen-all-text">
-        <div class="gen-all-label">Generate Question Bank from Syllabus</div>
-        <div class="gen-all-sub">Auto-generate Bloom's-aligned COs + complete Question Bank from your syllabus, then compose your paper.</div>
-      </div>
-      <span class="gen-all-token">4 tokens</span>
+    <button class="gen-opt-card" onclick="module2GenerateQB()" style="--opt-rgb: 56 189 248;">
+      <span class="gen-opt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></span>
+      <span class="gen-opt-text">
+        <span class="gen-opt-label">Generate Question Bank from Syllabus</span>
+        <span class="gen-opt-sub">Auto-generate Bloom's-aligned COs + complete Question Bank from your syllabus, then compose your paper.</span>
+      </span>
+      <span class="gen-opt-token">4 tokens</span>
     </button>
 
   </div>
@@ -333,32 +391,30 @@
          style="margin-bottom:12px;font-size:.85rem;"></div>
 
     <!-- Option A: Syllabus + CO file -->
-    <button class="gen-all-btn" onclick="module3GenerateWithCo()"
-            style="--mc-bg1:#e11d48; --mc-bg2:#fb7185; margin-bottom:10px;">
-      <span class="gen-all-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
-      <div class="gen-all-text">
-        <div class="gen-all-label">Upload Syllabus + CO File</div>
-        <div class="gen-all-sub">Upload your existing Course Outcomes file to generate a CO-PO-SDG Lesson Plan + full-semester Teaching Diary using your own COs.</div>
-      </div>
-      <span class="gen-all-token">6 tokens</span>
+    <button class="gen-opt-card" onclick="module3GenerateWithCo()" style="--opt-rgb: 225 29 72;">
+      <span class="gen-opt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
+      <span class="gen-opt-text">
+        <span class="gen-opt-label">Upload Syllabus + CO File</span>
+        <span class="gen-opt-sub">Upload your existing Course Outcomes file (or use the COs from Module 1) to generate a CO-PO-SDG Lesson Plan + full-semester Teaching Diary using your own COs.</span>
+      </span>
+      <span class="gen-opt-token">6 tokens</span>
     </button>
 
     <!-- OR divider -->
-    <div style="display:flex;align-items:center;gap:12px;margin:4px 0 14px;">
+    <div style="display:flex;align-items:center;gap:12px;margin:12px 0;">
       <div style="flex:1;height:1px;background:var(--border);"></div>
       <span style="font-size:.75rem;font-weight:800;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;">or</span>
       <div style="flex:1;height:1px;background:var(--border);"></div>
     </div>
 
     <!-- Option B: Syllabus only -->
-    <button class="gen-all-btn" onclick="module3GenerateSyllabusOnly()"
-            style="--mc-bg1:#f43f5e; --mc-bg2:#fda4af;">
-      <span class="gen-all-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></span>
-      <div class="gen-all-text">
-        <div class="gen-all-label">Upload Syllabus Only</div>
-        <div class="gen-all-sub">Auto-generate Bloom's-aligned COs from syllabus, then build CO-PO-SDG Lesson Plan + full-semester Teaching Diary in sequence.</div>
-      </div>
-      <span class="gen-all-token">7 tokens</span>
+    <button class="gen-opt-card" onclick="module3GenerateSyllabusOnly()" style="--opt-rgb: 244 63 94;">
+      <span class="gen-opt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></span>
+      <span class="gen-opt-text">
+        <span class="gen-opt-label">Upload Syllabus Only</span>
+        <span class="gen-opt-sub">Auto-generate Bloom's-aligned COs from syllabus, then build CO-PO-SDG Lesson Plan + full-semester Teaching Diary in sequence.</span>
+      </span>
+      <span class="gen-opt-token">7 tokens</span>
     </button>
   </div>
 
@@ -374,32 +430,64 @@
          style="margin-bottom:12px;font-size:.85rem;"></div>
 
     <!-- Option A: Syllabus + CO file -->
-    <button class="gen-all-btn" onclick="module4GenerateWithCo()"
-            style="--mc-bg1:#059669; --mc-bg2:#34d399; margin-bottom:10px;">
-      <span class="gen-all-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
-      <div class="gen-all-text">
-        <div class="gen-all-label">Upload Syllabus + CO File</div>
-        <div class="gen-all-sub">Upload your existing Course Outcomes file to generate CO-PO Mapping, CO Attainment, PO Attainment (with ATR), CO&#8594;SDG and PO&#8594;SDG contributions using your own COs, then download the comprehensive assessment report.</div>
-      </div>
-      <span class="gen-all-token">5 tokens</span>
+    <button class="gen-opt-card" onclick="module4GenerateWithCo()" style="--opt-rgb: 16 185 129;">
+      <span class="gen-opt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
+      <span class="gen-opt-text">
+        <span class="gen-opt-label">Upload Syllabus + CO File</span>
+        <span class="gen-opt-sub">Upload your existing Course Outcomes file (or use the COs from Module 1) to generate CO-PO Mapping, CO Attainment, PO Attainment (with ATR), CO&#8594;SDG and PO&#8594;SDG contributions using your own COs, then download the comprehensive assessment report.</span>
+      </span>
+      <span class="gen-opt-token">5 tokens</span>
     </button>
 
     <!-- OR divider -->
-    <div style="display:flex;align-items:center;gap:12px;margin:4px 0 14px;">
+    <div style="display:flex;align-items:center;gap:12px;margin:12px 0;">
       <div style="flex:1;height:1px;background:var(--border);"></div>
       <span style="font-size:.75rem;font-weight:800;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;">or</span>
       <div style="flex:1;height:1px;background:var(--border);"></div>
     </div>
 
     <!-- Option B: Syllabus only -->
-    <button class="gen-all-btn" onclick="module4GenerateSyllabusOnly()"
-            style="--mc-bg1:#10b981; --mc-bg2:#6ee7b7;">
-      <span class="gen-all-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></span>
-      <div class="gen-all-text">
-        <div class="gen-all-label">Upload Syllabus Only</div>
-        <div class="gen-all-sub">Auto-generate Bloom's-aligned COs from syllabus, then produce CO-PO Mapping, CO Attainment, PO Attainment (with ATR), CO&#8594;SDG and PO&#8594;SDG contributions in sequence, followed by the comprehensive assessment report.</div>
-      </div>
-      <span class="gen-all-token">6 tokens</span>
+    <button class="gen-opt-card" onclick="module4GenerateSyllabusOnly()" style="--opt-rgb: 34 197 94;">
+      <span class="gen-opt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></span>
+      <span class="gen-opt-text">
+        <span class="gen-opt-label">Upload Syllabus Only</span>
+        <span class="gen-opt-sub">Auto-generate Bloom's-aligned COs from syllabus, then produce CO-PO Mapping, CO Attainment, PO Attainment (with ATR), CO&#8594;SDG and PO&#8594;SDG contributions in sequence, followed by the comprehensive assessment report.</span>
+      </span>
+      <span class="gen-opt-token">6 tokens</span>
+    </button>
+
+    <!-- OR divider -->
+    <div style="display:flex;align-items:center;gap:12px;margin:12px 0;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span style="font-size:.75rem;font-weight:800;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;">or</span>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+
+    <!-- Option D: Syllabus + your own CO file + PO file -->
+    <button class="gen-opt-card" onclick="module4GenerateWithCoAndPo()" style="--opt-rgb: 13 148 136;">
+      <span class="gen-opt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg></span>
+      <span class="gen-opt-text">
+        <span class="gen-opt-label">Upload Syllabus + CO File + PO File</span>
+        <span class="gen-opt-sub">Bring your own Course Outcomes AND Programme Outcomes — no auto-generation. Upload both files to produce CO-PO Mapping, CO/PO Attainment, CO&#8594;SDG and PO&#8594;SDG against your own COs and POs, plus the comprehensive assessment report.</span>
+      </span>
+      <span class="gen-opt-token">5 tokens</span>
+    </button>
+
+    <!-- OR divider -->
+    <div style="display:flex;align-items:center;gap:12px;margin:12px 0;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span style="font-size:.75rem;font-weight:800;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;">or</span>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+
+    <!-- Option C: Syllabus + your own PO file -->
+    <button class="gen-opt-card" onclick="module4GenerateWithPo()" style="--opt-rgb: 52 211 153;">
+      <span class="gen-opt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+      <span class="gen-opt-text">
+        <span class="gen-opt-label">Upload Syllabus + PO File</span>
+        <span class="gen-opt-sub">Use your own Programme Outcomes instead of the standard set. Auto-generate COs from syllabus, then map and assess them against the POs from your uploaded file across CO-PO Mapping, CO/PO Attainment, CO&#8594;SDG and PO&#8594;SDG, plus the comprehensive report.</span>
+      </span>
+      <span class="gen-opt-token">6 tokens</span>
     </button>
   </div>
 

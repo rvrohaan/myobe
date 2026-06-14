@@ -126,6 +126,11 @@ const ALL_SECS = [
 ];
 function showSection(name) {
   ALL_SECS.forEach(s => document.getElementById(`sec-${s}`)?.classList.add('hidden'));
+  // A wizard section is mutually exclusive with the home grid and module sub-screens.
+  // Clear them too, otherwise a section opened from inside a module flow (e.g. composing
+  // a paper from cache) can stay stacked behind the home view after navigating Back.
+  document.getElementById('sec-mode-select')?.classList.add('hidden');
+  _hideModuleSubs();
   const el = document.getElementById(`sec-${name}`);
   el.classList.remove('hidden');
   el.classList.remove('animate-in');
@@ -136,6 +141,7 @@ function showSection(name) {
 
 function goBack(fromSec) {
   if (fromSec === 'aio-co-upload')        { showSection('courses');           setStepBar(2); }
+  else if (fromSec === 'aio-po-upload')   { showSection(_m4OptionD ? 'aio-co-upload' : 'courses'); setStepBar(2); }
   else if (fromSec === 'courses')         { showSection('upload');            setStepBar(1); }
   else if (fromSec === 'preview-qb')      { showSection('upload-qb');         setStepBar(1); }
   else if (fromSec === 'configure-paper') { showSection('preview-qb');        setStepBar(2); }
@@ -220,8 +226,8 @@ function handleFile(file) {
   _xhrUpload('/upload', fd, {
     progressId: 'upload-loading', uploadLabel: 'Uploading syllabus…',
     processMs: 10000, processLabels: ['Extracting text…', 'Parsing document structure…', 'Detecting courses…', 'Almost ready…'],
-    onSuccess:  d => { zone.style.pointerEvents = ''; S.courses = d.courses; renderCourses(); showSection('courses'); setStepBar(2); },
-    onErrorRaw: d => { if (d.ai_fallback) { handleAiExtract(); } else { zone.style.pointerEvents = ''; showErr('upload-err', d.error || 'Upload failed. Please try again.'); } },
+    onSuccess:  d => { zone.style.pointerEvents = ''; S.courses = d.courses; _setSyllabusReuseBanner(false); renderCourses(); showSection('courses'); setStepBar(2); },
+    onErrorRaw: (d, finish) => { if (d.ai_fallback) { handleAiExtract(); } else { finish(); zone.style.pointerEvents = ''; showErr('upload-err', d.error || 'Upload failed. Please try again.'); } },
     onError:    m => { zone.style.pointerEvents = ''; showErr('upload-err', m); },
   });
 }
@@ -230,9 +236,9 @@ function handleAiExtract() {
   document.getElementById('upload-err').classList.add('hidden');
   zone.style.pointerEvents = 'none';
   _xhrUpload('/upload_ai_extract', new FormData(), {
-    progressId: 'upload-loading', uploadLabel: 'Asking AI to read syllabus…',
+    progressId: 'upload-loading', uploadLabel: 'Asking AI to read syllabus…', resume: true,
     processMs: 15000, processLabels: ['Analysing document structure…', 'Identifying courses…', 'Building course list…', 'Almost ready…'],
-    onSuccess: d => { zone.style.pointerEvents = ''; S.courses = d.courses; renderCourses(); showSection('courses'); setStepBar(2); },
+    onSuccess: d => { zone.style.pointerEvents = ''; S.courses = d.courses; _setSyllabusReuseBanner(false); renderCourses(); showSection('courses'); setStepBar(2); },
     onError:   m => { zone.style.pointerEvents = ''; showErr('upload-err', m); },
   });
 }
@@ -1319,8 +1325,15 @@ function _xhrUpload(url, formData, opts) {
   const el   = document.getElementById(progressId);
   const fill = el && el.querySelector('.uni-progress-fill');
   const lbl  = el && el.querySelector('.uni-progress-label');
+  // Tag this invocation so a stale _finish() from a superseded call (e.g. the
+  // first /upload that hands off to /upload_ai_extract on ai_fallback) can't
+  // hide the loader that a newer call has just re-shown.
+  const token  = (el ? (el._uploadToken = (el._uploadToken || 0) + 1) : 0);
+  // resume: continue the bar where the previous stage left it (handoff) instead
+  // of snapping back to 0% — keeps the loader holding near 90% and climbing.
+  const resume = !!opts.resume;
   if (el)   { el.classList.remove('hidden'); }
-  if (fill) { fill.classList.remove('is-indeterminate', 'is-forward'); fill.style.position = ''; fill.style.left = ''; fill.style.transition = 'width .2s ease'; fill.style.width = '0%'; }
+  if (fill) { fill.classList.remove('is-indeterminate', 'is-forward'); fill.style.position = ''; fill.style.left = ''; fill.style.transition = 'width .2s ease'; if (!resume) fill.style.width = '0%'; }
   if (lbl)  { lbl.textContent = uploadLabel || 'Uploading…'; }
 
   let processTimer = null;
@@ -1329,7 +1342,7 @@ function _xhrUpload(url, formData, opts) {
 
   // Phase 1 — real upload bytes (0 → 50%)
   xhr.upload.onprogress = e => {
-    if (!fill || !e.lengthComputable) return;
+    if (resume || !fill || !e.lengthComputable) return;
     const pct = (e.loaded / e.total) * 50;
     fill.style.width = pct + '%';
     if (lbl) lbl.textContent = `${uploadLabel || 'Uploading…'} (${Math.round(e.loaded / e.total * 100)}%)`;
@@ -1337,14 +1350,19 @@ function _xhrUpload(url, formData, opts) {
 
   // Phase 2 — timed server processing (50 → 90%)
   xhr.upload.onload = () => {
-    if (fill) fill.style.width = '50%';
+    // Phase-2 climbs from `base` toward ~90%. On a resume handoff we carry over
+    // the width the previous stage left, so the bar keeps rising smoothly
+    // instead of snapping back to 50%.
+    const base = resume ? (parseFloat(fill && fill.style.width) || 50) : 50;
+    const span = Math.max(0, 90 - base);
+    if (!resume && fill) fill.style.width = '50%';
     const steps = processLabels || [];
     if (lbl && steps.length) lbl.textContent = steps[0];
     const start = Date.now();
     let stepIdx = 0;
     processTimer = setInterval(() => {
       const t   = (Date.now() - start) / processMs;
-      const pct = 50 + Math.min(40, 40 * (1 - Math.pow(Math.max(0, 1 - t), 2.2)));
+      const pct = base + Math.min(span, span * (1 - Math.pow(Math.max(0, 1 - t), 2.2)));
       if (fill) fill.style.width = pct + '%';
       if (lbl && steps.length) {
         const idx = Math.min(steps.length - 1, Math.floor(t * steps.length));
@@ -1359,6 +1377,9 @@ function _xhrUpload(url, formData, opts) {
     if (fill) { fill.style.transition = 'width .25s ease'; fill.style.width = '100%'; }
     if (lbl)  lbl.textContent = 'Done!';
     setTimeout(() => {
+      // Skip hiding if a newer _xhrUpload (sharing this progress element) has
+      // taken over — otherwise we'd blank the loader it just re-displayed.
+      if (el && el._uploadToken !== token) { if (cb) cb(); return; }
       if (el)   el.classList.add('hidden');
       if (fill) fill.style.width = '0%';
       if (cb)   cb();
@@ -1366,12 +1387,14 @@ function _xhrUpload(url, formData, opts) {
   };
 
   xhr.onload = () => {
+    clearInterval(processTimer);   // stop this call's fake progress before deciding what's next
     try {
       const data = JSON.parse(xhr.responseText);
       if (xhr.status >= 400 || data.error) {
-        _finish();
-        if (opts.onErrorRaw) opts.onErrorRaw(data);
-        else onError(data.error || 'Server error');
+        // Hand _finish to the caller: a handoff (ai_fallback) leaves the bar
+        // running for the next stage, while genuine errors still clean up.
+        if (opts.onErrorRaw) opts.onErrorRaw(data, _finish);
+        else { _finish(); onError(data.error || 'Server error'); }
       } else _finish(() => onSuccess(data, xhr.status));
     } catch(e) { _finish(); onError('Invalid server response'); }
   };
@@ -2131,7 +2154,7 @@ const STANDARD_POS = [
 
 /* ── MODE 10: All in One ─────────────────────────────────────────────────── */
 
-ALL_SECS.push('aio-select', 'aio-run', 'aio-done', 'aio-co-upload', 'm1-preview', 'm3-preview', 'm4-preview');
+ALL_SECS.push('aio-select', 'aio-run', 'aio-done', 'aio-co-upload', 'aio-po-upload', 'm1-preview', 'm3-preview', 'm4-preview');
 STEP_DEFS['allinone'] = ['Upload', 'Select Course', 'Generate', 'Done'];
 STEP_MAP['allinone']  = { 'upload': 1, 'courses': 2, 'aio-select': 2, 'aio-run': 3, 'aio-done': 4 };
 
@@ -2181,10 +2204,18 @@ let _aioModulePreselect = null;
 let _aioFromModule = null;
 // Pre-loaded COs to inject into _aio.cos when moduleGenerateAll initialises (Module 3/4 Option A)
 let _aioInitialCos = null;
+// CO file uploaded earlier this session, cached for reuse in later modules.
+// Tied to the course code it was uploaded for — COs are course-specific, so we
+// only offer to reuse it when the same course is selected.
+let _cachedCo = { code: null, cos: [] };
 // True while Module 3 Option A (syllabus + CO upload) flow is active
 let _m3OptionA = false;
 // True while Module 4 Option A (syllabus + CO upload) flow is active
 let _m4OptionA = false;
+// True while Module 4 Option C (syllabus + user's own PO file) flow is active
+let _m4OptionC = false;
+// True while Module 4 Option D (syllabus + user's own CO file + PO file) flow is active
+let _m4OptionD = false;
 
 function _hideModuleSubs() {
   ['module1', 'module2', 'module3', 'module4'].forEach(id => {
@@ -2217,6 +2248,10 @@ function _updateModuleTokenCost(moduleId) {
 
 function moduleGoBack(moduleId) {
   _hideModuleSubs();
+  // Clear any wizard section that may have been opened from inside the module flow
+  // (e.g. Configure Question Paper composed from cache) so it doesn't linger on home.
+  ALL_SECS.forEach(s => document.getElementById(`sec-${s}`)?.classList.add('hidden'));
+  document.getElementById('steps-bar')?.classList.add('hidden');
   const modeEl = document.getElementById('sec-mode-select');
   modeEl.classList.remove('hidden');
   modeEl.classList.remove('animate-in');
@@ -2292,6 +2327,34 @@ async function module4GenerateSyllabusOnly() {
   await moduleGenerateAll('module4');
 }
 
+// Option C: auto-generate COs from syllabus, but use the user's uploaded POs
+// (collected mid-flow) instead of the standard set, across the whole pipeline.
+async function module4GenerateWithPo() {
+  document.getElementById('mod4-token-err').classList.add('hidden');
+  MODULE_TOOLS['module4'] = ['pomap', 'coatt', 'poatt', 'sdgco', 'sdgpo'];
+  MODULE_COSTS['module4'] = 6;   // CO(1) auto-gen + 5 tools
+  _m4OptionA    = false;
+  _m4OptionC    = true;
+  _m4OptionD    = false;
+  _aioInitialCos = null;
+  _aioPomapConfiguredPos = null;   // cleared until the PO file is parsed
+  await moduleGenerateAll('module4');
+}
+
+// Option D: upload BOTH your own CO file and PO file (no auto-generation).
+// Chains the CO-upload screen then the PO-upload screen before generating.
+async function module4GenerateWithCoAndPo() {
+  document.getElementById('mod4-token-err').classList.add('hidden');
+  MODULE_TOOLS['module4'] = ['pomap', 'coatt', 'poatt', 'sdgco', 'sdgpo'];
+  MODULE_COSTS['module4'] = 5;   // own COs (no gen) + own POs + 5 tools
+  _m4OptionA    = false;
+  _m4OptionC    = false;
+  _m4OptionD    = true;
+  _aioInitialCos = null;
+  _aioPomapConfiguredPos = null;   // cleared until the PO file is parsed
+  await moduleGenerateAll('module4');
+}
+
 // ── AIO Module 3 Option A: in-flow CO upload ──────────────────────────────────
 async function aioCoUploadFile(input) {
   const file     = input.files[0];
@@ -2314,6 +2377,7 @@ async function aioCoUploadFile(input) {
     const d = await r.json();
     if (d.error) throw new Error(d.error);
     _aio.cos = (d.cos || []).map(c => ({ num: c.num, statement: c.statement }));
+    _cacheCos();   // cache for reuse in later modules
     statusEl.innerHTML = `<span style="color:#10b981;font-weight:700;">&#10003; ${_aio.cos.length} COs loaded from <em>${esc(file.name)}</em></span>`;
     nextBtn.disabled = false;
   } catch(e) {
@@ -2330,8 +2394,82 @@ function aioCoNext() {
     showErr('aio-co-upload-err', 'Please upload a CO file to continue.');
     return;
   }
+  if (_m4OptionD) {
+    // Option D: COs uploaded — now collect the user's PO file before generating.
+    _aioShowPoUpload();
+    return;
+  }
   _m3OptionA = false;
   _m4OptionA = false;
+  aioStart();
+}
+
+// ── AIO Module 4 Option C/D: in-flow PO file upload ───────────────────────────
+// Show + reset the PO upload screen. Re-entrant: works on first entry and after
+// pressing Back. Reused by Option C (after course select) and Option D (after CO upload).
+function _aioShowPoUpload() {
+  const statusEl = document.getElementById('aio-po-upload-status');
+  const nextBtn  = document.getElementById('btn-aio-po-next');
+  const havePos  = _aioPomapConfiguredPos && (_aioPomapConfiguredPos.custom_pos || []).length;
+  if (havePos) {
+    if (statusEl) statusEl.innerHTML =
+      `<span style="color:#10b981;font-weight:700;">&#10003; Reusing ${_aioPomapConfiguredPos.custom_pos.length} Programme Outcomes.</span>` +
+      ` <span style="color:var(--muted);">Choose a file to replace them.</span>`;
+    if (nextBtn) nextBtn.disabled = false;
+  } else {
+    if (statusEl) statusEl.textContent = 'No file selected — choose a TXT, DOCX, or PDF file.';
+    if (nextBtn) nextBtn.disabled = true;
+    const inp = document.getElementById('aio-po-file-input');
+    if (inp) inp.value = '';
+  }
+  document.getElementById('aio-po-upload-err').classList.add('hidden');
+  showSection('aio-po-upload'); setStepBar(2);
+}
+
+async function aioPoUploadFile(input) {
+  const file     = input.files[0];
+  const statusEl = document.getElementById('aio-po-upload-status');
+  const loadEl   = document.getElementById('aio-po-upload-loading');
+  const errEl    = document.getElementById('aio-po-upload-err');
+  const nextBtn  = document.getElementById('btn-aio-po-next');
+  if (!file) return;
+
+  _aioPomapConfiguredPos = null;
+  nextBtn.disabled = true;
+  statusEl.textContent = 'Uploading…';
+  loadEl.classList.remove('hidden');
+  errEl.classList.add('hidden');
+
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch('/upload_po_pomap', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    const pos = (d.pos || []).map(p => ({ key: p.key, name: p.name, desc: p.desc || '' }));
+    if (!pos.length) throw new Error('No Programme Outcomes found in the file.');
+    // Drive the whole pipeline with these POs (same shape the manual custom-PO
+    // adjust panel produces). selected_standard is empty so only the user's POs apply.
+    _aioPomapConfiguredPos = { selected_standard: [], custom_pos: pos };
+    _aioPomapCustomPos     = pos.map(p => ({ ...p }));   // pre-fill the in-flow adjust panel
+    statusEl.innerHTML = `<span style="color:#10b981;font-weight:700;">&#10003; ${pos.length} Programme Outcomes loaded from <em>${esc(file.name)}</em></span>`;
+    nextBtn.disabled = false;
+  } catch(e) {
+    statusEl.textContent = 'Upload failed.';
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    loadEl.classList.add('hidden');
+  }
+}
+
+function aioPoUploadNext() {
+  if (!_aioPomapConfiguredPos || !(_aioPomapConfiguredPos.custom_pos || []).length) {
+    showErr('aio-po-upload-err', 'Please upload a PO file to continue.');
+    return;
+  }
+  _m4OptionC = false;   // Option C: COs auto-generated; Option D: COs already uploaded
+  _m4OptionD = false;
   aioStart();
 }
 
@@ -2376,7 +2514,51 @@ async function moduleGenerateAll(moduleId) {
   document.getElementById('steps-bar').classList.remove('hidden');
   document.getElementById('cos-slider-row').classList.add('hidden');
   document.getElementById('btn-course-next-label').textContent = 'Next →';
+
+  // Reuse a syllabus uploaded earlier this session (same course list, user re-picks
+  // the course) instead of forcing another upload. The banner offers an override.
+  if (S.courses && S.courses.length) {
+    const search = document.getElementById('course-search'); if (search) search.value = '';
+    renderCourses();
+    const nextBtn = document.getElementById('btn-course-next'); if (nextBtn) nextBtn.disabled = !S.selected;
+    _setSyllabusReuseBanner(true);
+    showSection('courses'); setStepBar(2);
+  } else {
+    _setSyllabusReuseBanner(false);
+    showSection('upload'); setStepBar(1);
+  }
+}
+
+// Toggle the "using the syllabus from earlier" banner on the course-selection screen.
+function _setSyllabusReuseBanner(show) {
+  document.getElementById('syllabus-reuse-banner')?.classList.toggle('hidden', !show);
+}
+
+// Override: user wants to upload a different syllabus than the cached one.
+function aioUploadDifferentSyllabus() {
+  _setSyllabusReuseBanner(false);
   showSection('upload'); setStepBar(1);
+}
+
+// Cache the current COs (generated, edited or uploaded) for reuse in later modules,
+// tied to the selected course since COs are course-specific.
+function _cacheCos() {
+  if (_aio.cos && _aio.cos.length && S.selected) {
+    _cachedCo = { code: S.selected, cos: _aio.cos.map(c => ({ num: c.num, statement: c.statement })) };
+  }
+}
+
+// Jump from a finished flow into another module while keeping the uploaded syllabus
+// and CO file, so the user isn't asked to upload them again. Resets everything else.
+function aioSwitchModule(moduleId) {
+  const keepCourses  = S.courses;
+  const keepSelected = S.selected;
+  const keepCachedCo = _cachedCo;
+  startOver();
+  S.courses  = keepCourses  || [];
+  S.selected = keepSelected || null;
+  _cachedCo  = keepCachedCo || { code: null, cos: [] };
+  selectMode(moduleId);
 }
 
 async function module2ComposePaper() {
@@ -2496,13 +2678,36 @@ let _aio = {
         _aio.selected = new Set(_aioModulePreselect);
         _aioModulePreselect = null;
       }
-      if (_m3OptionA || _m4OptionA) {
-        // Option A: ask user to upload CO file before generation
+      if (_m4OptionC) {
+        // Option C: COs auto-generated, but ask user to upload their PO file first.
+        _aioShowPoUpload();
+        return;
+      }
+      if (_m3OptionA || _m4OptionA || _m4OptionD) {
+        // Option A / D: ask user to upload CO file before generation.
+        // (Option D then asks for a PO file too — handled in aioCoNext.)
         // Re-entrant: works on first Next AND after pressing Back from CO upload screen
         const statusEl = document.getElementById('aio-co-upload-status');
-        if (statusEl && !_aio.cos.length) {
+        const nextBtn  = document.getElementById('btn-aio-co-next');
+        // Option D continues to a PO-upload step, so this button isn't the final action
+        if (nextBtn) nextBtn.textContent = _m4OptionD ? 'Next →' : 'Generate →';
+        // COs are course-specific. Re-derive from the cache for the *currently*
+        // selected course every time: reuse when it matches, otherwise clear any
+        // stale COs (e.g. from a different course picked earlier) and ask for an
+        // upload. The Choose File button always allows an override.
+        if (_cachedCo.cos.length && _cachedCo.code === S.selected) {
+          _aio.cos = _cachedCo.cos.map(c => ({ num: c.num, statement: c.statement }));
+        } else {
+          _aio.cos = [];
+        }
+        if (_aio.cos.length) {
+          if (statusEl) statusEl.innerHTML =
+            `<span style="color:#10b981;font-weight:700;">&#10003; Reusing ${_aio.cos.length} COs from earlier this session.</span>` +
+            ` <span style="color:var(--muted);">Choose a file to replace them.</span>`;
+          if (nextBtn) nextBtn.disabled = false;
+        } else if (statusEl) {
           statusEl.textContent = 'No file selected — choose a TXT, DOCX, or PDF file.';
-          document.getElementById('btn-aio-co-next').disabled = true;
+          if (nextBtn) nextBtn.disabled = true;
           const inp = document.getElementById('aio-co-file-input');
           if (inp) inp.value = '';
         }
@@ -2535,8 +2740,11 @@ let _aio = {
     _aio = { selected: new Set(), queue: [], queueStep: 0, cos: [], results: {}, previews: {}, expanded: false };
     _aioModulePreselect = null;
     _aioFromModule      = null;
+    _cachedCo           = { code: null, cos: [] };
     _m3OptionA = false;
     _m4OptionA = false;
+    _m4OptionC = false;
+    _m4OptionD = false;
     _aioPomapConfiguredPos = null;
     _aioPomapCustomPos     = [];
     _aioSdgCoSelected      = null;
@@ -3003,6 +3211,7 @@ function _aioCoUseSelected() {
   );
   if (included.size === 0) { alert('Please select at least one CO.'); return; }
   _aio.cos = _aio.cos.filter(c => included.has(c.num));
+  _cacheCos();   // remember the chosen COs so later modules can reuse them
   _aio.previews['cos'] = _aio.cos.map(c => `CO${c.num}: ${c.statement}`).join('\n');
   // Restore Next button for subsequent steps
   const nextBtn = document.getElementById('btn-aio-next');
@@ -3025,6 +3234,20 @@ function aioSkip() {
 
 function aioRegen() {
   // Reset Next button in case we were on the CO step
+  const nextBtn = document.getElementById('btn-aio-next');
+  if (nextBtn) { nextBtn.textContent = 'Next →'; nextBtn.onclick = aioNext; }
+  _aioRunStep();
+}
+
+// Show a step error with a Retry button (queueStep is not advanced on failure,
+// so re-running the current step retries it without losing earlier results).
+function _aioStepErr(msg) {
+  document.getElementById('aio-run-err-msg').textContent = msg;
+  document.getElementById('aio-run-err').classList.remove('hidden');
+}
+
+// Retry the current (failed) pipeline step — same target as Regenerate.
+function aioRetryStep() {
   const nextBtn = document.getElementById('btn-aio-next');
   if (nextBtn) { nextBtn.textContent = 'Next →'; nextBtn.onclick = aioNext; }
   _aioRunStep();
@@ -3088,6 +3311,7 @@ async function _aioPrepare() {
   if (d.cos && d.cos.length) {
     _aio.cos = d.cos.map(c => ({ num: c.num, statement: c.statement }));
   }
+  _cacheCos();   // cache finalised COs for reuse in later modules
   return d;
 }
 
@@ -3104,14 +3328,14 @@ function _aioRunCos() {
 
   const es = new EventSource(`/generate?code=${encodeURIComponent(S.selected || '')}&num_cos=15`);
   const _coTimeout = _addSSETimeout(es, 100000, () => {
-    showErr('aio-run-err', 'CO generation timed out. Try regenerating.');
+    _aioStepErr('CO generation timed out. Try regenerating.');
   });
 
   es.onmessage = ev => {
     const d = JSON.parse(ev.data);
     if (d.error) {
       es.close(); _coTimeout(); _stopFakeProgress('aio-run-progress');
-      showErr('aio-run-err', d.error);
+      _aioStepErr(d.error);
       return;
     }
     if (d.chunk) {
@@ -3133,7 +3357,7 @@ function _aioRunCos() {
   };
   es.onerror = () => {
     es.close(); _coTimeout(); _stopFakeProgress('aio-run-progress');
-    showErr('aio-run-err', 'Connection error generating COs. Try regenerating.');
+    _aioStepErr('Connection error generating COs. Try regenerating.');
   };
 }
 
@@ -3167,7 +3391,7 @@ async function _aioRunQbank() {
   // Sync session so QBank can use AIO-generated COs via current_result
   if (_aio.cos.length) {
     try { await _aioPrepare(); } catch(e) {
-      showErr('aio-run-err', 'Session setup failed: ' + e.message); return;
+      _aioStepErr('Session setup failed: ' + e.message); return;
     }
   }
   _setProgress(8, 'Building unit plan…');
@@ -3182,7 +3406,7 @@ async function _aioRunQbank() {
 
   const es = new EventSource(`/generate_qbank?${params}`);
   const _qbTimeout = _addSSETimeout(es, 600000, () => {
-    showErr('aio-run-err', 'Question Bank generation timed out. Try regenerating.');
+    _aioStepErr('Question Bank generation timed out. Try regenerating.');
   });
 
   es.onmessage = ev => {
@@ -3190,7 +3414,7 @@ async function _aioRunQbank() {
     if (d.type === 'error') {
       es.close(); _qbTimeout();
       progEl.classList.add('hidden');
-      showErr('aio-run-err', d.message);
+      _aioStepErr(d.message);
       return;
     }
     if (d.type === 'status') {
@@ -3230,7 +3454,7 @@ async function _aioRunQbank() {
   es.onerror = () => {
     es.close(); _qbTimeout();
     progEl.classList.add('hidden');
-    showErr('aio-run-err', 'Connection error generating Question Bank. Try regenerating.');
+    _aioStepErr('Connection error generating Question Bank. Try regenerating.');
   };
 }
 
@@ -3398,7 +3622,7 @@ async function _aioApplyPoConfig(btn) {
 // CO–PO Mapping
 async function _aioRunPomap() {
   try { await _aioPrepare(); } catch(e) {
-    showErr('aio-run-err', 'Session setup failed: ' + e.message); return;
+    _aioStepErr('Session setup failed: ' + e.message); return;
   }
 
   // Re-apply custom PO configuration if the user adjusted it via the adjust panel
@@ -3421,14 +3645,14 @@ async function _aioRunPomap() {
   const es = new EventSource('/generate_po_mapping');
   const _pmTimeout = _addSSETimeout(es, 100000, () => {
     _stopFakeProgress('aio-run-progress');
-    showErr('aio-run-err', 'PO Mapping timed out. Try regenerating.');
+    _aioStepErr('PO Mapping timed out. Try regenerating.');
   });
 
   es.onmessage = ev => {
     const d = JSON.parse(ev.data);
     if (d.error) {
       es.close(); _pmTimeout(); _stopFakeProgress('aio-run-progress');
-      showErr('aio-run-err', d.error); return;
+      _aioStepErr(d.error); return;
     }
     if (d.done) {
       es.close(); _pmTimeout();
@@ -3438,7 +3662,7 @@ async function _aioRunPomap() {
   };
   es.onerror = () => {
     es.close(); _pmTimeout(); _stopFakeProgress('aio-run-progress');
-    showErr('aio-run-err', 'Connection error generating PO Mapping. Try regenerating.');
+    _aioStepErr('Connection error generating PO Mapping. Try regenerating.');
   };
 }
 
@@ -3462,7 +3686,7 @@ async function _aioRunLp() {
   streamEl.classList.remove('hidden');
 
   try { await _aioPrepare(); } catch(e) {
-    showErr('aio-run-err', 'Session setup failed: ' + e.message); return;
+    _aioStepErr('Session setup failed: ' + e.message); return;
   }
 
   const params = new URLSearchParams({
@@ -3474,14 +3698,14 @@ async function _aioRunLp() {
   const es = new EventSource(`/generate_lp?${params}`);
   const _lpTimeout = _addSSETimeout(es, 300000, () => {
     progressEl.classList.add('hidden');
-    showErr('aio-run-err', 'Lesson Plan generation timed out. Try regenerating.');
+    _aioStepErr('Lesson Plan generation timed out. Try regenerating.');
   });
 
   es.onmessage = ev => {
     const d = JSON.parse(ev.data);
     if (d.error) {
       es.close(); _lpTimeout(); progressEl.classList.add('hidden');
-      showErr('aio-run-err', d.error); return;
+      _aioStepErr(d.error); return;
     }
     if (d.progress) {
       streamEl.textContent += d.progress + '\n';
@@ -3495,7 +3719,7 @@ async function _aioRunLp() {
   };
   es.onerror = () => {
     es.close(); _lpTimeout(); progressEl.classList.add('hidden');
-    showErr('aio-run-err', 'Connection error generating Lesson Plan. Try regenerating.');
+    _aioStepErr('Connection error generating Lesson Plan. Try regenerating.');
   };
 }
 
@@ -3520,7 +3744,7 @@ async function _aioRunTd() {
   streamEl.classList.remove('hidden');
 
   try { await _aioPrepare(); } catch(e) {
-    showErr('aio-run-err', 'Session setup failed: ' + e.message); return;
+    _aioStepErr('Session setup failed: ' + e.message); return;
   }
 
   const params = new URLSearchParams({
@@ -3532,14 +3756,14 @@ async function _aioRunTd() {
   const es = new EventSource(`/generate_td?${params}`);
   const _tdTimeout = _addSSETimeout(es, 300000, () => {
     progressEl.classList.add('hidden');
-    showErr('aio-run-err', 'Teaching Diary generation timed out. Try regenerating.');
+    _aioStepErr('Teaching Diary generation timed out. Try regenerating.');
   });
 
   es.onmessage = ev => {
     const d = JSON.parse(ev.data);
     if (d.error) {
       es.close(); _tdTimeout(); progressEl.classList.add('hidden');
-      showErr('aio-run-err', d.error); return;
+      _aioStepErr(d.error); return;
     }
     if (d.progress) {
       streamEl.textContent += d.progress + '\n';
@@ -3553,7 +3777,7 @@ async function _aioRunTd() {
   };
   es.onerror = () => {
     es.close(); _tdTimeout(); progressEl.classList.add('hidden');
-    showErr('aio-run-err', 'Connection error generating Teaching Diary. Try regenerating.');
+    _aioStepErr('Connection error generating Teaching Diary. Try regenerating.');
   };
 }
 
@@ -3888,7 +4112,7 @@ let _aioSdgCoSelected = null;
 
 async function _aioRunSdgCo() {
   if (!_aio.cos.length) {
-    showErr('aio-run-err', 'No COs available — ensure Course Outcomes is included in your selection.');
+    _aioStepErr('No COs available — ensure Course Outcomes is included in your selection.');
     return;
   }
 
@@ -3906,11 +4130,11 @@ async function _aioRunSdgCo() {
       body: JSON.stringify({ cos, course: S.selected || '', sdg_list }),
     });
     const d = await r.json();
-    if (d.error) { _stopFakeProgress('aio-run-progress'); showErr('aio-run-err', d.error); return; }
+    if (d.error) { _stopFakeProgress('aio-run-progress'); _aioStepErr(d.error); return; }
     _stopFakeProgress('aio-run-progress', () => _aioOnDone('sdgco', _buildSdgCoPreview(d), d));
   } catch(e) {
     _stopFakeProgress('aio-run-progress');
-    showErr('aio-run-err', 'Failed: ' + e.message);
+    _aioStepErr('Failed: ' + e.message);
   }
 }
 
@@ -3950,12 +4174,12 @@ async function _aioRunSdgPo() {
       body: JSON.stringify({ course: S.selected || '' }),
     });
     const d = await r.json();
-    if (d.error) { _stopFakeProgress('aio-run-progress'); showErr('aio-run-err', d.error); return; }
+    if (d.error) { _stopFakeProgress('aio-run-progress'); _aioStepErr(d.error); return; }
     // Backend returns pre-computed {pos, results, composite}
     _stopFakeProgress('aio-run-progress', () => _aioOnDone('sdgpo', _buildSdgPoPreview(d), d));
   } catch(e) {
     _stopFakeProgress('aio-run-progress');
-    showErr('aio-run-err', 'Failed: ' + e.message);
+    _aioStepErr('Failed: ' + e.message);
   }
 }
 
@@ -3975,7 +4199,7 @@ function _buildSdgPoPreview(d) {
 // CO Attainment
 async function _aioRunCoAtt() {
   if (!_aio.cos.length) {
-    showErr('aio-run-err', 'No COs available — ensure Course Outcomes is included in your selection.');
+    _aioStepErr('No COs available — ensure Course Outcomes is included in your selection.');
     return;
   }
 
@@ -3993,11 +4217,11 @@ async function _aioRunCoAtt() {
         t1: _aioCoAttThresholds.t1, t2: _aioCoAttThresholds.t2, t3: _aioCoAttThresholds.t3 }),
     });
     const d = await r.json();
-    if (d.error) { _stopFakeProgress('aio-run-progress'); showErr('aio-run-err', d.error); return; }
+    if (d.error) { _stopFakeProgress('aio-run-progress'); _aioStepErr(d.error); return; }
     _stopFakeProgress('aio-run-progress', () => _aioOnDone('coatt', _buildCoAttPreview(d), d));
   } catch(e) {
     _stopFakeProgress('aio-run-progress');
-    showErr('aio-run-err', 'Failed: ' + e.message);
+    _aioStepErr('Failed: ' + e.message);
   }
 }
 
@@ -4017,7 +4241,7 @@ function _buildCoAttPreview(d) {
 // PO Attainment
 async function _aioRunPoAtt() {
   if (!_aio.cos.length) {
-    showErr('aio-run-err', 'No COs available — ensure Course Outcomes is included in your selection.');
+    _aioStepErr('No COs available — ensure Course Outcomes is included in your selection.');
     return;
   }
 
@@ -4042,11 +4266,11 @@ async function _aioRunPoAtt() {
       }),
     });
     const d = await r.json();
-    if (d.error) { _stopFakeProgress('aio-run-progress'); showErr('aio-run-err', d.error); return; }
+    if (d.error) { _stopFakeProgress('aio-run-progress'); _aioStepErr(d.error); return; }
     _stopFakeProgress('aio-run-progress', () => _aioOnDone('poatt', _buildPoAttPreview(d), d));
   } catch(e) {
     _stopFakeProgress('aio-run-progress');
-    showErr('aio-run-err', 'Failed: ' + e.message);
+    _aioStepErr('Failed: ' + e.message);
   }
 }
 
@@ -4082,7 +4306,7 @@ function _renderModuleNav(containerId, currentModule) {
   if (!el) return;
   const buttons = _MODULE_NAV
     .filter(m => m.id !== currentModule)
-    .map(m => `<button class="btn btn-ghost" onclick="startOver(); selectMode('${m.id}')" `
+    .map(m => `<button class="btn btn-ghost" onclick="aioSwitchModule('${m.id}')" `
             + `style="border-color:${m.color};color:${m.color};font-size:.79rem;padding:5px 12px;">${m.label} →</button>`)
     .join('');
   el.innerHTML = `<span style="font-size:.75rem;font-weight:700;color:var(--muted);">Go to:</span>${buttons}`;
@@ -4090,6 +4314,7 @@ function _renderModuleNav(containerId, currentModule) {
 
 function _aioShowDone() {
   setStepBar(4);
+  _cacheCos();   // final guarantee: whatever COs this run used are cached for later modules
   const completed = _aio.queue.filter(id => _aio.previews[id] !== undefined);
   _renderModuleNav('aio-done-nav', _aioFromModule);
 
@@ -4277,6 +4502,16 @@ async function _previewModule1Report(clickedBtn) {
     document.getElementById('m1-undo-bar').style.display = 'none';
     refreshTokenBadge();
     showSection('m1-preview');
+    if (clickedBtn) {
+      // Fresh open: keep improvement suggestions hidden until the user asks for them.
+      _m1ImproveShown = false;
+      const trig = document.getElementById('m1-improve-trigger');
+      if (trig) trig.style.display = '';
+      document.getElementById('m1-improve-wrap').style.display = 'none';
+    } else if (_m1ImproveShown) {
+      // Rebuild after an Apply/Undo: refresh the panel only if it was already open.
+      _m1LoadImproveActions();
+    }
   } catch (e) {
     showToast('Preview failed: ' + e.message, 'error');
   } finally {
@@ -4289,6 +4524,237 @@ function pickM1Fmt(fmt) {
   document.querySelectorAll('[data-m1fmt]').forEach(c => {
     c.classList.toggle('selected', c.dataset.m1fmt === fmt);
   });
+}
+
+// ── Reusable branded confirm modal + busy overlay (replaces native confirm/alert) ──
+function uiConfirm(opts) {
+  opts = opts || {};
+  return new Promise(resolve => {
+    const prev = document.activeElement;
+    const scrim = document.createElement('div');
+    scrim.className = 'ui-overlay';
+    scrim.setAttribute('role', 'dialog');
+    scrim.setAttribute('aria-modal', 'true');
+    scrim.setAttribute('aria-labelledby', 'ui-modal-title');
+    const noteHtml = opts.note
+      ? `<div class="ui-modal-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span>${esc(opts.note)}</span></div>`
+      : '';
+    scrim.innerHTML = `
+      <div class="ui-modal" role="document">
+        <div class="ui-modal-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        </div>
+        <h3 class="ui-modal-title" id="ui-modal-title">${esc(opts.title || 'Are you sure?')}</h3>
+        <p class="ui-modal-body">${esc(opts.body || '')}</p>
+        ${noteHtml}
+        <div class="ui-modal-actions">
+          <button class="btn btn-ghost"   data-act="cancel">${esc(opts.cancelText || 'Cancel')}</button>
+          <button class="btn btn-primary" data-act="ok">${esc(opts.confirmText || 'Confirm')}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(scrim);
+    requestAnimationFrame(() => scrim.classList.add('show'));
+
+    const okBtn = scrim.querySelector('[data-act="ok"]');
+    const cancelBtn = scrim.querySelector('[data-act="cancel"]');
+    let done = false;
+    function close(result) {
+      if (done) return;
+      done = true;
+      document.removeEventListener('keydown', onKey, true);
+      scrim.classList.remove('show');
+      setTimeout(() => { scrim.remove(); try { prev && prev.focus(); } catch (e) {} }, 200);
+      resolve(result);
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') { e.preventDefault(); close(false); }
+      else if (e.key === 'Enter') { e.preventDefault(); close(true); }
+      else if (e.key === 'Tab') {        // simple focus trap between the two buttons
+        const f = [cancelBtn, okBtn];
+        const i = f.indexOf(document.activeElement);
+        e.preventDefault();
+        f[(i + (e.shiftKey ? f.length - 1 : 1)) % f.length].focus();
+      }
+    }
+    okBtn.addEventListener('click', () => close(true));
+    cancelBtn.addEventListener('click', () => close(false));
+    scrim.addEventListener('mousedown', e => { if (e.target === scrim) close(false); });
+    document.addEventListener('keydown', onKey, true);
+    setTimeout(() => okBtn.focus(), 60);
+  });
+}
+
+const uiBusy = {
+  _el: null, _timer: null, _i: 0,
+  show(opts) {
+    opts = opts || {};
+    const steps = (opts.steps && opts.steps.length) ? opts.steps : ['Working…'];
+    this.hide();
+    const scrim = document.createElement('div');
+    scrim.className = 'ui-overlay';
+    scrim.setAttribute('role', 'alertdialog');
+    scrim.setAttribute('aria-busy', 'true');
+    scrim.innerHTML = `
+      <div class="ui-busy-card">
+        <div class="spinner dark" aria-hidden="true"></div>
+        <p class="ui-busy-title">${esc(opts.title || 'Working…')}</p>
+        <p class="ui-busy-status" aria-live="polite">${esc(steps[0])}</p>
+        <div class="uni-progress" style="margin:0;">
+          <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+        </div>
+        <p class="ui-busy-hint">${esc(opts.hint || 'This can take up to a minute. Please keep this tab open.')}</p>
+      </div>`;
+    document.body.appendChild(scrim);
+    requestAnimationFrame(() => scrim.classList.add('show'));
+    this._el = scrim;
+    this._i  = 0;
+    const statusEl = scrim.querySelector('.ui-busy-status');
+    if (steps.length > 1) {
+      this._timer = setInterval(() => {
+        this._i = Math.min(steps.length - 1, this._i + 1);
+        statusEl.style.opacity = '0';
+        setTimeout(() => { statusEl.textContent = steps[this._i]; statusEl.style.opacity = '1'; }, 220);
+        if (this._i >= steps.length - 1) { clearInterval(this._timer); this._timer = null; }
+      }, opts.stepMs || 7000);
+    }
+  },
+  hide() {
+    if (this._timer) { clearInterval(this._timer); this._timer = null; }
+    const el = this._el; this._el = null;
+    if (el) { el.classList.remove('show'); setTimeout(() => el.remove(), 200); }
+  },
+};
+
+// ── Apply an improvement tip → regenerate COs / QB → rebuild the whole report ──
+let _m1ImproveActions = [];
+let _m1ImproveShown   = false;
+
+function _m1RenderImprove(d) {
+  const wrap = document.getElementById('m1-improve-wrap');
+  const list = document.getElementById('m1-improve-list');
+  if (!wrap || !list) return;
+  _m1ImproveActions = (d && d.weak_actions) || [];
+  if (!_m1ImproveActions.length) {
+    list.innerHTML = '<div style="font-size:.74rem;color:var(--muted);line-height:1.5;">All set — no improvement areas remaining. The report looks well balanced.</div>';
+  } else {
+    list.innerHTML = _m1ImproveActions.map((a, i) => {
+      const tgt = a.target === 'cos' ? 'Course Outcomes' : 'Question Bank';
+      return `
+      <div style="border:1px solid var(--border);border-radius:8px;padding:9px 10px;margin-bottom:8px;background:var(--bg);">
+        <div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline;">
+          <span style="font-weight:700;font-size:.8rem;">${esc(a.metric)}</span>
+          <span style="font-size:.68rem;color:#92400e;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:1px 7px;white-space:nowrap;">${esc(a.status)}</span>
+        </div>
+        <div style="font-size:.74rem;color:var(--muted);margin:5px 0 7px;line-height:1.5;">${esc(a.tip)}</div>
+        <button class="btn btn-primary" style="width:100%;font-size:.74rem;padding:5px 0;justify-content:center;"
+          onclick="_m1ApplyTip(${i})">Apply &amp; rebuild · updates ${tgt}</button>
+      </div>`;
+    }).join('');
+  }
+  wrap.style.display = '';
+  document.getElementById('m1-improve-undo').style.display = (d && d.can_undo) ? '' : 'none';
+}
+
+// Opt-in: only surfaced when the user explicitly asks. Freezes the current weak
+// metrics as the baseline so applying fixes can only shrink the list, never grow it.
+async function _m1ShowImprove() {
+  _m1ImproveShown = true;
+  const trig = document.getElementById('m1-improve-trigger');
+  if (trig) trig.style.display = 'none';
+  try {
+    const r = await fetch('/m1_improve_start', { method: 'POST' });
+    _m1RenderImprove(await r.json());
+  } catch (e) {
+    _m1ImproveShown = false;
+    if (trig) trig.style.display = '';
+  }
+}
+
+// Refresh the panel after an Apply/Undo rebuild (keeps the existing baseline).
+async function _m1LoadImproveActions() {
+  try {
+    const r = await fetch('/m1_report_meta');
+    _m1RenderImprove(await r.json());
+  } catch (e) {
+    const wrap = document.getElementById('m1-improve-wrap');
+    if (wrap) wrap.style.display = 'none';
+    _m1ImproveShown = false;
+    const trig = document.getElementById('m1-improve-trigger');
+    if (trig) trig.style.display = '';
+  }
+}
+
+async function _m1ApplyTip(idx) {
+  const a = _m1ImproveActions[idx];
+  if (!a) return;
+  const tgtLabel = a.target === 'cos' ? 'Course Outcomes' : 'Question Bank';
+
+  const ok = await uiConfirm({
+    title:       `Apply the "${a.metric}" fix?`,
+    body:        `This regenerates your ${tgtLabel} with AI and rebuilds the whole report — analytics, QQI and accreditation update too.`,
+    note:        'Uses about 4 tokens. You can undo this afterwards.',
+    confirmText: 'Apply & rebuild',
+    cancelText:  'Cancel',
+  });
+  if (!ok) return;
+
+  const list = document.getElementById('m1-improve-list');
+  list.querySelectorAll('button').forEach(b => b.disabled = true);
+  uiBusy.show({
+    title: 'Improving your report',
+    steps: [
+      `Regenerating ${tgtLabel} with AI…`,
+      'Recomputing analytics and QQI…',
+      'Rebuilding the report…',
+      'Almost there…',
+    ],
+    stepMs: 9000,
+  });
+
+  try {
+    const r = await fetch('/m1_apply_tip', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: a.target, tip: a.tip, metric: a.metric }),
+    });
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || 'Apply failed');
+    await _previewModule1Report(null);   // re-fetch, re-render, reload actions + undo bar
+    showToast(`Applied. Report rebuilt from the updated ${tgtLabel}.`, 'success');
+  } catch (e) {
+    showToast(e.message, 'error');
+    list.querySelectorAll('button').forEach(b => b.disabled = false);
+  } finally {
+    uiBusy.hide();
+    refreshTokenBadge();
+  }
+}
+
+async function _m1UndoTip() {
+  const ok = await uiConfirm({
+    title:       'Undo last regeneration?',
+    body:        'This restores your previous Course Outcomes / Question Bank and rebuilds the report.',
+    confirmText: 'Undo',
+    cancelText:  'Keep changes',
+  });
+  if (!ok) return;
+
+  uiBusy.show({
+    title: 'Restoring previous version',
+    steps: ['Reverting Course Outcomes / Question Bank…', 'Rebuilding the report…', 'Almost there…'],
+    stepMs: 8000,
+  });
+  try {
+    const r = await fetch('/m1_undo_tip', { method: 'POST' });
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || 'Undo failed');
+    await _previewModule1Report(null);
+    showToast('Reverted to the previous version.', 'success');
+  } catch (e) {
+    showToast(e.message, 'error');
+  } finally {
+    uiBusy.hide();
+    refreshTokenBadge();
+  }
 }
 
 function toggleM1AiPanel() {
@@ -4529,6 +4995,87 @@ let _m3SavedRange  = null;
 let _m3RephraseVal = null;
 let _m3UndoData    = null;
 
+// ── "Suggest ways to improve" — suggestions-only panel for Modules 3 & 4 ──
+// Unlike Module 1 there is no source data to regenerate, so this only surfaces
+// prioritised, actionable advice the faculty applies themselves.
+const _SEV_STYLE = {
+  High:   { bg:'#fef2f2', bd:'#fca5a5', fg:'#b91c1c' },
+  Medium: { bg:'#fffbeb', bd:'#fcd34d', fg:'#92400e' },
+  Low:    { bg:'#f0fdf4', bd:'#86efac', fg:'#166534' },
+};
+
+function _moduleResetImprove(mod) {
+  const trig = document.getElementById(mod + '-improve-trigger');
+  const wrap = document.getElementById(mod + '-improve-wrap');
+  const list = document.getElementById(mod + '-improve-list');
+  if (trig) trig.style.display = '';
+  if (wrap) wrap.style.display = 'none';
+  if (list) list.innerHTML = '';
+}
+
+async function _moduleShowImprove(mod) {
+  const trig = document.getElementById(mod + '-improve-trigger');
+  const wrap = document.getElementById(mod + '-improve-wrap');
+  const list = document.getElementById(mod + '-improve-list');
+  if (!wrap || !list) return;
+  if (trig) trig.style.display = 'none';
+  wrap.style.display = '';
+  list.innerHTML = '<div style="font-size:.74rem;color:var(--muted);line-height:1.5;">Analysing the report…</div>';
+
+  try {
+    const r = await fetch('/module_report_suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ module: mod }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      list.innerHTML = `<div style="font-size:.74rem;color:#b91c1c;line-height:1.5;">${esc(d.error || 'Could not load suggestions.')}</div>`;
+      if (trig) trig.style.display = '';
+      wrap.style.display = 'none';
+      refreshTokenBadge();
+      return;
+    }
+    _moduleRenderImprove(mod, d.suggestions || []);
+    refreshTokenBadge();
+  } catch (e) {
+    list.innerHTML = `<div style="font-size:.74rem;color:#b91c1c;line-height:1.5;">${esc(e.message)}</div>`;
+    if (trig) trig.style.display = '';
+    wrap.style.display = 'none';
+  }
+}
+
+function _moduleRenderImprove(mod, suggestions) {
+  const list = document.getElementById(mod + '-improve-list');
+  if (!list) return;
+  if (!suggestions.length) {
+    list.innerHTML = '<div style="font-size:.74rem;color:var(--muted);line-height:1.5;">All set — no major improvement areas found. The report looks well balanced.</div>';
+    return;
+  }
+  list.innerHTML = suggestions.map(s => {
+    const sv = _SEV_STYLE[s.severity] || _SEV_STYLE.Medium;
+    return `
+      <div style="border:1px solid var(--border);border-radius:8px;padding:9px 10px;margin-bottom:8px;background:var(--bg);">
+        <div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline;">
+          <span style="font-weight:700;font-size:.8rem;">${esc(s.area)}</span>
+          <span style="font-size:.66rem;color:${sv.fg};background:${sv.bg};border:1px solid ${sv.bd};border-radius:10px;padding:1px 7px;white-space:nowrap;">${esc(s.severity)}</span>
+        </div>
+        <div style="font-size:.74rem;color:var(--muted);margin:5px 0 7px;line-height:1.5;">${esc(s.advice)}</div>
+        <button class="btn btn-ghost" style="width:100%;font-size:.72rem;padding:4px 0;justify-content:center;"
+          onclick="_moduleAskAbout('${mod}', this)" data-q="${esc('How do I improve: ' + s.area + '? ' + s.advice)}">Ask AI about this →</button>
+      </div>`;
+  }).join('');
+}
+
+// Drop a suggestion into the module's Ask-AI box (user decides whether to send).
+function _moduleAskAbout(mod, btn) {
+  const ta = document.getElementById(mod + '-ai-question');
+  if (!ta) return;
+  ta.value = btn.getAttribute('data-q') || '';
+  ta.focus();
+  ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 async function _previewModule3Report(clickedBtn) {
   if (clickedBtn) { clickedBtn.disabled = true; clickedBtn.textContent = 'Generating…'; }
   try {
@@ -4553,6 +5100,7 @@ async function _previewModule3Report(clickedBtn) {
     document.getElementById('m3-ai-status').textContent = 'Select any text in the report, then click "Rephrase Selection".';
     document.getElementById('m3-rephrase-output').innerHTML = '';
     document.getElementById('m3-undo-bar').style.display = 'none';
+    _moduleResetImprove('m3');
     refreshTokenBadge();
     showSection('m3-preview');
     document.querySelector('.container').classList.add('wide');
@@ -4765,6 +5313,8 @@ async function _previewModule4Report(clickedBtn) {
     _m4RephraseVal = null;
     document.getElementById('m4-ai-status').textContent = 'Select any text in the report, then click "Rephrase Selection".';
     document.getElementById('m4-rephrase-output').innerHTML = '';
+    _moduleResetImprove('m4');
+    refreshTokenBadge();
     showSection('m4-preview');
   } catch(e) {
     showToast('Failed: ' + e.message, 'error');

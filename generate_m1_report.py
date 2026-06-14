@@ -16,6 +16,7 @@ Builds a DOCX report covering all 11 Module-1 deliverables:
 
 import re
 import json
+import math
 import datetime
 
 try:
@@ -112,6 +113,30 @@ def _compute_bloom_analytics(cos: list, taxonomy_grid: dict) -> dict:
                        for i, lv in enumerate(_LA_LEVEL_ORDER))
     progression_score = round(weighted_sum / total_mapped, 1)
 
+    lots_pct = round(lots_cos / total_mapped * 100, 1)
+    hots_pct = round(hots_cos / total_mapped * 100, 1)
+
+    # Cognitive breadth, dominant level and empty levels
+    level_counts   = {lv: len(level_co_map[lv]) for lv in _LA_LEVEL_ORDER}
+    covered_levels = [lv for lv in _LA_LEVEL_ORDER if level_counts[lv] > 0]
+    empty_levels   = [lv for lv in _LA_LEVEL_ORDER if level_counts[lv] == 0]
+    breadth        = len(covered_levels)
+    dominant_level = (max(_LA_LEVEL_ORDER, key=lambda lv: level_counts[lv])
+                      if any(level_counts.values()) else None)
+
+    # Cognitive balance index (normalised Shannon entropy, 0-100) — measures how
+    # evenly COs are spread across the six Bloom levels (100 = perfectly even).
+    probs = [level_counts[lv] / total_mapped for lv in _LA_LEVEL_ORDER if level_counts[lv] > 0]
+    if len(probs) > 1:
+        entropy = -sum(p * math.log(p, 2) for p in probs)
+        balance_index = round(entropy / math.log(len(_LA_LEVEL_ORDER), 2) * 100)
+    else:
+        balance_index = 0
+
+    # Knowledge-dimension breadth
+    kdim_covered = [kd for kd in _LA_KDIMS_ORDER if kdim_co_map.get(kd)]
+    kdim_empty   = [kd for kd in _LA_KDIMS_ORDER if not kdim_co_map.get(kd)]
+
     return {
         'level_co_map': level_co_map,
         'kdim_co_map':  kdim_co_map,
@@ -119,8 +144,379 @@ def _compute_bloom_analytics(cos: list, taxonomy_grid: dict) -> dict:
         'total_mapped': total_mapped,
         'lots_cos':     lots_cos,
         'hots_cos':     hots_cos,
+        'lots_pct':     lots_pct,
+        'hots_pct':     hots_pct,
         'progression_score': progression_score,
+        'level_counts':   level_counts,
+        'covered_levels': covered_levels,
+        'empty_levels':   empty_levels,
+        'breadth':        breadth,
+        'dominant_level': dominant_level,
+        'balance_index':  balance_index,
+        'kdim_covered':   kdim_covered,
+        'kdim_empty':     kdim_empty,
+        'hots_target_met': hots_pct >= 40,
     }
+
+
+def _la_alignment_checks(la: dict) -> list:
+    """Return NBA/OBE alignment indicators as (criterion, result, status) rows.
+
+    The qualitative status is derived internally; the numeric cut-offs used to
+    decide it are intentionally not exposed in the report.
+    """
+    hots_pct = la['hots_pct']
+    ps       = la['progression_score']
+    bi       = la['balance_index']
+    kd_cov   = len(la['kdim_covered'])
+    return [
+        ("HOTS Coverage (L4-L6)",       f"{hots_pct}%",
+         "Met" if hots_pct >= 40 else "Not Met"),
+        ("Bloom's Progression Score",   f"{ps} / 6.0",
+         "Met" if ps >= 2.5 else "Not Met"),
+        ("Cognitive Breadth",           f"{la['breadth']} of 6",
+         "Met" if la['breadth'] >= 3 else "Not Met"),
+        ("Cognitive Balance Index",     f"{bi} / 100",
+         "Met" if bi >= 50 else "Not Met"),
+        ("Knowledge-Dimension Breadth", f"{kd_cov} of 4",
+         "Met" if kd_cov >= 2 else "Not Met"),
+    ]
+
+
+def _la_observations(la: dict) -> list:
+    """Return a list of plain-text interpretive observations and recommendations."""
+    obs = []
+    hots_pct = la['hots_pct']
+    lots_pct = la['lots_pct']
+
+    if hots_pct >= 40:
+        obs.append(
+            f"Strong higher-order focus: {hots_pct}% of COs target Analyze, Evaluate "
+            f"or Create, indicating healthy higher-order thinking coverage for NBA/OBE."
+        )
+    elif hots_pct >= 25:
+        obs.append(
+            f"Moderate higher-order focus: {hots_pct}% HOTS coverage. Reframe one or two "
+            f"lower-order COs toward Analyze/Evaluate/Create to strengthen higher-order "
+            f"thinking."
+        )
+    else:
+        obs.append(
+            f"Low higher-order focus: only {hots_pct}% of COs reach HOTS (L4-L6); the "
+            f"course is weighted toward lower-order skills ({lots_pct}% LOTS). Add or "
+            f"rewrite COs to strengthen Analyze, Evaluate and Create."
+        )
+
+    if la['dominant_level'] and la['total_mapped']:
+        dl  = la['dominant_level']
+        idx = _LA_LEVEL_ORDER.index(dl) + 1
+        n   = la['level_counts'][dl]
+        obs.append(
+            f"The cognitive profile peaks at L{idx} - {_LA_LEVEL_NAMES[dl]} "
+            f"({n} CO(s)), the course's dominant thinking level."
+        )
+
+    if la['empty_levels']:
+        names = ", ".join(_LA_LEVEL_NAMES[lv] for lv in la['empty_levels'])
+        obs.append(
+            f"No COs were mapped to: {names}. Coverage gaps at these levels limit the "
+            f"cognitive range and should be reviewed against the syllabus depth."
+        )
+    else:
+        obs.append(
+            "All six Bloom's levels are represented across the COs - an ideal cognitive spread."
+        )
+
+    bi = la['balance_index']
+    if bi >= 70:
+        obs.append(
+            f"Cognitive balance is well distributed (balance index {bi}/100); COs are "
+            f"spread evenly rather than clustering at a single level."
+        )
+    elif bi >= 40:
+        obs.append(
+            f"Cognitive distribution is moderately balanced (balance index {bi}/100); "
+            f"some levels carry noticeably more COs than others."
+        )
+    else:
+        obs.append(
+            f"COs cluster around a few levels (balance index {bi}/100); broadening the "
+            f"spread across more Bloom's levels would improve assessment depth."
+        )
+
+    if la['kdim_empty']:
+        obs.append(
+            f"Knowledge dimensions not yet addressed: {', '.join(la['kdim_empty'])}. "
+            f"Map at least one CO to each dimension to demonstrate balanced knowledge depth."
+        )
+    return obs
+
+
+# ── CO placement rationale (why each CO sits in its RBT cell) ─────────────────
+
+_KDIM_RATIONALE = {
+    'Factual':        "recall of terminology, specific facts and the basic elements of the subject",
+    'Conceptual':     "interrelationships among elements - classifications, principles, theories and models",
+    'Procedural':     "methods, techniques, algorithms and how to carry out a process",
+    'Meta-Cognitive': "strategic and self-reflective knowledge about one's own learning and approach",
+}
+
+_LEVEL_RATIONALE = {
+    'L1': "recall or recognise information",
+    'L2': "explain ideas and interpret meaning",
+    'L3': "apply knowledge to solve problems in new situations",
+    'L4': "break content into parts and examine how they relate",
+    'L5': "judge, justify or critique against defined criteria",
+    'L6': "design, formulate or produce original work",
+}
+
+_LEVEL_VERB_KEY = {
+    'L1': 'remember', 'L2': 'understand', 'L3': 'apply',
+    'L4': 'analyse',  'L5': 'evaluate',   'L6': 'create',
+}
+
+# Broad set of measurable action verbs used to judge CO Formulation. Includes the
+# verbs the CO generator itself is restricted to (both -ize/-ise spellings) so a
+# correctly generated CO is never falsely flagged as poorly formulated.
+_MEASURABLE_VERBS = {v for verbs in _BLOOM_LEVELS.values() for v in verbs} | {
+    'recognize', 'recognise', 'recall', 'interpret', 'exemplify', 'classify',
+    'summarize', 'summarise', 'infer', 'compare', 'explain', 'execute', 'implement',
+    'differentiate', 'organize', 'organise', 'attribute', 'check', 'critique',
+    'generate', 'plan', 'produce', 'analyze', 'analyse', 'evaluate', 'create',
+    'apply', 'design', 'develop', 'construct', 'formulate', 'illustrate',
+    'demonstrate', 'calculate', 'compute', 'solve', 'describe', 'define', 'list',
+    'identify', 'estimate', 'derive', 'model', 'assess',
+}
+
+
+def _qqi_label(score) -> str:
+    """Map a 0-100 quality score to a qualitative rating (no number exposed).
+
+    Uses the same vocabulary as the Accreditation Readiness dashboard.
+    """
+    try:
+        s = float(score)
+    except (TypeError, ValueError):
+        return "—"
+    if s >= 85:
+        return "Strong"
+    if s >= 70:
+        return "Good"
+    if s >= 55:
+        return "Adequate"
+    return "Needs Work"
+
+
+# ── Accreditation improvement guidance ───────────────────────────────────────
+
+# Statuses that are considered healthy and need no improvement prompt.
+_OK_METRIC_STATUSES = {"excellent", "strong", "good", "ready"}
+
+# Keyword groups -> (regeneration target, concrete improvement advice) for a weak
+# metric. 'target' decides what an in-app "Apply" rebuilds: the COs or the QB.
+# Order matters: more specific keyword groups are listed first (first match wins).
+_IMPROVEMENT_TIPS = [
+    (("formulation", "co statement", "statement quality"), "cos",
+     "Rewrite the CO statements using strong, measurable action verbs with a clear "
+     "condition and standard, so every outcome is specific and assessable."),
+    (("higher-order", "higher order", "hots"), "cos",
+     "Elevate selected Course Outcomes to higher-order Bloom levels (Analyze, Evaluate, "
+     "Create) using stronger action verbs where the syllabus supports deeper cognition."),
+    (("knowledge dimension", "knowledge depth"), "cos",
+     "Spread the COs across the knowledge dimensions (Factual, Conceptual, Procedural, "
+     "Meta-Cognitive) so the course is not concentrated in a single dimension."),
+    (("marks distribution", "marks balance", "marks"), "qbank",
+     "Even out the marks allocated to each CO so no outcome is over- or under-weighted; "
+     "add questions for the under-weighted COs."),
+    (("coverage",), "qbank",
+     "Add questions to every CO - especially any that are uncovered - so each outcome "
+     "carries a balanced mix of 2-, 5- and 10-mark items."),
+    (("bloom", "alignment", "cognitive"), "qbank",
+     "Match each question's demand to its CO's stated Bloom level and add more "
+     "higher-order (Analyze/Evaluate/Create) questions where those levels are thin."),
+    (("difficulty", "balance"), "qbank",
+     "Rebalance the easy/medium/hard mix so the paper is neither too easy nor too hard, "
+     "aiming for a graded spread of marks across every CO."),
+    (("scenario", "case", "integration", "application", "real-world"), "qbank",
+     "Add more scenario, case-study and application-based questions that place concepts "
+     "in real-world or industry contexts."),
+    (("clarity", "assessment", "rubric"), "qbank",
+     "Sharpen question wording - state the task, the expected output and the marks "
+     "clearly - and remove ambiguity so students know exactly what is required."),
+    (("industry", "relevance", "employab", "sdg"), "qbank",
+     "Link outcomes and questions to current industry practice and tools, and map them "
+     "to relevant programme outcomes and SDGs."),
+    (("quality", "qqi", "variety"), "qbank",
+     "Increase the number and variety of questions per CO and balance the mark "
+     "distribution to lift overall question quality."),
+]
+
+_FALLBACK_TARGET = "qbank"
+_FALLBACK_TIP = ("Review this area against NBA/OBE expectations and apply targeted "
+                 "improvements, drawing on the recommendations and action items above.")
+
+
+def _metric_needs_work(status) -> bool:
+    return str(status).strip().lower() not in _OK_METRIC_STATUSES
+
+
+def _lookup_improvement(metric_name: str):
+    """Return (target, tip) for a metric name via keyword match."""
+    m = str(metric_name).lower()
+    for keys, target, tip in _IMPROVEMENT_TIPS:
+        if any(k in m for k in keys):
+            return target, tip
+    return _FALLBACK_TARGET, _FALLBACK_TIP
+
+
+def _improvement_tip(metric_name: str) -> str:
+    return _lookup_improvement(metric_name)[1]
+
+
+def _weak_metric_tips(key_metrics: list) -> list:
+    """Return (metric, status, how-to-improve) rows for every metric not yet 'Good'."""
+    rows = []
+    for mtr in key_metrics or []:
+        status = mtr.get("status", "")
+        if _metric_needs_work(status):
+            rows.append((mtr.get("metric", ""), status, _improvement_tip(mtr.get("metric", ""))))
+    return rows
+
+
+def _evenness_score(values: list) -> int:
+    """0-100 score for how evenly a set of non-negative values is distributed
+    (100 = perfectly even). Used for marks/difficulty balance metrics."""
+    vals = [v for v in values]
+    tot  = sum(vals)
+    n    = len(vals)
+    if not tot or n <= 1:
+        return 0
+    ideal = 1 / n
+    devs  = sum(abs(v / tot - ideal) for v in vals)
+    max_dev = 2 * (1 - ideal)   # all mass in one bucket
+    return round(100 * (1 - devs / max_dev)) if max_dev else 100
+
+
+def build_key_metrics(analytics: dict, la: dict = None, cos: list = None) -> list:
+    """Deterministic key metrics spanning the WHOLE Module 1 report, derived from the
+    rule-based analytics (not the AI's free-form output).
+
+    Fixed metric names keep the dashboard and the in-app improvement panel STABLE
+    across rebuilds, so applying a fix measurably moves the right metric and the weak
+    list converges. Every name matches a keyword in _IMPROVEMENT_TIPS (no generic
+    fallback). Coverage by report section:
+      CO Coverage (S5), Question Quality (S8), Difficulty Balance (S6),
+      Scenario Integration (S7), Higher-Order Thinking + Knowledge Dimension
+      Coverage (S1/S4 Learning Analytics), CO Marks Balance (S9),
+      CO Formulation (S1).
+    """
+    metrics = []
+
+    cov = analytics.get("coverage_pct", 0) or 0
+    metrics.append({"metric": "CO Coverage", "score": round(cov),
+                    "status": _qqi_label(cov)})
+
+    qqi = analytics.get("overall_qqi", 0) or 0
+    metrics.append({"metric": "Question Quality", "score": round(qqi),
+                    "status": _qqi_label(qqi)})
+
+    # Higher-order thinking and knowledge-dimension spread (Learning Analytics)
+    if la:
+        hots = la.get("hots_pct", 0) or 0
+        metrics.append({"metric": "Higher-Order Thinking", "score": round(hots),
+                        "status": _qqi_label(hots)})
+        kd_cov   = len(la.get("kdim_covered", []))
+        kd_score = round(kd_cov / len(_LA_KDIMS_ORDER) * 100)
+        metrics.append({"metric": "Knowledge Dimension Coverage", "score": kd_score,
+                        "status": _qqi_label(kd_score)})
+
+    # CO Formulation: share of COs whose statement uses a recognised, measurable verb
+    if cos:
+        good = sum(
+            1 for c in cos
+            if any(re.search(r'\b' + re.escape(v) + r'\b', (c.get("statement") or "").lower())
+                   for v in _MEASURABLE_VERBS)
+        )
+        cf = round(good / len(cos) * 100)
+        metrics.append({"metric": "CO Formulation", "score": cf,
+                        "status": _qqi_label(cf)})
+
+    if not analytics.get("is_lab"):
+        # Difficulty balance: how evenly exam questions split across 2/5/10-mark tiers.
+        bal = _evenness_score([analytics.get("total_2", 0),
+                               analytics.get("total_5", 0),
+                               analytics.get("total_10", 0)])
+        metrics.append({"metric": "Difficulty Balance", "score": bal,
+                        "status": _qqi_label(bal)})
+
+        # Scenario integration: scaled so ~40% scenario questions reaches full score.
+        sc_pct   = analytics.get("scenario_pct", 0) or 0
+        sc_score = min(100, round(sc_pct / 40 * 100)) if sc_pct else 0
+        metrics.append({"metric": "Scenario Integration", "score": sc_score,
+                        "status": _qqi_label(sc_score)})
+
+        # CO Marks Balance: how evenly QB marks are spread across the COs (Section 9).
+        co_marks = analytics.get("co_marks", {}) or {}
+        if co_marks:
+            mb = _evenness_score(list(co_marks.values()))
+            metrics.append({"metric": "CO Marks Balance", "score": mb,
+                            "status": _qqi_label(mb)})
+
+    return metrics
+
+
+def weak_metric_actions(key_metrics: list) -> list:
+    """Like _weak_metric_tips, but each item also carries the regeneration target
+    ('cos' or 'qbank') so the in-app preview can offer an actionable Apply button."""
+    actions = []
+    for mtr in key_metrics or []:
+        status = mtr.get("status", "")
+        if _metric_needs_work(status):
+            metric = mtr.get("metric", "")
+            target, tip = _lookup_improvement(metric)
+            actions.append({"metric": metric, "status": status,
+                            "tip": tip, "target": target})
+    return actions
+
+
+def _co_placement_rationale(cos: list, grid: dict) -> list:
+    """Explain why each CO sits in its RBT cell.
+
+    Returns rows of (CO, "Dimension / Ln-Level", rationale) reconstructed from the
+    action verb in the CO statement (cognitive level) and the knowledge type
+    (knowledge dimension) recorded in the taxonomy grid.
+    """
+    if not grid:
+        return []
+    stmt_by_co = {f"CO{c['num']}": c.get('statement', '') for c in cos}
+    rows = []
+    seen = set()
+    for kd in _LA_KDIMS_ORDER:
+        levels = grid.get(kd, {})
+        for lv in _LA_LEVEL_ORDER:
+            for co in levels.get(lv, []):
+                if co in seen:
+                    continue
+                seen.add(co)
+                stmt  = stmt_by_co.get(co, "")
+                t     = stmt.lower()
+                verbs = _BLOOM_LEVELS.get(_LEVEL_VERB_KEY[lv], [])
+                matched = next(
+                    (v for v in verbs if re.search(r'\b' + re.escape(v) + r'\b', t)),
+                    None,
+                )
+                idx   = _LA_LEVEL_ORDER.index(lv) + 1
+                lname = _LA_LEVEL_NAMES[lv]
+                if matched:
+                    verb_part = (f'the action verb "{matched}" places it at L{idx}-{lname}, '
+                                 f'where students {_LEVEL_RATIONALE[lv]}')
+                else:
+                    verb_part = (f'its cognitive demand places it at L{idx}-{lname}, '
+                                 f'where students {_LEVEL_RATIONALE[lv]}')
+                rationale = (f"{verb_part}; it draws on {kd} knowledge "
+                             f"({_KDIM_RATIONALE.get(kd, 'subject knowledge')}).")
+                rows.append((co, f"{kd} / L{idx}-{lname}", rationale))
+    return rows
 
 
 # ── Quantitative analytics (no AI needed) ────────────────────────────────────
@@ -836,12 +1232,43 @@ def build_docx(
 
     doc.add_paragraph().paragraph_format.space_after = Pt(4)
 
+    # ── CO Placement Rationale ───────────────────────────────────────────────
+    _rationale_rows = _co_placement_rationale(cos, rbt_grid)
+    if _rationale_rows:
+        _add_heading("CO Placement Rationale", level=2, color=TEAL)
+        _add_para(
+            "Why each Course Outcome is mapped to its cell (knowledge dimension x "
+            "cognitive level) in the RBT table above, based on the action verb used "
+            "and the type of knowledge the outcome addresses.",
+            italic=True, size=9
+        )
+        _add_table(
+            ["CO", "RBT Cell", "Why placed here"],
+            _rationale_rows,
+            col_widths=[0.55, 1.75, 4.0]
+        )
+        doc.add_paragraph().paragraph_format.space_after = Pt(4)
+
     # ── Learning Analytics (RBT-derived) ─────────────────────────────────────
     _add_heading("Learning Analytics", level=2, color=TEAL)
     _add_para(
-        "Analytics derived from the RBT mapping — showing the cognitive-level "
-        "distribution of Course Outcomes and their alignment with higher-order "
-        "thinking skills (HOTS) as required for NBA/OBE accreditation.",
+        "This section translates the Revised Bloom's Taxonomy (RBT) mapping into a "
+        "quantitative profile of the course's cognitive design. Each Course Outcome is "
+        "positioned by the cognitive process it demands (Remember, Understand, Apply, "
+        "Analyze, Evaluate, Create) and the knowledge dimension it engages (Factual, "
+        "Conceptual, Procedural, Meta-Cognitive). The analytics below summarise how "
+        "learning is distributed across these levels and dimensions.",
+        italic=True, size=9
+    )
+    _add_para(
+        "The metrics that follow report the cognitive-level distribution of COs, the "
+        "balance between Lower-Order (LOTS) and Higher-Order (HOTS) thinking skills, "
+        "the spread across knowledge dimensions, the cognitive balance and diversity of "
+        "the outcome set, and a checklist of NBA/OBE alignment indicators. Together they "
+        "reveal whether the course progressively builds from foundational recall toward "
+        "analysis, evaluation and creation - the hallmark of an outcome-based curriculum - "
+        "and highlight any cognitive gaps to address for accreditation under NBA, NAAC "
+        "and NEP guidelines.",
         italic=True, size=9
     )
 
@@ -888,12 +1315,17 @@ def build_docx(
     _ps_label = "Strong" if _ps >= 4.0 else "Moderate" if _ps >= 2.5 else "Low"
     _add_para(
         f"Bloom's Progression Score: {_ps} / 6.0 ({_ps_label} cognitive ambition). "
-        "NBA/OBE guidelines recommend at least 40% HOTS (L4-L6) coverage.",
+        "A healthy share of higher-order thinking (L4-L6) supports NBA/OBE expectations.",
         size=9, italic=True
     )
 
     if any(_la['kdim_co_map'].values()):
         _add_heading("C.  Knowledge Dimension Coverage", level=3, color=TEAL)
+        _add_para(
+            "Distribution of COs across the four RBT knowledge dimensions, showing how "
+            "the course balances factual, conceptual, procedural and metacognitive learning.",
+            italic=True, size=9
+        )
         _kdim_rows = []
         for _kd in _LA_KDIMS_ORDER:
             _kd_cos = _la['kdim_co_map'].get(_kd, [])
@@ -904,6 +1336,56 @@ def build_docx(
             _kdim_rows,
             col_widths=[1.6, 3.0, 0.55, 0.6]
         )
+        _add_bar_chart(
+            [(_kd, len(_la['kdim_co_map'].get(_kd, []))) for _kd in _LA_KDIMS_ORDER],
+            _la_total, label_header="Knowledge Dimension"
+        )
+
+    # D. Cognitive Balance & Diversity
+    _add_heading("D.  Cognitive Balance & Diversity", level=3, color=TEAL)
+    _dom = _la['dominant_level']
+    _dom_label = (f"L{_LA_LEVEL_ORDER.index(_dom) + 1} - {_LA_LEVEL_NAMES[_dom]}"
+                  if _dom else "—")
+    _empty_label = (", ".join(_LA_LEVEL_NAMES[lv] for lv in _la['empty_levels'])
+                    if _la['empty_levels'] else "None — all levels covered")
+    _bal = _la['balance_index']
+    _bal_word = "Well balanced" if _bal >= 70 else "Moderately balanced" if _bal >= 40 else "Concentrated"
+    _add_table(
+        ["Indicator", "Value"],
+        [
+            ("Cognitive Breadth (levels used)", f"{_la['breadth']} of 6"),
+            ("Dominant Cognitive Level",        _dom_label),
+            ("Uncovered Levels",                _empty_label),
+            ("Cognitive Balance Index",         f"{_bal} / 100 ({_bal_word})"),
+            ("Bloom's Progression Score",       f"{_ps} / 6.0 ({_ps_label})"),
+        ],
+        col_widths=[3.0, 3.3]
+    )
+
+    # E. NBA / OBE Alignment Indicators
+    _add_heading("E.  NBA / OBE Alignment Indicators", level=3, color=TEAL)
+    _align_rows = _la_alignment_checks(_la)
+    _at = _add_table(
+        ["Criterion", "Result", "Status"],
+        _align_rows,
+        col_widths=[3.0, 1.6, 1.4]
+    )
+    # Colour the Status column by Met / Not Met
+    for _ri, (_, _, _status) in enumerate(_align_rows, 1):
+        _cell = _at.rows[_ri].cells[2]
+        for _run in _cell.paragraphs[0].runs:
+            _run.bold = True
+            _run.font.color.rgb = GREEN if _status == "Met" else RED_C
+    _met = sum(1 for r in _align_rows if r[2] == "Met")
+    _add_para(
+        f"Indicators met: {_met} of {len(_align_rows)}.",
+        bold=True, size=9.5
+    )
+
+    # F. Key Observations & Recommendations
+    _add_heading("F.  Key Observations & Recommendations", level=3, color=TEAL)
+    for _ob in _la_observations(_la):
+        _add_para(f"• {_ob}", size=9.5, indent=1)
 
     doc.add_page_break()
 
@@ -1057,11 +1539,14 @@ def build_docx(
     # ── Section 8: Question Quality Index (QQI) ──────────────────────────────
     _section_divider(8, "Question Quality Index (QQI)")
 
-    qqi_rows = [(co, f"{score}/100") for co, score in analytics["qqi_scores"].items()]
-    qqi_rows.append(("Overall QQI", f"{analytics['overall_qqi']}/100"))
-    _add_table(["CO", "QQI Score"], qqi_rows, col_widths=[1.5, 1.5])
-    if _rc:
-        _insert_chart(_rc.qqi_chart(analytics["qqi_scores"], analytics["overall_qqi"]))
+    qqi_rows = [(co, _qqi_label(score)) for co, score in analytics["qqi_scores"].items()]
+    qqi_rows.append(("Overall QQI", _qqi_label(analytics['overall_qqi'])))
+    _qt = _add_table(["CO", "QQI Rating"], qqi_rows, col_widths=[1.5, 1.8])
+    # Colour each rating word by quality band
+    for _qr, (_, _rating) in enumerate(qqi_rows, 1):
+        for _run in _qt.rows[_qr].cells[1].paragraphs[0].runs:
+            _run.bold = True
+            _run.font.color.rgb = STATUS_COLOR.get(_rating, GRAY)
 
     qqi_ai = ai.get("qqi_interpretation", {})
     if qqi_ai.get("overall"):
@@ -1148,6 +1633,19 @@ def build_docx(
         if _rc:
             _insert_chart(_rc.accreditation_metrics_chart(acc_data["key_metrics"]))
 
+        _weak = _weak_metric_tips(acc_data["key_metrics"])
+        if _weak:
+            _add_heading("How to Improve Weak Areas", level=2, color=AMBER)
+            _add_para(
+                "Targeted next steps for each metric rated below 'Good'.",
+                italic=True, size=9
+            )
+            for _mname, _mstat, _tip in _weak:
+                _wp = _add_para(f"{_mname} ({_mstat}): ", bold=True, size=9.5,
+                                indent=1, space_after=2)
+                _wr = _wp.add_run(_tip)
+                _wr.font.size = Pt(9.5)
+
     if acc_data.get("strengths"):
         _add_heading("Strengths", level=2, color=GREEN)
         for s in acc_data["strengths"]:
@@ -1233,8 +1731,44 @@ def build_txt(
 
     # Learning Analytics
     _sub("Learning Analytics")
+    lines.append(
+        "This section translates the Revised Bloom's Taxonomy (RBT) mapping into a"
+    )
+    lines.append(
+        "quantitative profile of the course's cognitive design. Each CO is positioned by"
+    )
+    lines.append(
+        "the cognitive process it demands (Remember through Create) and the knowledge"
+    )
+    lines.append(
+        "dimension it engages (Factual, Conceptual, Procedural, Meta-Cognitive). The"
+    )
+    lines.append(
+        "metrics below report the cognitive-level distribution, the LOTS/HOTS balance,"
+    )
+    lines.append(
+        "knowledge-dimension spread, cognitive balance, and NBA/OBE alignment indicators -"
+    )
+    lines.append(
+        "showing whether the course builds from recall toward analysis, evaluation and"
+    )
+    lines.append(
+        "creation, and highlighting any cognitive gaps for NBA/NAAC/NEP accreditation."
+    )
+    lines.append("")
     _la_txt = _compute_bloom_analytics(cos, taxonomy_grid)
     _la_txt_total = _la_txt['total_mapped']
+
+    _rationale_txt = _co_placement_rationale(cos, taxonomy_grid)
+    if _rationale_txt:
+        lines.append("CO Placement Rationale")
+        lines.append("-" * 40)
+        lines.append("Why each CO sits in its RBT cell (knowledge dimension x level):")
+        for _co_r, _cell_r, _why_r in _rationale_txt:
+            lines.append(f"{_co_r} [{_cell_r}]:")
+            lines.append(f"  {_why_r}")
+        lines.append("")
+
     lines.append("Cognitive Level Distribution")
     lines.append("-" * 40)
     _la_level_rows = []
@@ -1258,17 +1792,49 @@ def build_txt(
     lines.append(f"LOTS (L1-L3 Remember/Understand/Apply) : {_la_txt['lots_cos']} COs ({_lots_pct2}%)")
     lines.append(f"HOTS (L4-L6 Analyze/Evaluate/Create)   : {_la_txt['hots_cos']} COs ({_hots_pct2}%)")
     lines.append(f"Bloom's Progression Score               : {_ps2} / 6.0  ({_ps2_label})")
-    lines.append("(NBA/OBE recommend >= 40% HOTS coverage)")
+    lines.append("(A healthy share of higher-order thinking supports NBA/OBE expectations)")
     if any(_la_txt['kdim_co_map'].values()):
         lines.append("")
         lines.append("Knowledge Dimension Coverage")
         lines.append("-" * 40)
         _kdim_txt_rows = [
             (kd, ', '.join(_la_txt['kdim_co_map'].get(kd, [])) or "—",
-             str(len(_la_txt['kdim_co_map'].get(kd, []))))
+             str(len(_la_txt['kdim_co_map'].get(kd, []))),
+             f"{round(len(_la_txt['kdim_co_map'].get(kd, [])) / _la_txt_total * 100, 1)}%")
             for kd in _LA_KDIMS_ORDER
         ]
-        _tbl(["Dimension", "COs", "N"], _kdim_txt_rows, [17, 25, 5])
+        _tbl(["Dimension", "COs", "N", "%"], _kdim_txt_rows, [17, 25, 5, 7])
+
+    # Cognitive Balance & Diversity
+    lines.append("")
+    lines.append("Cognitive Balance & Diversity")
+    lines.append("-" * 40)
+    _dom_txt = _la_txt['dominant_level']
+    _dom_txt_label = (f"L{_LA_LEVEL_ORDER.index(_dom_txt) + 1} - {_LA_LEVEL_NAMES[_dom_txt]}"
+                      if _dom_txt else "—")
+    _empty_txt = (", ".join(_LA_LEVEL_NAMES[lv] for lv in _la_txt['empty_levels'])
+                  if _la_txt['empty_levels'] else "None - all levels covered")
+    _bal_txt = _la_txt['balance_index']
+    lines.append(f"Cognitive Breadth (levels used) : {_la_txt['breadth']} of 6")
+    lines.append(f"Dominant Cognitive Level        : {_dom_txt_label}")
+    lines.append(f"Uncovered Levels                : {_empty_txt}")
+    lines.append(f"Cognitive Balance Index         : {_bal_txt} / 100")
+
+    # NBA / OBE Alignment Indicators
+    lines.append("")
+    lines.append("NBA / OBE Alignment Indicators")
+    lines.append("-" * 40)
+    _align_txt = _la_alignment_checks(_la_txt)
+    _tbl(["Criterion", "Result", "Status"], _align_txt, [30, 14, 8])
+    _met_txt = sum(1 for r in _align_txt if r[2] == "Met")
+    lines.append(f"Indicators met: {_met_txt} of {len(_align_txt)}")
+
+    # Key Observations & Recommendations
+    lines.append("")
+    lines.append("Key Observations & Recommendations")
+    lines.append("-" * 40)
+    for _ob_txt in _la_observations(_la_txt):
+        lines.append(f"- {_ob_txt}")
 
     # Section 2: Question Bank
     _sec(2, "Lab Question Bank Creation" if is_lab else "Intelligent Question Bank Creation")
@@ -1362,9 +1928,9 @@ def build_txt(
 
     # Section 8: QQI
     _sec(8, "Question Quality Index (QQI)")
-    qqi_rows = [(co, f"{score}/100") for co, score in analytics["qqi_scores"].items()]
-    qqi_rows.append(("Overall QQI", f"{analytics['overall_qqi']}/100"))
-    _tbl(["CO", "QQI Score"], qqi_rows, [12, 10])
+    qqi_rows = [(co, _qqi_label(score)) for co, score in analytics["qqi_scores"].items()]
+    qqi_rows.append(("Overall QQI", _qqi_label(analytics['overall_qqi'])))
+    _tbl(["CO", "QQI Rating"], qqi_rows, [12, 12])
     qqi_ai = ai.get("qqi_interpretation", {})
     if qqi_ai.get("overall"):
         lines.append("\n" + qqi_ai["overall"])
@@ -1420,6 +1986,14 @@ def build_txt(
         _tbl(["Metric", "Score", "Status"],
              [(m.get("metric",""), f"{m.get('score','—')}/100", m.get("status","")) for m in km],
              [28, 10, 14])
+        _weak_txt = _weak_metric_tips(km)
+        if _weak_txt:
+            lines.append("")
+            lines.append("How to Improve Weak Areas")
+            lines.append("(Targeted next steps for each metric rated below 'Good')")
+            for _mname, _mstat, _tip in _weak_txt:
+                lines.append(f"  {_mname} ({_mstat}):")
+                lines.append(f"    {_tip}")
     for label, key in [("Strengths","strengths"),("Action Items","action_items")]:
         items = acc_data.get(key, [])
         if items:
@@ -1712,11 +2286,38 @@ def build_pdf(
         _ry += hd
     pdf.set_y(_ry + 3)
 
+    # CO Placement Rationale (PDF)
+    _rationale_pdf = _co_placement_rationale(cos, rbt_pdf_grid)
+    if _rationale_pdf:
+        _heading2("CO Placement Rationale")
+        _body(
+            "Why each Course Outcome is mapped to its cell (knowledge dimension x "
+            "cognitive level) in the RBT table above, based on the action verb used "
+            "and the type of knowledge the outcome addresses."
+        )
+        for _co_rp, _cell_rp, _why_rp in _rationale_pdf:
+            pdf.set_font("Helvetica", "B", 9.5)
+            pdf.cell(0, 5.5, _s(f"{_co_rp}  [{_cell_rp}]"),
+                     new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            _body(_why_rp, indent=1)
+
     # Learning Analytics (PDF)
     _heading2("Learning Analytics")
     _body(
-        "Analytics derived from the RBT mapping — cognitive-level distribution "
-        "of COs and alignment with higher-order thinking skills (HOTS)."
+        "This section translates the Revised Bloom's Taxonomy (RBT) mapping into a "
+        "quantitative profile of the course's cognitive design. Each Course Outcome is "
+        "positioned by the cognitive process it demands (Remember through Create) and "
+        "the knowledge dimension it engages (Factual, Conceptual, Procedural, "
+        "Meta-Cognitive)."
+    )
+    _body(
+        "The metrics below report the cognitive-level distribution of COs, the balance "
+        "between Lower-Order (LOTS) and Higher-Order (HOTS) thinking skills, the spread "
+        "across knowledge dimensions, the cognitive balance and diversity of the outcome "
+        "set, and a checklist of NBA/OBE alignment indicators. Together they show whether "
+        "the course progressively builds from foundational recall toward analysis, "
+        "evaluation and creation, and highlight any cognitive gaps to address for "
+        "accreditation under NBA, NAAC and NEP guidelines."
     )
     _la_pdf = _compute_bloom_analytics(cos, rbt_pdf_grid)
     _la_pdf_total = _la_pdf['total_mapped']
@@ -1753,16 +2354,51 @@ def build_pdf(
     _ps3_label = "Strong" if _ps3 >= 4.0 else "Moderate" if _ps3 >= 2.5 else "Low"
     _body(
         f"Bloom's Progression Score: {_ps3} / 6.0 ({_ps3_label} cognitive ambition). "
-        "NBA/OBE guidelines recommend >= 40% HOTS (L4-L6) coverage."
+        "A healthy share of higher-order thinking (L4-L6) supports NBA/OBE expectations."
     )
     if any(_la_pdf['kdim_co_map'].values()):
         _heading2("Knowledge Dimension Coverage")
         _kdim_pdf_rows = [
             (kd, ', '.join(_la_pdf['kdim_co_map'].get(kd, [])) or "-",
-             str(len(_la_pdf['kdim_co_map'].get(kd, []))))
+             str(len(_la_pdf['kdim_co_map'].get(kd, []))),
+             f"{round(len(_la_pdf['kdim_co_map'].get(kd, [])) / _la_pdf_total * 100, 1)}%")
             for kd in _LA_KDIMS_ORDER
         ]
-        _tbl(["Knowledge Dimension", "COs", "Count"], _kdim_pdf_rows, [55, 97, 18])
+        _tbl(["Knowledge Dimension", "COs", "Count", "%"], _kdim_pdf_rows, [50, 82, 18, 20])
+
+    # Cognitive Balance & Diversity (PDF)
+    _heading2("Cognitive Balance & Diversity")
+    _dom_pdf = _la_pdf['dominant_level']
+    _dom_pdf_label = (f"L{_LA_LEVEL_ORDER.index(_dom_pdf) + 1} - {_LA_LEVEL_NAMES[_dom_pdf]}"
+                      if _dom_pdf else "-")
+    _empty_pdf = (", ".join(_LA_LEVEL_NAMES[lv] for lv in _la_pdf['empty_levels'])
+                  if _la_pdf['empty_levels'] else "None - all levels covered")
+    _bal_pdf = _la_pdf['balance_index']
+    _bal_pdf_word = ("Well balanced" if _bal_pdf >= 70
+                     else "Moderately balanced" if _bal_pdf >= 40 else "Concentrated")
+    _tbl(
+        ["Indicator", "Value"],
+        [
+            ("Cognitive Breadth (levels used)", f"{_la_pdf['breadth']} of 6"),
+            ("Dominant Cognitive Level",        _dom_pdf_label),
+            ("Uncovered Levels",                _empty_pdf),
+            ("Cognitive Balance Index",         f"{_bal_pdf} / 100 ({_bal_pdf_word})"),
+            ("Bloom's Progression Score",       f"{_ps3} / 6.0 ({_ps3_label})"),
+        ],
+        [60, 110]
+    )
+
+    # NBA / OBE Alignment Indicators (PDF)
+    _heading2("NBA / OBE Alignment Indicators")
+    _align_pdf = _la_alignment_checks(_la_pdf)
+    _tbl(["Criterion", "Result", "Status"], _align_pdf, [100, 40, 30])
+    _met_pdf = sum(1 for r in _align_pdf if r[2] == "Met")
+    _body(f"Indicators met: {_met_pdf} of {len(_align_pdf)}.")
+
+    # Key Observations & Recommendations (PDF)
+    _heading2("Key Observations & Recommendations")
+    for _ob_pdf in _la_observations(_la_pdf):
+        _body(f"- {_ob_pdf}")
 
     # Section 2
     pdf.add_page()
@@ -1924,10 +2560,9 @@ def build_pdf(
     # Section 8: QQI
     pdf.add_page()
     _heading1("SECTION 8: QUESTION QUALITY INDEX (QQI)")
-    qqi_rows = [(co, f"{score}/100") for co, score in analytics["qqi_scores"].items()]
-    qqi_rows.append(("Overall QQI", f"{analytics['overall_qqi']}/100"))
-    _tbl(["CO", "QQI Score"], qqi_rows, [40, 40])
-    _pdf_chart(_rc.qqi_chart(analytics["qqi_scores"], analytics["overall_qqi"]) if _rc else None)
+    qqi_rows = [(co, _qqi_label(score)) for co, score in analytics["qqi_scores"].items()]
+    qqi_rows.append(("Overall QQI", _qqi_label(analytics['overall_qqi'])))
+    _tbl(["CO", "QQI Rating"], qqi_rows, [40, 40])
     qqi_ai = ai.get("qqi_interpretation", {})
     if qqi_ai.get("overall"):
         _body(qqi_ai["overall"])
@@ -1994,6 +2629,15 @@ def build_pdf(
              [(m.get("metric",""), f"{m.get('score','-')}/100", m.get("status","")) for m in km],
              [90, 30, 40])
         _pdf_chart(_rc.accreditation_metrics_chart(km) if _rc else None)
+        _weak_pdf = _weak_metric_tips(km)
+        if _weak_pdf:
+            _heading2("How to Improve Weak Areas")
+            _body("Targeted next steps for each metric rated below 'Good'.")
+            for _mname, _mstat, _tip in _weak_pdf:
+                pdf.set_font("Helvetica", "B", 9.5)
+                pdf.cell(0, 5.5, _s(f"{_mname} ({_mstat}):"),
+                         new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                _body(_tip, indent=1)
     if acc_data.get("strengths"):
         _heading2("Strengths")
         _bullets(acc_data["strengths"])

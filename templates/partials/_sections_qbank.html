@@ -16,6 +16,27 @@
         </div>
         <div class="ai-panel-body">
 
+          <!-- ── Improve metrics (apply tip + regenerate) ── -->
+          <div id="m1-improve-trigger" style="margin-bottom:12px;">
+            <button class="btn btn-ghost"
+              style="width:100%;font-size:.78rem;padding:7px 0;justify-content:center;border-color:var(--primary);color:var(--primary);"
+              onclick="_m1ShowImprove()">Suggest ways to improve</button>
+          </div>
+          <div id="m1-improve-wrap" style="display:none;margin-bottom:12px;">
+            <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;">Improve Weak Metrics</div>
+            <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px;line-height:1.5;">
+              Apply a fix to the underlying COs or Question Bank, then rebuild the whole report.
+            </div>
+            <div id="m1-improve-list"></div>
+            <div id="m1-improve-undo" style="display:none;margin-top:8px;">
+              <button class="btn btn-ghost"
+                style="width:100%;font-size:.75rem;padding:5px 0;text-align:center;border-color:#f59e0b;color:#92400e;background:#fffbeb;"
+                onclick="_m1UndoTip()">↩ Undo last regeneration</button>
+            </div>
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:0 0 12px;">
+
           <!-- ── Edit section ── -->
           <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Edit Content</div>
           <button id="m1-rephrase-btn" class="btn btn-primary"
@@ -71,9 +92,9 @@
     </div>
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
       <span style="font-size:.75rem;font-weight:700;color:var(--muted);">Go to:</span>
-      <button class="btn btn-ghost" onclick="startOver(); selectMode('module2')" style="border-color:#0284c7;color:#0284c7;font-size:.79rem;padding:5px 12px;">Module 2 →</button>
-      <button class="btn btn-ghost" onclick="startOver(); selectMode('module3')" style="border-color:#e11d48;color:#e11d48;font-size:.79rem;padding:5px 12px;">Module 3 →</button>
-      <button class="btn btn-ghost" onclick="startOver(); selectMode('module4')" style="border-color:#059669;color:#059669;font-size:.79rem;padding:5px 12px;">Module 4 →</button>
+      <button class="btn btn-ghost" onclick="aioSwitchModule('module2')" style="border-color:#0284c7;color:#0284c7;font-size:.79rem;padding:5px 12px;">Module 2 →</button>
+      <button class="btn btn-ghost" onclick="aioSwitchModule('module3')" style="border-color:#e11d48;color:#e11d48;font-size:.79rem;padding:5px 12px;">Module 3 →</button>
+      <button class="btn btn-ghost" onclick="aioSwitchModule('module4')" style="border-color:#059669;color:#059669;font-size:.79rem;padding:5px 12px;">Module 4 →</button>
     </div>
     <div class="uni-progress hidden" id="dl-m1-progress">
       <span class="uni-progress-label">Generating document…</span>

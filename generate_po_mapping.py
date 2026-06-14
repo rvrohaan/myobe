@@ -76,6 +76,46 @@ POS = [
 PO_KEYS = [p[0] for p in POS]   # ["PO1", ..., "PO12"]
 
 
+def parse_pos_from_text(text: str) -> list:
+    """Parse an uploaded Programme Outcome document into [{key, name, desc}, ...].
+
+    Recognises one PO (or PSO) per line, e.g.:
+        PO1: Engineering Knowledge - Apply knowledge of mathematics...
+        PSO2  Domain Expertise: Demonstrate ...
+        PO 10 - Communication
+    The text after the key is split into a short name and a longer description
+    on the first ':' or spaced dash; if no separator is found the whole
+    remainder becomes the name. Duplicate keys keep their first definition.
+    """
+    if not text:
+        return []
+
+    pos  = []
+    seen = set()
+    for raw_line in text.replace("\r\n", "\n").split("\n"):
+        line = raw_line.strip().lstrip("|").strip()
+        line = re.sub(r"^[\-\*•\.\)\s]+", "", line)   # leading bullets/numbering noise
+        m = re.match(r"^(P[S]?O\s*\d+)\b[\s:.\-–\)]*(.*)$", line, re.IGNORECASE)
+        if not m:
+            continue
+        key = re.sub(r"\s+", "", m.group(1)).upper()
+        if key in seen:
+            continue
+        rest = m.group(2).strip().strip("|").strip()
+        # Split name / description on the first ':' or spaced dash. A bare
+        # hyphen without surrounding spaces is kept (e.g. "Life-long Learning").
+        parts = re.split(r"\s*:\s*|\s+[–\-]\s+", rest, maxsplit=1)
+        name  = parts[0].strip()
+        desc  = parts[1].strip() if len(parts) > 1 else ""
+        if not name and desc:
+            name, desc = desc, ""
+        if not name:
+            continue
+        seen.add(key)
+        pos.append({"key": key, "name": name[:120], "desc": desc})
+    return pos
+
+
 # ── Multi-college PO frameworks ───────────────────────────────────────────────
 # Each entry: (key, name, description_with_scoring_guide)
 

@@ -376,6 +376,9 @@
     .footer-links ul li { margin-bottom: 9px; }
     .footer-links ul a { font-size: .85rem; color: rgba(255,255,255,.4); text-decoration: none; transition: color .15s; }
     .footer-links ul a:hover { color: #a5b4fc; }
+    .footer-support-note { font-size: .85rem; color: rgba(255,255,255,.4); line-height: 1.6; }
+    .footer-support-note a { color: #a5b4fc; text-decoration: none; }
+    .footer-support-note a:hover { text-decoration: underline; }
     .footer-bottom { padding-top: 24px; font-size: .78rem; color: rgba(255,255,255,.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 
     /* ── MODULES — flip cards ── */
@@ -463,17 +466,33 @@
     .back-cta:hover { opacity: .85; transform: translateY(-1px); }
 
     /* ── FIELDS ── */
-    .fields-wrap { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 40px; }
-    .field-pill {
-      display: inline-flex; align-items: center; gap: 9px;
-      padding: 11px 22px; border-radius: 12px;
+    .fields-accordion { max-width: 720px; margin: 40px auto 0; display: flex; flex-direction: column; gap: 10px; }
+    .field-acc {
       background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
-      font-size: .92rem; font-weight: 600; color: rgba(255,255,255,.78);
-      transition: background .2s, border-color .2s, transform .2s, color .2s;
+      border-radius: 12px; overflow: hidden; transition: border-color .2s, background .2s;
     }
-    .field-pill:hover {
-      background: rgba(129,140,248,.15); border-color: rgba(129,140,248,.35);
-      color: #fff; transform: translateY(-2px);
+    .field-acc[open] { background: rgba(129,140,248,.08); border-color: rgba(129,140,248,.3); }
+    .field-acc summary {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 15px 20px; cursor: pointer; list-style: none;
+      font-size: .98rem; font-weight: 600; color: rgba(255,255,255,.85);
+      transition: color .2s;
+    }
+    .field-acc summary::-webkit-details-marker { display: none; }
+    .field-acc summary:hover { color: #fff; }
+    .field-acc summary:focus-visible { outline: 2px solid #818cf8; outline-offset: -2px; border-radius: 12px; }
+    .field-acc-icon {
+      flex: none; width: 26px; height: 26px; border-radius: 7px;
+      display: grid; place-items: center;
+      background: rgba(255,255,255,.07); color: rgba(255,255,255,.7);
+      transition: transform .25s ease, background .2s, color .2s;
+    }
+    .field-acc-icon svg { width: 15px; height: 15px; display: block; }
+    .field-acc[open] .field-acc-icon { transform: rotate(180deg); background: rgba(129,140,248,.3); color: #fff; }
+    @media (prefers-reduced-motion: reduce) { .field-acc-icon { transition: background .2s, color .2s; } }
+    .field-acc-body {
+      padding: 0 20px 17px; font-size: .9rem; line-height: 1.65;
+      color: rgba(255,255,255,.55);
     }
 
     /* Light theme — modules */
@@ -488,8 +507,13 @@
     html.light-theme .back-list li { color: rgba(30,41,59,.8); border-bottom-color: rgba(30,41,59,.07); }
     html.light-theme .back-list .bi { color: #2563eb; }
     /* Light theme — fields */
-    html.light-theme .field-pill { background: rgba(255,255,255,.5); border-color: rgba(37,99,235,.15); color: rgba(30,41,59,.75); }
-    html.light-theme .field-pill:hover { background: rgba(37,99,235,.1); border-color: rgba(37,99,235,.3); color: #1e293b; }
+    html.light-theme .field-acc { background: rgba(255,255,255,.5); border-color: rgba(37,99,235,.15); }
+    html.light-theme .field-acc[open] { background: rgba(37,99,235,.07); border-color: rgba(37,99,235,.3); }
+    html.light-theme .field-acc summary { color: rgba(30,41,59,.8); }
+    html.light-theme .field-acc summary:hover { color: #1e293b; }
+    html.light-theme .field-acc-icon { background: rgba(37,99,235,.1); color: #2563eb; }
+    html.light-theme .field-acc[open] .field-acc-icon { background: rgba(37,99,235,.2); color: #1e3a8a; }
+    html.light-theme .field-acc-body { color: rgba(30,41,59,.65); }
 
     /* ── Animations ── */
     @keyframes fadeInUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
@@ -595,6 +619,8 @@
     html.light-theme .footer-links h4 { color: rgba(30,41,59,.4); }
     html.light-theme .footer-links ul a { color: rgba(30,41,59,.55); }
     html.light-theme .footer-links ul a:hover { color: #2563eb; }
+    html.light-theme .footer-support-note { color: rgba(30,41,59,.55); }
+    html.light-theme .footer-support-note a { color: #2563eb; }
     html.light-theme .footer-bottom { color: rgba(30,41,59,.35); }
     /* .btn-cta-ghost lives only in the (dark) hero, so keep its base white text
        in light mode too rather than darkening it. */
@@ -820,7 +846,7 @@
             <li>Teaching Diary</li>
             <li>Comprehensive Report</li>
           </ul>
-          <div class="module-cost">&#9711; 6 tokens per run</div>
+          <div class="module-cost">&#9711; 8 tokens per run</div>
           <span class="module-flip-hint">Flip to see outputs</span>
         </div>
         <div class="module-card-back">
@@ -853,7 +879,7 @@
             <li>SDG Contributions</li>
             <li>Assessment Report</li>
           </ul>
-          <div class="module-cost">&#9711; 4&ndash;5 tokens per run</div>
+          <div class="module-cost">&#9711; 7&ndash;8 tokens per run</div>
           <span class="module-flip-hint">Flip to see outputs</span>
         </div>
         <div class="module-card-back">
@@ -879,17 +905,41 @@
   <div class="section-header reveal" style="text-align:center">
     <p class="section-label">Who we serve</p>
     <h2 class="section-title">Built for every professional college</h2>
-    <p class="section-sub" style="margin:0 auto">OBE and NBA documentation requirements differ across disciplines &mdash; MyOBE adapts to your field.</p>
+    <p class="section-sub" style="margin:0 auto">Accreditation and documentation requirements differ across disciplines &mdash; MyOBE adapts to your field.</p>
   </div>
-  <div class="fields-wrap reveal" style="transition-delay:.1s">
-    <div class="field-pill">Engineering</div>
-    <div class="field-pill">Management</div>
-    <div class="field-pill">Pharmacy</div>
-    <div class="field-pill">Medical</div>
-    <div class="field-pill">Dental</div>
-    <div class="field-pill">Law</div>
-    <div class="field-pill">Architecture &amp; Planning</div>
-    <div class="field-pill">Agriculture &amp; Allied Sciences</div>
+  <div class="fields-accordion reveal" style="transition-delay:.1s">
+    <details class="field-acc">
+      <summary><span class="field-acc-name">Engineering</span><span class="field-acc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></summary>
+      <div class="field-acc-body">Built around the NBA &amp; AICTE outcome-based framework &mdash; COs, POs/PSOs, CO&ndash;PO mapping, attainment, and Bloom&rsquo;s taxonomy alignment for every course.</div>
+    </details>
+    <details class="field-acc">
+      <summary><span class="field-acc-name">Management</span><span class="field-acc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></summary>
+      <div class="field-acc-body">Generates NBA/NAAC-ready course documentation for MBA &amp; BBA programs &mdash; program outcomes, CO mapping, and assessment rubrics tuned to management curricula.</div>
+    </details>
+    <details class="field-acc">
+      <summary><span class="field-acc-name">Pharmacy</span><span class="field-acc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></summary>
+      <div class="field-acc-body">Aligned to PCI norms and NBA accreditation &mdash; D.Pharm, B.Pharm, and M.Pharm course outcomes, mapping, and lesson plans in the format inspectors expect.</div>
+    </details>
+    <details class="field-acc">
+      <summary><span class="field-acc-name">Medical</span><span class="field-acc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></summary>
+      <div class="field-acc-body">Supports NMC competency-based medical education (CBME) &mdash; structured learning objectives, competencies, and assessment blueprints for MBBS and allied health courses.</div>
+    </details>
+    <details class="field-acc">
+      <summary><span class="field-acc-name">Dental</span><span class="field-acc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></summary>
+      <div class="field-acc-body">Tailored to DCI requirements &mdash; competency-based outcomes, lesson plans, and question banks for BDS and MDS programs.</div>
+    </details>
+    <details class="field-acc">
+      <summary><span class="field-acc-name">Law</span><span class="field-acc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></summary>
+      <div class="field-acc-body">Maps to BCI and NAAC expectations &mdash; course outcomes, program outcomes, and assessment documentation for LLB, BA-LLB, and LLM courses.</div>
+    </details>
+    <details class="field-acc">
+      <summary><span class="field-acc-name">Architecture &amp; Planning</span><span class="field-acc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></summary>
+      <div class="field-acc-body">Aligned to COA and NBA frameworks &mdash; studio and theory course outcomes, CO&ndash;PO mapping, and attainment tracking for B.Arch and planning programs.</div>
+    </details>
+    <details class="field-acc">
+      <summary><span class="field-acc-name">Agriculture &amp; Allied Sciences</span><span class="field-acc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></summary>
+      <div class="field-acc-body">Built for ICAR and NAAC norms &mdash; outcome-based documentation, lesson plans, and assessment design for agriculture, horticulture, and allied science courses.</div>
+    </details>
   </div>
 </section>
 
@@ -996,6 +1046,10 @@
         <li><a href="/settings">Settings</a></li>
         <li><a href="/#pricing">Pricing</a></li>
       </ul>
+    </div>
+    <div class="footer-links">
+      <h4>Support</h4>
+      <p class="footer-support-note">For any queries or concerns, please mail us at <a href="mailto:help@myobe.in">help@myobe.in</a></p>
     </div>
   </div>
   <div class="footer-bottom">
