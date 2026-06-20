@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Us - MyOBE</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  {% include 'partials/_legal_styles.html' %}
+  <style>
+    .contact-form {
+      margin-top: 28px; padding: 26px 24px;
+      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 16px;
+    }
+    .cf-field { margin-bottom: 18px; }
+    .cf-field label {
+      display: block; font-size: .74rem; font-weight: 700;
+      color: rgba(255,255,255,.5); text-transform: uppercase;
+      letter-spacing: .06em; margin-bottom: 7px;
+    }
+    .cf-field label .req { color: #f87171; }
+    .cf-field input, .cf-field textarea {
+      width: 100%; padding: 12px 14px; font: inherit; font-size: .95rem;
+      background: rgba(255,255,255,.07); border: 1.5px solid rgba(255,255,255,.14);
+      border-radius: 10px; color: #fff; outline: none;
+      transition: border-color .15s, box-shadow .15s, background .15s;
+    }
+    .cf-field textarea { resize: vertical; min-height: 130px; line-height: 1.6; }
+    .cf-field input::placeholder, .cf-field textarea::placeholder { color: rgba(255,255,255,.28); }
+    .cf-field input:focus, .cf-field textarea:focus {
+      border-color: rgba(99,102,241,.6); background: rgba(255,255,255,.1);
+      box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+    }
+    /* Honeypot — hidden from users, catches bots */
+    .cf-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    .cf-submit {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: 46px; padding: 12px 30px;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      color: #fff; border: none; border-radius: 10px;
+      font-size: .95rem; font-weight: 700; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(99,102,241,.35);
+      transition: opacity .15s, transform .15s;
+    }
+    .cf-submit:hover:not(:disabled) { opacity: .92; transform: translateY(-1px); }
+    .cf-submit:disabled { opacity: .6; cursor: not-allowed; }
+    .cf-spinner {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+      animation: cfspin .7s linear infinite;
+    }
+    @keyframes cfspin { to { transform: rotate(360deg); } }
+    .cf-status {
+      margin-top: 16px; padding: 12px 16px; border-radius: 10px;
+      font-size: .9rem; line-height: 1.55; display: none;
+    }
+    .cf-status.show { display: block; }
+    .cf-status.ok  { background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.3); color: #6ee7b7; }
+    .cf-status.err { background: rgba(239,68,68,.12);  border: 1px solid rgba(239,68,68,.3);  color: #fca5a5; }
+
+    /* Light theme */
+    html.light-theme .contact-form { background: rgba(255,255,255,.7); border-color: rgba(37,99,235,.15); }
+    html.light-theme .cf-field label { color: rgba(30,41,59,.55); }
+    html.light-theme .cf-field input, html.light-theme .cf-field textarea {
+      background: rgba(255,255,255,.85); border-color: rgba(37,99,235,.2); color: #1e293b;
+    }
+    html.light-theme .cf-field input::placeholder, html.light-theme .cf-field textarea::placeholder { color: rgba(30,41,59,.35); }
+    html.light-theme .cf-field input:focus, html.light-theme .cf-field textarea:focus {
+      border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    }
+    html.light-theme .cf-status.ok  { background: rgba(5,150,105,.1);  border-color: rgba(5,150,105,.25);  color: #065f46; }
+    html.light-theme .cf-status.err { background: rgba(220,38,38,.08); border-color: rgba(220,38,38,.2); color: #991b1b; }
+  </style>
+  <script>(function(){ if(localStorage.getItem('myobe-theme')==='light') document.documentElement.classList.add('light-theme'); })();</script>
+  <link rel="stylesheet" href="/static/a11y.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+{% include 'partials/_navbar.html' %}
+
+<main class="legal-wrap" id="main" tabindex="-1">
+  <h1>Contact Us</h1>
+  <p>We'd be glad to help with any questions about MyOBE. Send us a message and we'll
+     reply by email as soon as we can.</p>
+
+  <form class="contact-form" id="contactForm" novalidate>
+    <div class="cf-field">
+      <label for="cf-name">Name <span class="req" aria-hidden="true">*</span></label>
+      <input id="cf-name" name="name" type="text" autocomplete="name"
+             maxlength="120" required>
+    </div>
+    <div class="cf-field">
+      <label for="cf-email">Email <span class="req" aria-hidden="true">*</span></label>
+      <input id="cf-email" name="email" type="email" autocomplete="email"
+             inputmode="email" maxlength="200" required>
+    </div>
+    <div class="cf-field">
+      <label for="cf-phone">Phone Number</label>
+      <input id="cf-phone" name="phone" type="tel" autocomplete="tel"
+             inputmode="tel" maxlength="30">
+    </div>
+    <div class="cf-field">
+      <label for="cf-message">Message <span class="req" aria-hidden="true">*</span></label>
+      <textarea id="cf-message" name="message" maxlength="5000" required></textarea>
+    </div>
+    <!-- Honeypot: must stay empty -->
+    <div class="cf-hp" aria-hidden="true">
+      <label for="cf-website">Leave this field empty</label>
+      <input id="cf-website" name="website" type="text" tabindex="-1" autocomplete="off">
+    </div>
+    <button class="cf-submit" id="cf-submit" type="submit">Submit</button>
+    <div class="cf-status" id="cf-status" role="status" aria-live="polite"></div>
+  </form>
+
+  <div class="legal-contact">
+    <strong>Operated by:</strong> My OBE<br>
+    <strong>Email:</strong> <a href="mailto:help@myobe.in">help@myobe.in</a><br>
+    <strong>Location:</strong> Bengaluru, Karnataka, India
+  </div>
+</main>
+
+{% include 'partials/_footer.html' %}
+<script>
+  (function () {
+    var form   = document.getElementById('contactForm');
+    var btn    = document.getElementById('cf-submit');
+    var status = document.getElementById('cf-status');
+
+    function show(kind, msg) {
+      status.className = 'cf-status show ' + kind;
+      status.textContent = msg;
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var payload = {
+        name:    form.name.value.trim(),
+        email:   form.email.value.trim(),
+        phone:   form.phone.value.trim(),
+        message: form.message.value.trim(),
+        website: form.website.value
+      };
+      if (!payload.name || !payload.email || !payload.message) {
+        show('err', 'Please fill in your name, email, and message.');
+        return;
+      }
+
+      btn.disabled = true;
+      var label = btn.textContent;
+      btn.innerHTML = '<span class="cf-spinner" aria-hidden="true"></span> Sending...';
+      status.className = 'cf-status';
+
+      fetch('/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        if (res.ok && res.d.ok) {
+          form.reset();
+          show('ok', "Thanks! Your message has been sent. We'll get back to you by email soon.");
+        } else {
+          show('err', (res.d && res.d.error) || 'Something went wrong. Please try again.');
+        }
+      })
+      .catch(function () {
+        show('err', "Couldn't reach the server. Please check your connection or email help@myobe.in directly.");
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = label;
+      });
+    });
+  })();
+</script>
+</body>
+</html>

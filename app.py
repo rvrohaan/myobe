@@ -3,12 +3,15 @@ import re
 import json
 import uuid
 import time
+import hmac
+import base64
 import secrets
 import hashlib
 import tempfile
 import threading
 import resend
 from functools import wraps
+from html import escape
 
 from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for, flash, make_response, after_this_request, stream_with_context
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -367,6 +370,49 @@ def _send_reset_email(to_email: str, reset_url: str) -> bool:
         return False
 
 
+def _send_contact_email(name: str, email: str, phone: str, message: str) -> bool:
+    """Deliver a contact-form submission to the support inbox via Resend."""
+    api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    frm     = os.environ.get("SMTP_FROM", "MyOBE <help@myobe.in>").strip()
+    to_addr = os.environ.get("CONTACT_TO", "help@myobe.in").strip()
+    if not api_key:
+        app.logger.error("RESEND_API_KEY not set")
+        return False
+
+    phone_line = phone or "(not provided)"
+    plain = (
+        "New contact-form message from myobe.in\n\n"
+        f"Name:  {name}\n"
+        f"Email: {email}\n"
+        f"Phone: {phone_line}\n\n"
+        "Message:\n"
+        f"{message}\n"
+    )
+    html = (
+        "<p>New contact-form message from <strong>myobe.in</strong></p>"
+        f"<p><strong>Name:</strong> {escape(name)}<br>"
+        f"<strong>Email:</strong> {escape(email)}<br>"
+        f"<strong>Phone:</strong> {escape(phone_line)}</p>"
+        "<p><strong>Message:</strong></p>"
+        f'<p style="white-space:pre-wrap;">{escape(message)}</p>'
+    )
+
+    try:
+        resend.api_key = api_key
+        resend.Emails.send({
+            "from":     frm,
+            "to":       [to_addr],
+            "reply_to": email,
+            "subject":  f"MyOBE contact form: {name}",
+            "html":     html,
+            "text":     plain,
+        })
+        return True
+    except Exception as e:
+        app.logger.error("Resend error (contact): %s", e)
+        return False
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if session.get("logged_in"):
@@ -473,6 +519,48 @@ def logout():
 @app.route("/")
 def home():
     return render_template("home.html", logged_in=session.get("logged_in", False))
+
+
+# -- Compliance / legal pages (required for payment-gateway verification) -----
+
+@app.route("/privacy")
+def privacy():
+    return render_template("privacy.html")
+
+
+@app.route("/terms")
+def terms():
+    return render_template("terms.html")
+
+
+@app.route("/refund")
+def refund():
+    return render_template("refund.html")
+
+
+@app.route("/contact", methods=["GET", "POST"])
+def contact():
+    if request.method == "POST":
+        data = request.get_json(silent=True) or request.form
+        name    = (data.get("name") or "").strip()
+        email   = (data.get("email") or "").strip()
+        phone   = (data.get("phone") or "").strip()
+        message = (data.get("message") or "").strip()
+        # Honeypot: bots fill hidden fields a human never sees.
+        if (data.get("website") or "").strip():
+            return jsonify({"ok": True})
+        if not name or not email or not message:
+            return jsonify({"ok": False, "error": "Please fill in your name, email, and message."}), 400
+        if "@" not in email or "." not in email.split("@")[-1]:
+            return jsonify({"ok": False, "error": "Please enter a valid email address."}), 400
+        if len(message) > 5000:
+            return jsonify({"ok": False, "error": "Your message is too long. Please keep it under 5000 characters."}), 400
+        if _send_contact_email(name, email, phone, message):
+            return jsonify({"ok": True})
+        return jsonify({"ok": False,
+                        "error": "Sorry, we couldn't send your message right now. "
+                                 "Please email help@myobe.in directly."}), 502
+    return render_template("contact.html")
 
 
 @app.route("/app")
@@ -3680,14 +3768,53 @@ def set_college_type():
                     "accreditation": ctx["accreditation"]})
 
 
-# ── Razorpay payment routes ───────────────────────────────────────────────────
+# ── Cashfree payment routes ───────────────────────────────────────────────────
+
+def _cashfree_base_and_mode():
+    """Return (api_base_url, sdk_mode) based on CASHFREE_ENV (TEST/PROD)."""
+    env = os.environ.get("CASHFREE_ENV", "TEST").strip().upper()
+    if env == "PROD":
+        return "https://api.cashfree.com/pg", "production"
+    return "https://sandbox.cashfree.com/pg", "sandbox"
+
+
+def _cashfree_headers():
+    return {
+        "x-client-id":     os.environ.get("CASHFREE_APP_ID", "").strip(),
+        "x-client-secret": os.environ.get("CASHFREE_SECRET_KEY", "").strip(),
+        "x-api-version":   "2023-08-01",
+        "Content-Type":    "application/json",
+    }
+
+
+def _credit_tokens_for_order(username, pkg_id, order_id):
+    """Idempotently credit a package's tokens to a user for a paid order.
+
+    Returns (ok, added, new_balance). If the order was already credited,
+    returns ok=True with added=0 so callers (verify + webhook) can't double-credit.
+    """
+    pkg = next((p for p in TOPUP_PACKAGES if p["id"] == pkg_id), None)
+    if not username or not pkg:
+        return False, 0, None
+    users = load_users()
+    u = users.get(username)
+    if u is None:
+        return False, 0, None
+    processed = u.setdefault("processed_orders", [])
+    if order_id in processed:
+        return True, 0, u.get("tokens", 0)
+    u["tokens"] = u.get("tokens", 0) + pkg["tokens"]
+    processed.append(order_id)
+    _save_users(users)
+    return True, pkg["tokens"], u["tokens"]
+
 
 @app.route("/create_order", methods=["POST"])
 @login_required
 def create_order():
-    rz_key_id     = os.environ.get("RAZORPAY_KEY_ID", "").strip()
-    rz_key_secret = os.environ.get("RAZORPAY_KEY_SECRET", "").strip()
-    if not rz_key_id or not rz_key_secret:
+    app_id     = os.environ.get("CASHFREE_APP_ID", "").strip()
+    secret_key = os.environ.get("CASHFREE_SECRET_KEY", "").strip()
+    if not app_id or not secret_key:
         return jsonify({"error": "Payment gateway not configured. Contact the administrator."}), 503
 
     data   = request.get_json() or {}
@@ -3696,100 +3823,121 @@ def create_order():
     if not pkg:
         return jsonify({"error": "Invalid package."}), 400
 
+    username = session["username"]
+    users    = load_users()
+    email    = (users.get(username, {}).get("email", "") or "").strip() or f"{username}@myobe.in"
+
+    base, mode = _cashfree_base_and_mode()
+    order_id   = f"{username}_{pkg_id}_{int(time.time())}"
+    payload = {
+        "order_id":       order_id,
+        "order_amount":   float(pkg["price"]),
+        "order_currency": "INR",
+        "customer_details": {
+            "customer_id":    username,
+            "customer_email": email,
+            "customer_phone": "9999999999",
+        },
+        "order_note": f"{pkg['label']} - {pkg['tokens']} tokens",
+        "order_tags": {"username": username, "package_id": pkg_id},
+    }
+
     try:
-        import razorpay
-        client = razorpay.Client(auth=(rz_key_id, rz_key_secret))
-        order  = client.order.create({
-            "amount":   pkg["price"] * 100,   # paise
-            "currency": "INR",
-            "receipt":  f"{session['username']}_{pkg_id}_{int(time.time())}",
-            "notes": {
-                "username":   session["username"],
-                "package_id": pkg_id,
-            },
-        })
+        import requests
+        resp = requests.post(f"{base}/orders", json=payload,
+                             headers=_cashfree_headers(), timeout=30)
+        body = resp.json()
     except ImportError:
-        return jsonify({"error": "razorpay package not installed. Run: pip install razorpay"}), 500
+        return jsonify({"error": "requests package not installed. Run: pip install requests"}), 500
     except Exception as e:
         return jsonify({"error": f"Could not create order: {e}"}), 500
 
+    if resp.status_code not in (200, 201) or not body.get("payment_session_id"):
+        return jsonify({"error": body.get("message", "Could not create order.")}), 502
+
     return jsonify({
-        "order_id": order["id"],
-        "amount":   order["amount"],
-        "currency": order["currency"],
-        "key_id":   rz_key_id,
-        "package_id": pkg_id,
-        "tokens":   pkg["tokens"],
-        "label":    pkg["label"],
+        "order_id":           body["order_id"],
+        "payment_session_id": body["payment_session_id"],
+        "mode":               mode,
+        "package_id":         pkg_id,
+        "tokens":             pkg["tokens"],
+        "label":              pkg["label"],
     })
 
 
 @app.route("/verify_payment", methods=["POST"])
 @login_required
 def verify_payment():
-    rz_key_id     = os.environ.get("RAZORPAY_KEY_ID", "").strip()
-    rz_key_secret = os.environ.get("RAZORPAY_KEY_SECRET", "").strip()
-    if not rz_key_id or not rz_key_secret:
+    app_id     = os.environ.get("CASHFREE_APP_ID", "").strip()
+    secret_key = os.environ.get("CASHFREE_SECRET_KEY", "").strip()
+    if not app_id or not secret_key:
         return jsonify({"error": "Payment gateway not configured."}), 503
 
-    data       = request.get_json() or {}
-    order_id   = data.get("razorpay_order_id", "")
-    payment_id = data.get("razorpay_payment_id", "")
-    signature  = data.get("razorpay_signature", "")
-    pkg_id     = data.get("package_id", "")
+    data     = request.get_json() or {}
+    order_id = data.get("order_id", "")
+    pkg_id   = data.get("package_id", "")
+    if not order_id:
+        return jsonify({"error": "Missing order id."}), 400
 
     pkg = next((p for p in TOPUP_PACKAGES if p["id"] == pkg_id), None)
     if not pkg:
         return jsonify({"error": "Invalid package."}), 400
 
+    # Verify server-side by fetching the order from Cashfree — never trust the client.
+    base, _ = _cashfree_base_and_mode()
     try:
-        import razorpay
-        client = razorpay.Client(auth=(rz_key_id, rz_key_secret))
-        client.utility.verify_payment_signature({
-            "razorpay_order_id":   order_id,
-            "razorpay_payment_id": payment_id,
-            "razorpay_signature":  signature,
-        })
+        import requests
+        resp = requests.get(f"{base}/orders/{order_id}",
+                            headers=_cashfree_headers(), timeout=30)
+        body = resp.json()
     except Exception:
-        return jsonify({"error": "Payment signature verification failed."}), 400
+        return jsonify({"error": "Could not verify payment."}), 502
+
+    if body.get("order_status") != "PAID":
+        return jsonify({"error": "Payment not completed."}), 400
 
     username = session["username"]
-    users    = load_users()
-    users[username]["tokens"] = users[username].get("tokens", 0) + pkg["tokens"]
-    _save_users(users)
-    session["tokens"] = users[username]["tokens"]
-    return jsonify({"ok": True, "tokens": users[username]["tokens"], "added": pkg["tokens"]})
+    tags = body.get("order_tags") or {}
+    if tags.get("username") and tags.get("username") != username:
+        return jsonify({"error": "Order does not belong to this account."}), 403
+
+    ok, added, balance = _credit_tokens_for_order(username, pkg_id, order_id)
+    if not ok:
+        return jsonify({"error": "Could not credit tokens."}), 500
+    session["tokens"] = balance
+    return jsonify({"ok": True, "tokens": balance, "added": added})
 
 
-@app.route("/razorpay_webhook", methods=["POST"])
-def razorpay_webhook():
-    webhook_secret = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "").strip()
-    if not webhook_secret:
+@app.route("/cashfree_webhook", methods=["POST"])
+def cashfree_webhook():
+    secret = os.environ.get("CASHFREE_WEBHOOK_SECRET", "").strip()
+    if not secret:
         return jsonify({"status": "webhook secret not configured"}), 200
 
-    sig  = request.headers.get("X-Razorpay-Signature", "")
-    body = request.get_data()
+    signature = request.headers.get("x-webhook-signature", "")
+    timestamp = request.headers.get("x-webhook-timestamp", "")
+    raw       = request.get_data()
 
+    # Cashfree signature = base64( HMAC-SHA256( timestamp + rawBody, secret ) )
     try:
-        import razorpay
-        rz_key_id     = os.environ.get("RAZORPAY_KEY_ID", "").strip()
-        rz_key_secret = os.environ.get("RAZORPAY_KEY_SECRET", "").strip()
-        client = razorpay.Client(auth=(rz_key_id, rz_key_secret))
-        client.utility.verify_webhook_signature(body.decode(), sig, webhook_secret)
+        signed   = timestamp.encode() + raw
+        expected = base64.b64encode(
+            hmac.new(secret.encode(), signed, hashlib.sha256).digest()
+        ).decode()
+        if not hmac.compare_digest(expected, signature):
+            return jsonify({"error": "Invalid webhook signature"}), 400
     except Exception:
         return jsonify({"error": "Invalid webhook signature"}), 400
 
-    event = request.get_json(force=True) or {}
-    if event.get("event") == "payment.captured":
-        notes    = event["payload"]["payment"]["entity"].get("notes", {})
-        username = notes.get("username", "")
-        pkg_id   = notes.get("package_id", "")
-        pkg      = next((p for p in TOPUP_PACKAGES if p["id"] == pkg_id), None)
-        if username and pkg:
-            users = load_users()
-            if username in users:
-                users[username]["tokens"] = users[username].get("tokens", 0) + pkg["tokens"]
-                _save_users(users)
+    event = request.get_json(force=True, silent=True) or {}
+    if event.get("type") == "PAYMENT_SUCCESS_WEBHOOK":
+        order    = (event.get("data") or {}).get("order") or {}
+        order_id = order.get("order_id", "")
+        tags     = order.get("order_tags") or {}
+        username = tags.get("username", "")
+        pkg_id   = tags.get("package_id", "")
+        if username and pkg_id and order_id:
+            _credit_tokens_for_order(username, pkg_id, order_id)
 
     return jsonify({"status": "ok"})
 

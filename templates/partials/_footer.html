@@ -1,0 +1,49 @@
+<!-- Site-wide compliance footer: legal operator name + policy links.
+     Self-contained styles (scoped to .site-compliance-footer) so it renders
+     correctly on any page regardless of that page's own CSS. -->
+<footer class="site-compliance-footer">
+  <div class="scf-inner">
+    <p class="scf-legal">&copy; 2026 MyOBE. Operated by My OBE.</p>
+    <div class="scf-links" role="navigation" aria-label="Legal and policies">
+      <a href="/privacy">Privacy Policy</a>
+      <span class="scf-sep" aria-hidden="true">|</span>
+      <a href="/terms">Terms &amp; Conditions</a>
+      <span class="scf-sep" aria-hidden="true">|</span>
+      <a href="/refund">Refund &amp; Cancellation Policy</a>
+      <span class="scf-sep" aria-hidden="true">|</span>
+      <a href="/contact">Contact Us</a>
+    </div>
+  </div>
+</footer>
+<style>
+  .site-compliance-footer {
+    border-top: 1px solid rgba(255,255,255,.07);
+    padding: 22px 5%;
+    background: rgba(8,6,24,.35);
+    position: relative; z-index: 1;
+  }
+  .site-compliance-footer .scf-inner {
+    max-width: 1100px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 10px 22px;
+  }
+  .site-compliance-footer .scf-legal {
+    font-size: .8rem; color: rgba(255,255,255,.55); margin: 0;
+  }
+  .site-compliance-footer .scf-links {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px;
+    font-size: .8rem;
+  }
+  .site-compliance-footer .scf-links a {
+    color: rgba(255,255,255,.5); text-decoration: none; transition: color .15s;
+  }
+  .site-compliance-footer .scf-links a:hover { color: #a5b4fc; }
+  .site-compliance-footer .scf-sep { color: rgba(255,255,255,.2); }
+  html.light-theme .site-compliance-footer {
+    border-top-color: rgba(37,99,235,.12); background: rgba(255,255,255,.35);
+  }
+  html.light-theme .site-compliance-footer .scf-legal { color: rgba(30,41,59,.6); }
+  html.light-theme .site-compliance-footer .scf-links a { color: rgba(30,41,59,.55); }
+  html.light-theme .site-compliance-footer .scf-links a:hover { color: #2563eb; }
+  html.light-theme .site-compliance-footer .scf-sep { color: rgba(30,41,59,.25); }
+</style>

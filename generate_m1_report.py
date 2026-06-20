@@ -18,6 +18,7 @@ import re
 import json
 import math
 import datetime
+import textwrap
 
 try:
     import report_charts as _rc
@@ -244,12 +245,37 @@ def _la_observations(la: dict) -> list:
             f"spread across more Bloom's levels would improve assessment depth."
         )
 
-    if la['kdim_empty']:
-        obs.append(
-            f"Knowledge dimensions not yet addressed: {', '.join(la['kdim_empty'])}. "
-            f"Map at least one CO to each dimension to demonstrate balanced knowledge depth."
-        )
+    # Note: not every knowledge dimension needs to be covered for a given course, so
+    # uncovered dimensions are reported descriptively elsewhere rather than flagged
+    # as a gap here.
     return obs
+
+
+def _learning_analytics_intro(title, code, la) -> str:
+    """Course-specific Learning Analytics introduction.
+
+    Replaces the previous generic boilerplate with a sentence that cites this
+    course's actual cognitive profile (levels used, dominant level, LOTS/HOTS split
+    and knowledge-dimension breadth) so the section reads as analysis of THIS course.
+    """
+    total   = la.get('total_mapped', 0)
+    breadth = la.get('breadth', 0)
+    dom     = la.get('dominant_level')
+    dom_name = _LA_LEVEL_NAMES.get(dom, '-') if dom else '-'
+    hots    = la.get('hots_pct', 0)
+    lots    = la.get('lots_pct', 0)
+    kd_cov  = len(la.get('kdim_covered', []))
+    return (
+        f"For {title} ({code}), this section profiles the cognitive design of the "
+        f"{total} mapped Course Outcome(s) using the Revised Bloom's Taxonomy (RBT). "
+        f"These COs span {breadth} of the 6 cognitive levels and peak at "
+        f"{dom_name}, with a {lots}% Lower-Order (LOTS) to {hots}% Higher-Order (HOTS) "
+        f"split across {kd_cov} of the 4 knowledge dimensions. The metrics below detail "
+        f"this course's cognitive-level distribution, LOTS/HOTS balance, knowledge-"
+        f"dimension spread, cognitive balance, and NBA/OBE alignment - showing whether "
+        f"{code} builds from recall toward analysis, evaluation and creation, and where "
+        f"cognitive gaps remain for NBA, NAAC and NEP accreditation."
+    )
 
 
 # ── CO placement rationale (why each CO sits in its RBT cell) ─────────────────
@@ -290,21 +316,32 @@ _MEASURABLE_VERBS = {v for verbs in _BLOOM_LEVELS.values() for v in verbs} | {
 
 
 def _qqi_label(score) -> str:
-    """Map a 0-100 quality score to a qualitative rating (no number exposed).
+    """Map a 0-100 quality score to a qualitative rating.
 
-    Uses the same vocabulary as the Accreditation Readiness dashboard.
+    Three-band scale (shown alongside the numeric score, not instead of it):
+        Good    : > 75
+        Average : 60-75
+        Poor    : < 60
     """
     try:
         s = float(score)
     except (TypeError, ValueError):
         return "—"
-    if s >= 85:
-        return "Strong"
-    if s >= 70:
+    if s > 75:
         return "Good"
-    if s >= 55:
-        return "Adequate"
-    return "Needs Work"
+    if s >= 60:
+        return "Average"
+    return "Poor"
+
+
+def _qqi_score_label(score) -> str:
+    """Render a 0-100 quality score as 'NN/100 (Band)' so both the number and the
+    qualitative band are always shown together."""
+    label = _qqi_label(score)
+    try:
+        return f"{round(float(score))}/100 ({label})"
+    except (TypeError, ValueError):
+        return label
 
 
 # ── Accreditation improvement guidance ───────────────────────────────────────
@@ -484,7 +521,10 @@ def _co_placement_rationale(cos: list, grid: dict) -> list:
 
     Returns rows of (CO, "Dimension / Ln-Level", rationale) reconstructed from the
     action verb in the CO statement (cognitive level) and the knowledge type
-    (knowledge dimension) recorded in the taxonomy grid.
+    (knowledge dimension) recorded in the taxonomy grid. The rationale names the
+    Bloom's action verb, the cognitive-level name and the knowledge-dimension name
+    explicitly, and suggests level-appropriate verbs to refine the CO without
+    changing the number of COs.
     """
     if not grid:
         return []
@@ -505,16 +545,21 @@ def _co_placement_rationale(cos: list, grid: dict) -> list:
                     (v for v in verbs if re.search(r'\b' + re.escape(v) + r'\b', t)),
                     None,
                 )
-                idx   = _LA_LEVEL_ORDER.index(lv) + 1
-                lname = _LA_LEVEL_NAMES[lv]
+                idx     = _LA_LEVEL_ORDER.index(lv) + 1
+                lname   = _LA_LEVEL_NAMES[lv]          # e.g. "Understand"
+                suggest = ", ".join(verbs[:3]) if verbs else ""
                 if matched:
-                    verb_part = (f'the action verb "{matched}" places it at L{idx}-{lname}, '
-                                 f'where students {_LEVEL_RATIONALE[lv]}')
+                    verb_part = (f'The Bloom\'s action verb "{matched}" signals the '
+                                 f'{lname} cognitive level (L{idx}), where students '
+                                 f'{_LEVEL_RATIONALE[lv]}')
                 else:
-                    verb_part = (f'its cognitive demand places it at L{idx}-{lname}, '
-                                 f'where students {_LEVEL_RATIONALE[lv]}')
-                rationale = (f"{verb_part}; it draws on {kd} knowledge "
-                             f"({_KDIM_RATIONALE.get(kd, 'subject knowledge')}).")
+                    verb_part = (f'The outcome\'s cognitive demand maps to the {lname} '
+                                 f'level (L{idx}), where students {_LEVEL_RATIONALE[lv]}')
+                knowledge_part = (f'It engages the {kd} knowledge dimension - '
+                                  f'{_KDIM_RATIONALE.get(kd, "subject knowledge")}')
+                suggest_part = (f' Suggested {lname}-level verbs to keep this CO measurable: '
+                                f'{suggest}.' if suggest else "")
+                rationale = f"{verb_part}. {knowledge_part}.{suggest_part}"
                 rows.append((co, f"{kd} / L{idx}-{lname}", rationale))
     return rows
 
@@ -929,7 +974,7 @@ def build_docx(
 
     STATUS_COLOR = {
         "Excellent": GREEN, "Strong": GREEN, "Good": GREEN, "Ready": GREEN,
-        "Satisfactory": AMBER, "Adequate": AMBER, "Mostly Ready": AMBER,
+        "Satisfactory": AMBER, "Adequate": AMBER, "Average": AMBER, "Mostly Ready": AMBER,
         "Needs Improvement": RED_C, "Needs Work": RED_C, "Poor": RED_C,
         "Fully Compliant": GREEN, "Substantially Compliant": AMBER,
         "Partially Compliant": RED_C,
@@ -1117,8 +1162,8 @@ def build_docx(
         f"This report presents the complete Module 1 output for {title} ({code}). "
         f"A total of {n_cos} Course Outcomes were generated and mapped to Bloom's taxonomy. "
         + qb_desc +
-        f"The overall Question Quality Index (QQI) is {qqi}/100, and the "
-        f"Accreditation Readiness Score is {acc}/100.",
+        f"The overall Question Quality Index (QQI) is {_qqi_label(qqi)}, and the "
+        f"Accreditation Readiness is {_qqi_label(acc)}.",
         size=10
     )
 
@@ -1128,8 +1173,8 @@ def build_docx(
         ("Assignments in QB",         str(analytics["total_assign"])),
         ("Quiz Questions in QB",      str(analytics["total_quiz"])),
         ("CO Coverage",               f"{cov}%"),
-        ("Question Quality Index",    f"{qqi}/100"),
-        ("Accreditation Score",       f"{acc}/100"),
+        ("Question Quality Index",    _qqi_label(qqi)),
+        ("Accreditation Score",       _qqi_label(acc)),
     ]
     _add_table(["Metric", "Value"], key_stats, col_widths=[3.5, 2.8])
 
@@ -1238,8 +1283,11 @@ def build_docx(
         _add_heading("CO Placement Rationale", level=2, color=TEAL)
         _add_para(
             "Why each Course Outcome is mapped to its cell (knowledge dimension x "
-            "cognitive level) in the RBT table above, based on the action verb used "
-            "and the type of knowledge the outcome addresses.",
+            "cognitive level) in the RBT table above. Each rationale names the Bloom's "
+            "action verb, its cognitive-level name (Remember-Create) and the "
+            "knowledge-dimension name (Factual, Conceptual, Procedural, Meta-Cognitive), "
+            "and suggests level-appropriate verbs to strengthen the CO while keeping the "
+            "same number of Course Outcomes.",
             italic=True, size=9
         )
         _add_table(
@@ -1251,29 +1299,9 @@ def build_docx(
 
     # ── Learning Analytics (RBT-derived) ─────────────────────────────────────
     _add_heading("Learning Analytics", level=2, color=TEAL)
-    _add_para(
-        "This section translates the Revised Bloom's Taxonomy (RBT) mapping into a "
-        "quantitative profile of the course's cognitive design. Each Course Outcome is "
-        "positioned by the cognitive process it demands (Remember, Understand, Apply, "
-        "Analyze, Evaluate, Create) and the knowledge dimension it engages (Factual, "
-        "Conceptual, Procedural, Meta-Cognitive). The analytics below summarise how "
-        "learning is distributed across these levels and dimensions.",
-        italic=True, size=9
-    )
-    _add_para(
-        "The metrics that follow report the cognitive-level distribution of COs, the "
-        "balance between Lower-Order (LOTS) and Higher-Order (HOTS) thinking skills, "
-        "the spread across knowledge dimensions, the cognitive balance and diversity of "
-        "the outcome set, and a checklist of NBA/OBE alignment indicators. Together they "
-        "reveal whether the course progressively builds from foundational recall toward "
-        "analysis, evaluation and creation - the hallmark of an outcome-based curriculum - "
-        "and highlight any cognitive gaps to address for accreditation under NBA, NAAC "
-        "and NEP guidelines.",
-        italic=True, size=9
-    )
-
     _la = _compute_bloom_analytics(cos, rbt_grid)
     _la_total = _la['total_mapped']
+    _add_para(_learning_analytics_intro(title, code, _la), italic=True, size=9)
 
     _add_heading("A.  Cognitive Level Distribution", level=3, color=TEAL)
     _add_bar_chart(
@@ -1382,8 +1410,8 @@ def build_docx(
         bold=True, size=9.5
     )
 
-    # F. Key Observations & Recommendations
-    _add_heading("F.  Key Observations & Recommendations", level=3, color=TEAL)
+    # F. Analysis and Learning Path
+    _add_heading("F.  Analysis and Learning Path", level=3, color=TEAL)
     for _ob in _la_observations(_la):
         _add_para(f"• {_ob}", size=9.5, indent=1)
 
@@ -1539,14 +1567,14 @@ def build_docx(
     # ── Section 8: Question Quality Index (QQI) ──────────────────────────────
     _section_divider(8, "Question Quality Index (QQI)")
 
-    qqi_rows = [(co, _qqi_label(score)) for co, score in analytics["qqi_scores"].items()]
-    qqi_rows.append(("Overall QQI", _qqi_label(analytics['overall_qqi'])))
-    _qt = _add_table(["CO", "QQI Rating"], qqi_rows, col_widths=[1.5, 1.8])
-    # Colour each rating word by quality band
-    for _qr, (_, _rating) in enumerate(qqi_rows, 1):
+    qqi_pairs = list(analytics["qqi_scores"].items()) + [("Overall QQI", analytics['overall_qqi'])]
+    qqi_rows  = [(co, _qqi_score_label(score)) for co, score in qqi_pairs]
+    _qt = _add_table(["CO", "QQI Rating"], qqi_rows, col_widths=[1.2, 2.4])
+    # Colour each rating (score + band) by its quality band
+    for _qr, (_, _score) in enumerate(qqi_pairs, 1):
         for _run in _qt.rows[_qr].cells[1].paragraphs[0].runs:
             _run.bold = True
-            _run.font.color.rgb = STATUS_COLOR.get(_rating, GRAY)
+            _run.font.color.rgb = STATUS_COLOR.get(_qqi_label(_score), GRAY)
 
     qqi_ai = ai.get("qqi_interpretation", {})
     if qqi_ai.get("overall"):
@@ -1617,9 +1645,10 @@ def build_docx(
 
     acc_data = ai.get("accreditation_readiness", {})
     overall  = acc_data.get("overall_score", analytics["overall_qqi"])
-    level    = acc_data.get("readiness_level", "Needs Work")
+    # Readiness band on the same Good/Average/Poor scale as the QQI ratings.
+    level    = _qqi_label(overall)
 
-    _add_para(f"Overall Accreditation Readiness Score: {overall}/100  —  {level}",
+    _add_para(f"Overall Accreditation Readiness: {level}",
               bold=True, size=12, color=STATUS_COLOR.get(level, GRAY))
     doc.add_paragraph()
 
@@ -1718,8 +1747,8 @@ def build_txt(
     lines.append(f"Assignments in QB      : {analytics['total_assign']}")
     lines.append(f"Quiz Questions in QB   : {analytics['total_quiz']}")
     lines.append(f"CO Coverage            : {analytics['coverage_pct']}%")
-    lines.append(f"Question Quality Index : {analytics['overall_qqi']}/100")
-    lines.append(f"Accreditation Score    : {acc}/100")
+    lines.append(f"Question Quality Index : {_qqi_label(analytics['overall_qqi'])}")
+    lines.append(f"Accreditation Readiness: {_qqi_label(acc)}")
 
     # Section 1: CO Generation
     _sec(1, "Automatic CO Generation")
@@ -1731,39 +1760,19 @@ def build_txt(
 
     # Learning Analytics
     _sub("Learning Analytics")
-    lines.append(
-        "This section translates the Revised Bloom's Taxonomy (RBT) mapping into a"
-    )
-    lines.append(
-        "quantitative profile of the course's cognitive design. Each CO is positioned by"
-    )
-    lines.append(
-        "the cognitive process it demands (Remember through Create) and the knowledge"
-    )
-    lines.append(
-        "dimension it engages (Factual, Conceptual, Procedural, Meta-Cognitive). The"
-    )
-    lines.append(
-        "metrics below report the cognitive-level distribution, the LOTS/HOTS balance,"
-    )
-    lines.append(
-        "knowledge-dimension spread, cognitive balance, and NBA/OBE alignment indicators -"
-    )
-    lines.append(
-        "showing whether the course builds from recall toward analysis, evaluation and"
-    )
-    lines.append(
-        "creation, and highlighting any cognitive gaps for NBA/NAAC/NEP accreditation."
-    )
-    lines.append("")
     _la_txt = _compute_bloom_analytics(cos, taxonomy_grid)
     _la_txt_total = _la_txt['total_mapped']
+    lines.append(textwrap.fill(_learning_analytics_intro(title, code, _la_txt), 78))
+    lines.append("")
 
     _rationale_txt = _co_placement_rationale(cos, taxonomy_grid)
     if _rationale_txt:
         lines.append("CO Placement Rationale")
         lines.append("-" * 40)
-        lines.append("Why each CO sits in its RBT cell (knowledge dimension x level):")
+        lines.append("Why each CO sits in its RBT cell (knowledge dimension x level).")
+        lines.append("Each rationale names the Bloom's action verb, the cognitive-level")
+        lines.append("name and the knowledge-dimension name, and suggests level-appropriate")
+        lines.append("verbs to strengthen the CO while keeping the same number of COs:")
         for _co_r, _cell_r, _why_r in _rationale_txt:
             lines.append(f"{_co_r} [{_cell_r}]:")
             lines.append(f"  {_why_r}")
@@ -1829,9 +1838,9 @@ def build_txt(
     _met_txt = sum(1 for r in _align_txt if r[2] == "Met")
     lines.append(f"Indicators met: {_met_txt} of {len(_align_txt)}")
 
-    # Key Observations & Recommendations
+    # Analysis and Learning Path
     lines.append("")
-    lines.append("Key Observations & Recommendations")
+    lines.append("Analysis and Learning Path")
     lines.append("-" * 40)
     for _ob_txt in _la_observations(_la_txt):
         lines.append(f"- {_ob_txt}")
@@ -1928,9 +1937,9 @@ def build_txt(
 
     # Section 8: QQI
     _sec(8, "Question Quality Index (QQI)")
-    qqi_rows = [(co, _qqi_label(score)) for co, score in analytics["qqi_scores"].items()]
-    qqi_rows.append(("Overall QQI", _qqi_label(analytics['overall_qqi'])))
-    _tbl(["CO", "QQI Rating"], qqi_rows, [12, 12])
+    qqi_rows = [(co, _qqi_score_label(score)) for co, score in analytics["qqi_scores"].items()]
+    qqi_rows.append(("Overall QQI", _qqi_score_label(analytics['overall_qqi'])))
+    _tbl(["CO", "QQI Rating"], qqi_rows, [12, 20])
     qqi_ai = ai.get("qqi_interpretation", {})
     if qqi_ai.get("overall"):
         lines.append("\n" + qqi_ai["overall"])
@@ -1977,9 +1986,9 @@ def build_txt(
     _sec(11, "Accreditation Readiness Dashboard")
     acc_data = ai.get("accreditation_readiness", {})
     overall  = acc_data.get("overall_score", analytics["overall_qqi"])
-    level    = acc_data.get("readiness_level", "Needs Work")
-    lines.append(f"Overall Score    : {overall}/100")
-    lines.append(f"Readiness Level  : {level}")
+    # Readiness band on the same Good/Average/Poor scale as the QQI ratings.
+    level    = _qqi_label(overall)
+    lines.append(f"Accreditation Readiness : {level}")
     km = acc_data.get("key_metrics", [])
     if km:
         lines.append("")
@@ -2145,8 +2154,8 @@ def build_pdf(
             ("Assignments in QB",       analytics["total_assign"]),
             ("Quiz Questions in QB",    analytics["total_quiz"]),
             ("CO Coverage",             f"{analytics['coverage_pct']}%"),
-            ("Question Quality Index",  f"{analytics['overall_qqi']}/100"),
-            ("Accreditation Score",     f"{acc}/100"),
+            ("Question Quality Index",  _qqi_label(analytics['overall_qqi'])),
+            ("Accreditation Score",     _qqi_label(acc)),
         ],
         [110, 60],
     )
@@ -2292,8 +2301,11 @@ def build_pdf(
         _heading2("CO Placement Rationale")
         _body(
             "Why each Course Outcome is mapped to its cell (knowledge dimension x "
-            "cognitive level) in the RBT table above, based on the action verb used "
-            "and the type of knowledge the outcome addresses."
+            "cognitive level) in the RBT table above. Each rationale names the Bloom's "
+            "action verb, its cognitive-level name (Remember-Create) and the "
+            "knowledge-dimension name (Factual, Conceptual, Procedural, Meta-Cognitive), "
+            "and suggests level-appropriate verbs to strengthen the CO while keeping the "
+            "same number of Course Outcomes."
         )
         for _co_rp, _cell_rp, _why_rp in _rationale_pdf:
             pdf.set_font("Helvetica", "B", 9.5)
@@ -2303,24 +2315,9 @@ def build_pdf(
 
     # Learning Analytics (PDF)
     _heading2("Learning Analytics")
-    _body(
-        "This section translates the Revised Bloom's Taxonomy (RBT) mapping into a "
-        "quantitative profile of the course's cognitive design. Each Course Outcome is "
-        "positioned by the cognitive process it demands (Remember through Create) and "
-        "the knowledge dimension it engages (Factual, Conceptual, Procedural, "
-        "Meta-Cognitive)."
-    )
-    _body(
-        "The metrics below report the cognitive-level distribution of COs, the balance "
-        "between Lower-Order (LOTS) and Higher-Order (HOTS) thinking skills, the spread "
-        "across knowledge dimensions, the cognitive balance and diversity of the outcome "
-        "set, and a checklist of NBA/OBE alignment indicators. Together they show whether "
-        "the course progressively builds from foundational recall toward analysis, "
-        "evaluation and creation, and highlight any cognitive gaps to address for "
-        "accreditation under NBA, NAAC and NEP guidelines."
-    )
     _la_pdf = _compute_bloom_analytics(cos, rbt_pdf_grid)
     _la_pdf_total = _la_pdf['total_mapped']
+    _body(_learning_analytics_intro(title, code, _la_pdf))
 
     _heading2("Cognitive Level Distribution")
     _la_pdf_level_rows = []
@@ -2395,8 +2392,8 @@ def build_pdf(
     _met_pdf = sum(1 for r in _align_pdf if r[2] == "Met")
     _body(f"Indicators met: {_met_pdf} of {len(_align_pdf)}.")
 
-    # Key Observations & Recommendations (PDF)
-    _heading2("Key Observations & Recommendations")
+    # Analysis and Learning Path (PDF)
+    _heading2("Analysis and Learning Path")
     for _ob_pdf in _la_observations(_la_pdf):
         _body(f"- {_ob_pdf}")
 
@@ -2560,9 +2557,9 @@ def build_pdf(
     # Section 8: QQI
     pdf.add_page()
     _heading1("SECTION 8: QUESTION QUALITY INDEX (QQI)")
-    qqi_rows = [(co, _qqi_label(score)) for co, score in analytics["qqi_scores"].items()]
-    qqi_rows.append(("Overall QQI", _qqi_label(analytics['overall_qqi'])))
-    _tbl(["CO", "QQI Rating"], qqi_rows, [40, 40])
+    qqi_rows = [(co, _qqi_score_label(score)) for co, score in analytics["qqi_scores"].items()]
+    qqi_rows.append(("Overall QQI", _qqi_score_label(analytics['overall_qqi'])))
+    _tbl(["CO", "QQI Rating"], qqi_rows, [40, 60])
     qqi_ai = ai.get("qqi_interpretation", {})
     if qqi_ai.get("overall"):
         _body(qqi_ai["overall"])
@@ -2618,9 +2615,9 @@ def build_pdf(
     _heading1("SECTION 11: ACCREDITATION READINESS DASHBOARD")
     acc_data = ai.get("accreditation_readiness", {})
     overall  = acc_data.get("overall_score", analytics["overall_qqi"])
-    level    = acc_data.get("readiness_level", "Needs Work")
-    _kv("Overall Score",   f"{overall}/100")
-    _kv("Readiness Level", level)
+    # Readiness band on the same Good/Average/Poor scale as the QQI ratings.
+    level    = _qqi_label(overall)
+    _kv("Accreditation Readiness", level)
     pdf.ln(2)
     km = acc_data.get("key_metrics", [])
     if km:

@@ -380,6 +380,9 @@
     .footer-support-note a { color: #a5b4fc; text-decoration: none; }
     .footer-support-note a:hover { text-decoration: underline; }
     .footer-bottom { padding-top: 24px; font-size: .78rem; color: rgba(255,255,255,.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .footer-legal-links { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+    .footer-legal-links a { color: rgba(255,255,255,.4); text-decoration: none; transition: color .15s; }
+    .footer-legal-links a:hover { color: #a5b4fc; }
 
     /* ── MODULES — flip cards ── */
     .modules-grid {
@@ -622,6 +625,8 @@
     html.light-theme .footer-support-note { color: rgba(30,41,59,.55); }
     html.light-theme .footer-support-note a { color: #2563eb; }
     html.light-theme .footer-bottom { color: rgba(30,41,59,.35); }
+    html.light-theme .footer-legal-links a { color: rgba(30,41,59,.5); }
+    html.light-theme .footer-legal-links a:hover { color: #2563eb; }
     /* .btn-cta-ghost lives only in the (dark) hero, so keep its base white text
        in light mode too rather than darkening it. */
   </style>
@@ -710,9 +715,6 @@
     </h1>
     <p class="hero-sub">
       MyOBE is an AI-powered Educational Intelligence Platform that automates Course Outcome Generation, Question Bank Creation, Smart Question Paper Design, Lesson Planning, Teaching Diaries, CO&ndash;PO&ndash;PSO Attainment, Bloom Analytics, Learning Analytics, SDG Contribution Measurement, Accreditation Documentation, and Institutional Excellence Dashboards for NBA, NAAC, NIRF, and THE Impact Rankings &mdash; so faculty can focus on teaching, not paperwork.
-    </p>
-    <p class="hero-sub hero-sub-secondary">
-      Aligned with the Dr. Radhakrishnan Committee recommendations on higher education excellence and outcome-based learning.
     </p>
     <div class="hero-actions">
       {% if logged_in %}
@@ -905,7 +907,7 @@
   <div class="section-header reveal" style="text-align:center">
     <p class="section-label">Who we serve</p>
     <h2 class="section-title">Built for every professional college</h2>
-    <p class="section-sub" style="margin:0 auto">Accreditation and documentation requirements differ across disciplines &mdash; MyOBE adapts to your field.</p>
+    <p class="section-sub" style="margin:0 auto">Accreditation and documentation requirements differ across disciplines &mdash; MyOBE adapts to your field, delivering integrated OBE-SDG reports for each.</p>
   </div>
   <div class="fields-accordion reveal" style="transition-delay:.1s">
     <details class="field-acc">
@@ -1053,8 +1055,16 @@
     </div>
   </div>
   <div class="footer-bottom">
-    <span>&copy; 2026 MyOBE — Academic Content Generator</span>
-    <span>Built for Indian faculty &middot; NBA &amp; NAAC aligned &middot; 8+ disciplines</span>
+    <span>&copy; 2026 MyOBE. Operated by My OBE.</span>
+    <div class="footer-legal-links" role="navigation" aria-label="Legal and policies">
+      <a href="/privacy">Privacy Policy</a>
+      <span aria-hidden="true">&middot;</span>
+      <a href="/terms">Terms &amp; Conditions</a>
+      <span aria-hidden="true">&middot;</span>
+      <a href="/refund">Refund &amp; Cancellation Policy</a>
+      <span aria-hidden="true">&middot;</span>
+      <a href="/contact">Contact Us</a>
+    </div>
   </div>
 </footer>
 

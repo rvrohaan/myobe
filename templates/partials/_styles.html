@@ -22,7 +22,7 @@
       background-attachment: fixed;
       color: var(--text);
       min-height: 100vh; min-height: 100dvh;
-      padding-bottom: 60px;
+      display: flex; flex-direction: column;
     }
 
     /* ── Navbar ── */
@@ -69,12 +69,15 @@
     .nav-username { font-size: .8rem; color: rgba(255,255,255,.5); }
     .nav-token-badge { font-size: .68rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: rgba(99,102,241,.18); color: #a5b4fc; letter-spacing: .02em; }
 
-    .container { max-width: 860px; margin: 0 auto; padding: 28px 16px; transition: max-width .25s ease; }
+    .container { flex: 1 0 auto; width: 100%; max-width: 860px; margin: 0 auto; padding: 28px 16px; transition: max-width .25s ease; }
+    /* On the module-picker landing, let the picker fill any leftover height on
+       tall screens so the pinned footer doesn't leave a blank void below the
+       cards. Scoped via :has() to the landing only; on short screens the
+       content overflows and scrolls as normal (no stretching). */
+    .container:has(#sec-mode-select:not(.hidden)) { display: flex; flex-direction: column; }
+    .container:has(#sec-mode-select:not(.hidden)) > #sec-mode-select { flex: 1 0 auto; display: flex; flex-direction: column; }
+    .container:has(#sec-mode-select:not(.hidden)) > #sec-mode-select > .module-grid { flex: 1 0 auto; grid-auto-rows: 1fr; }
     .container.wide { max-width: min(1440px, 96vw); }
-    .app-footer { max-width: 860px; margin: 8px auto 32px; padding: 18px 16px 0; text-align: center; border-top: 1px solid rgba(148,163,184,.18); }
-    .app-footer p { font-size: .85rem; color: var(--muted, #94a3b8); margin: 0; }
-    .app-footer a { color: var(--primary, #6366f1); text-decoration: none; }
-    .app-footer a:hover { text-decoration: underline; }
 
     /* ── Step indicator ── */
     .steps {
