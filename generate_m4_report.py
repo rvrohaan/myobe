@@ -10,9 +10,8 @@ Builds a DOCX/PDF/TXT report covering all Module-4 deliverables:
   7.  CO to SDG Contribution Analysis
   8.  PO to SDG Contribution Analysis
   9.  Composite SDG Index
- 10.  NBA/NAAC Assessment Compliance Checklist
- 11.  Assessment Readiness Dashboard
- 12.  Action Taken Report
+ 10.  OBE Assessment Compliance Checklist
+ 11.  Action Taken Report
 """
 
 import re
@@ -53,13 +52,116 @@ def build_explanations(a, ai=None):
                  if mean >= 60 else
                  "several outcomes fell short of the expected bar")
 
+    t3 = (a.get("thresholds", {}) or {}).get("t3", 50)
+
+    def _names(items, n=3):
+        items = [str(x) for x in items if str(x).strip()]
+        if not items:
+            return ""
+        head = ", ".join(items[:n])
+        return head + (f" and {len(items) - n} more" if len(items) > n else "")
+
+    # CO performance extremes
+    _co_sorted = sorted([r for r in a.get("co_results", []) if r.get("co")],
+                        key=lambda r: r.get("pct", 0))
+    top_co    = _co_sorted[-1] if _co_sorted else None
+    bottom_co = _co_sorted[0]  if _co_sorted else None
+    weak_cos  = [r.get("co", "") for r in _co_sorted if (r.get("pct") or 0) < t3]
+
+    # Broadest-reaching CO (by average PO support)
+    _str_sorted = sorted((a.get("co_strength", {}) or {}).items(),
+                         key=lambda kv: kv[1], reverse=True)
+    strong_co = _str_sorted[0] if _str_sorted else None
+
+    # PO column averages (from the mapping)
+    _po_sorted = sorted((a.get("po_avg", {}) or {}).items(),
+                        key=lambda kv: kv[1], reverse=True)
+    top_po  = _po_sorted[0]  if _po_sorted else None
+    thin_po = _po_sorted[-1] if _po_sorted else None
+
+    # POs below target
+    below_pos = [p.get("po", "") for p in a.get("atr_rows", [])]
+    n_po_eval = len(a.get("po_attainment", []))
+
+    # SDG-CO top contributor and SDG-PO leaders
+    _sdgco_sorted = sorted(a.get("sdgco_contrib", []),
+                           key=lambda c: c.get("pct", 0), reverse=True)
+    top_sdgco = _sdgco_sorted[0] if _sdgco_sorted else None
+    _sdgpo_sorted = sorted(a.get("sdgpo_results", []),
+                           key=lambda r: r.get("contribution", 0), reverse=True)
+    lead_sdgs = [r.get("sdg", "") for r in _sdgpo_sorted[:3]
+                 if (r.get("contribution") or 0) > 0]
+
+    # ── Optional, data-specific sentences (blank when the data isn't present) ──
+    co_spread_note = (
+        f"Of the COs assessed, {high} sit at the upper levels (2-3) and {low} at the "
+        "lower levels (0-1), so the headline is "
+        + ("backed by broad depth across the class. "
+           if high >= low else
+           "carried by a smaller group of strong outcomes. ")
+    ) if (high or low) else ""
+
+    co_extremes_note = (
+        f"In practice {top_co.get('co')} performed best at {(top_co.get('pct') or 0):.0f}%, "
+        f"while {bottom_co.get('co')} was lowest at {(bottom_co.get('pct') or 0):.0f}%. "
+    ) if top_co and bottom_co and top_co is not bottom_co else ""
+
+    weak_co_note = (
+        f"The outcomes below the {t3}% floor - {_names(weak_cos)} - are the clearest "
+        "priorities for revised delivery or assessment redesign. "
+    ) if weak_cos else ""
+
+    strong_co_note = (
+        f"{strong_co[0]} reaches across the most programme outcomes (average "
+        f"{strong_co[1]}), so it carries a large share of the graduate attributes and "
+        "a dip there would ripple into several POs. "
+    ) if strong_co and strong_co[1] else ""
+
+    po_extreme_note = (
+        f"{top_po[0]} is the best-supported programme outcome (column average "
+        f"{top_po[1]}), whereas {thin_po[0]} rests on the thinnest CO support "
+        f"({thin_po[1]}) and is the most exposed if any feeding CO slips. "
+    ) if top_po and thin_po and top_po[0] != thin_po[0] else ""
+
+    below_po_note = (
+        f"{len(below_pos)} of {n_po_eval} POs are below target ({_names(below_pos)}); "
+        "each needs a documented corrective action in the final section. "
+    ) if below_pos else (
+        "Every programme outcome currently clears its target. " if n_po_eval else ""
+    )
+
+    atr_count_note = (
+        f"This cycle {len(below_pos)} of {n_po_eval} POs ({_names(below_pos)}) fell "
+        "short and appear below with their planned actions. "
+    ) if below_pos else (
+        "This cycle every programme outcome met its target, so no corrective actions "
+        "are required - the section is kept as evidence that the check was carried "
+        "out. " if n_po_eval else ""
+    )
+
+    top_sdgco_note = (
+        f"{top_sdgco.get('co')} is the single largest contributor, accounting for "
+        f"{(top_sdgco.get('pct') or 0):.0f}% of the alignment to "
+        f"{a.get('target_sdg') or 'this goal'}. "
+    ) if top_sdgco and top_sdgco.get("pct") else ""
+
+    lead_sdg_note = (
+        f"The goals this course speaks to most strongly are {_names(lead_sdgs)}, which "
+        "is typical for an engineering subject where quality-education and industry-"
+        "and-innovation themes dominate. "
+    ) if lead_sdgs else ""
+
     return {
         "overview": (
             "This section sets the scope of the assessment - the number of course "
-            "outcomes and programme outcomes evaluated and the average level at "
-            f"which students achieved the COs. A mean CO attainment of {mean}% means "
-            f"that, on balance, {mean_read}. The remaining sections break this "
-            "headline down outcome by outcome."
+            f"outcomes ({a.get('n_cos', 0)}) and programme outcomes ({a.get('n_pos', 0)}) "
+            "evaluated, together with the average level at which students achieved the "
+            f"COs. A mean CO attainment of {mean}% means that, on balance, {mean_read}. "
+            "Treat the average as a starting point rather than a verdict: the same "
+            "figure can come from a tightly clustered cohort or from a mix of very "
+            f"strong and very weak outcomes. {co_spread_note}"
+            "The sections that follow break this headline down outcome by outcome and "
+            "trace it through to programme outcomes and sustainability goals."
         ),
         "copo": (
             "Each value shows how strongly a course outcome supports a programme "
@@ -67,82 +169,118 @@ def build_explanations(a, ai=None):
             "means it has little bearing on it. The mix of strong and blank cells "
             "reflects the natural fit between what each CO teaches and the broader "
             "competencies the programme expects - design- and skill-oriented COs "
-            "tend to map strongly to more POs, which is why their rows look denser."
+            "tend to map strongly to more POs, which is why their rows look denser. A "
+            "row that is mostly filled marks a CO that pulls real weight, while a "
+            "column that is mostly blank points to a programme outcome few COs reach "
+            f"and that the syllabus may under-serve. {strong_co_note}"
+            "Read the table by rows to see which outcomes do the most work, and by "
+            "columns to see where the curriculum is thin."
         ),
         "co_strength": (
             "The average here tells you how broadly each CO reaches across the "
             "programme outcomes. Outcomes marked 'Strong' touch many POs at a high "
             "level and so carry real weight in shaping graduate attributes, whereas "
-            "'Low' ones are more narrowly focused. This highlights which COs are "
-            "doing the heavy lifting in the curriculum."
+            "'Low' ones are more narrowly focused - which is not a fault in itself, "
+            "since some COs are deliberately specialised. What matters is the balance: "
+            "a course that leans on one or two strong COs is fragile, because weakness "
+            f"in those outcomes spreads quickly into the POs they feed. {strong_co_note}"
+            "Use this to spot the load-bearing COs and protect them when the course is "
+            "revised."
         ),
         "co_att": (
             "The attainment percentage reflects how the cohort actually performed on "
             "the work tied to each CO, and the level is set by comparing that figure "
-            "against the thresholds shown above. A higher level means more students "
-            "cleared the expected standard. COs sitting at lower levels are where "
-            "performance lagged and are the natural candidates for revised teaching "
-            "or assessment."
+            f"against the thresholds shown above (floor {t3}%). A higher level means "
+            f"more students cleared the expected standard. {co_extremes_note}"
+            f"{weak_co_note}"
+            "When acting on a low CO, separate the two usual causes: the outcome may "
+            "have been taught well but assessed too harshly, or the topic genuinely "
+            "needs more time and practice. The remedy differs, so review the "
+            "assessment design before concluding the teaching was at fault."
         ),
         "po_summary": (
             "PO attainment is carried over from CO performance: each PO draws its "
             "strength from the COs mapped to it and how well those COs were attained. "
             "POs supported by many well-attained COs therefore score higher, while "
             "those resting on a few weaker COs score lower - which is why these "
-            "values broadly track the CO results above."
+            f"values broadly track the CO results above. {po_extreme_note}"
+            "A weak PO has two quite different causes: too few COs feed it, or the COs "
+            "that do feed it underperformed. The first is a curriculum-design issue to "
+            "fix when COs are next written; the second is a delivery issue handled "
+            "through the action plan."
         ),
         "po_nba": (
             "This view weighs each PO's attainment against its target. 'Met' means "
             "the cohort cleared the expected bar for that competency; 'Below' flags a "
-            "graduate attribute that is not yet being fully achieved. The summary at "
-            "the top gives a one-glance read on overall programme health."
+            f"graduate attribute that is not yet being fully achieved. {below_po_note}"
+            "The summary at the top gives a one-glance read on overall programme "
+            "health, but the POs marked 'Below' are what an accreditor examines first, "
+            "so each should carry a concrete, dated action in the final section."
         ),
         "level_dist": (
             "This shows how the COs are spread across attainment levels. Here, "
-            f"{dist_read}. A distribution weighted toward the higher levels signals a "
-            "strong course, while a cluster at the lower levels points to outcomes "
-            "that need attention - a quick way to gauge overall quality at a glance."
+            f"{dist_read} ({high} CO(s) at levels 2-3 against {low} at levels 0-1). A "
+            "distribution weighted toward the higher levels signals a strong course, "
+            "while a cluster at the lower levels points to outcomes that need "
+            "attention. The shape matters as much as the average: a wide spread says "
+            "the class is splitting into those who keep up and those who fall behind, "
+            "which calls for differentiated support, whereas a tight cluster low down "
+            "points to a problem with the outcome or its assessment rather than with "
+            "individual students."
         ),
         "co_sdg": (
-            "This shows how each course outcome contributes to the chosen Sustainable "
-            "Development Goal. COs with a larger share are the ones whose content and "
-            "skills align most closely with that goal's themes. A more even spread "
-            "means the SDG is supported across the whole course rather than by a "
-            "single outcome."
+            "This shows how each course outcome contributes to the leading Sustainable "
+            "Development Goal for the course. COs with a larger share are the ones "
+            f"whose content and skills align most closely with that goal's themes. "
+            f"{top_sdgco_note}"
+            "A more even spread means the goal is supported across the whole course "
+            "rather than by a single outcome, which is the healthier pattern - it "
+            "shows sustainability is woven through the syllabus instead of parked in "
+            "one topic. A highly concentrated share is a prompt to ask whether the "
+            "theme could be reinforced in more outcomes."
         ),
         "po_sdg": (
             "This estimates how the programme outcomes collectively support each SDG. "
             "A higher contribution percentage means the attributes developed in this "
             "course align well with that goal, and the interpretation label puts that "
-            "percentage into plain language. The spread reflects which goals the "
-            "course speaks to most naturally."
+            f"percentage into plain language. {lead_sdg_note}"
+            "The spread reflects which goals the course speaks to most naturally; a "
+            "few strong goals and many near-zero ones is normal for a specialised "
+            "engineering subject, so read the leaders as the course's real "
+            "sustainability footprint rather than expecting broad coverage of every "
+            "goal."
         ),
         "composite": (
             "The composite index rolls the individual SDG contributions into a single "
             f"figure for the course's overall sustainability alignment, indicating "
             f"{comp_band}. A higher value means the course, taken as a whole, supports "
             f"the development goals more strongly; here {n_sdg} SDG(s) feed into it. "
-            "Use the interpretation band as a quick benchmark."
+            "Because the index blends all the goals together, a course that is "
+            "excellent on a few SDGs but silent on the rest will show a moderate "
+            "figure - that is expected, and is best read as a measure of breadth and "
+            "strength together rather than a pass mark. Use the band as a quick "
+            "benchmark and the per-SDG rows above to see where the strength sits."
         ),
         "checklist": (
-            "This checklist tracks whether the evidence required for NBA/NAAC review "
+            "This checklist tracks whether the evidence required for OBE review "
             "is in place. 'Met' items are complete and documented; 'Needs Attention' "
             "items are gaps to close before an audit. It is a readiness self-check, "
-            "not a formal score - the aim is to surface missing pieces early."
-        ),
-        "readiness": (
-            "The readiness score blends how complete your data is with the quality of "
-            "the attainment and SDG results into a single indicator of how prepared "
-            "this course is for assessment review. The notes and recommendations that "
-            "follow point to the strongest aspects and the areas most worth improving "
-            "before submission."
+            "not a formal score - the aim is to surface missing pieces early, while "
+            "there is still time to gather the evidence. Work down the 'Needs "
+            "Attention' items first: most are about producing or attaching a document "
+            "rather than improving results, so they are usually the quickest gaps to "
+            "close before submission."
         ),
         "atr": (
             "This section records the corrective actions planned for any programme "
-            "outcome that fell short of its target. Closing the loop in this way - "
-            "naming the weak POs and stating what will be done about them - is a core "
-            "expectation of outcome-based education and is how continuous improvement "
-            "is demonstrated to accreditors."
+            f"outcome that fell short of its target. {atr_count_note}"
+            "Closing the loop in this way - naming the weak POs and stating what will "
+            "be done about them - is a core expectation of outcome-based education and "
+            "is how continuous improvement is demonstrated to accreditors. The "
+            "strongest action statements are specific and verifiable: they say what "
+            "will change, in which part of the course, and how the effect will be "
+            "checked next cycle, rather than simply noting that performance will be "
+            "monitored."
         ),
     }
 
@@ -196,6 +334,30 @@ def compute_analytics(pomap_rows, coatt_data, poatt_data, sdgco_data, sdgpo_data
     sdgco_contrib  = sdgco.get("contributions", [])
     sdgco_total    = sdgco.get("total", 0)
 
+    # New all-SDG matrix format from /generate_sdg_co_all
+    # ({matrix, cos, sdgs, co_totals, sdg_totals, top_sdgs}). Convert it into the
+    # legacy {target_sdg, contributions, total} shape the renderers expect, using
+    # the top-contributing SDG as the target.
+    if not sdgco_contrib and sdgco.get("matrix"):
+        matrix     = sdgco.get("matrix", {})
+        top_sdgs   = sdgco.get("top_sdgs", [])
+        sdg_totals = sdgco.get("sdg_totals", {})
+        # CO statements aren't carried in the SDG payload; pull them from the
+        # CO-PO mapping rows, which key on the same CO names ("CO1", ...).
+        stmt_map = {r.get("co", ""): r.get("statement", "") for r in pomap}
+        if top_sdgs:
+            target_sdg  = top_sdgs[0]
+            sdgco_total = sdg_totals.get(target_sdg, 0)
+            for co_name in sdgco.get("cos", list(matrix.keys())):
+                score = matrix.get(co_name, {}).get(target_sdg, 0)
+                pct   = (score / sdgco_total * 100) if sdgco_total else 0
+                sdgco_contrib.append({
+                    "co": co_name,
+                    "statement": stmt_map.get(co_name, ""),
+                    "score": score,
+                    "pct": pct,
+                })
+
     # SDG PO
     sdgpo_results  = sdgpo.get("results", [])
     sdgpo_composite = sdgpo.get("composite", 0)
@@ -240,7 +402,7 @@ def get_ai_analysis(client, all_data, analytics, code, title):
     target_sdg = analytics["target_sdg"]
 
     prompt = (
-        f"You are an NBA/NAAC accreditation expert for Indian engineering colleges.\n\n"
+        f"You are an OBE accreditation expert for Indian engineering colleges.\n\n"
         f"Course: {title} ({code})\n\n"
         f"CO Attainment (AI-estimated):\n{co_lines or '  Not available'}\n\n"
         f"PO Attainment:\n{po_lines or '  Not available'}\n\n"
@@ -251,7 +413,7 @@ def get_ai_analysis(client, all_data, analytics, code, title):
         '  "attainment_quality": "2-sentence assessment of CO/PO attainment levels",\n'
         '  "mapping_strength": "1-sentence on CO-PO mapping robustness",\n'
         '  "sdg_integration": "1-sentence on SDG alignment quality",\n'
-        '  "nba_compliance": "1-sentence NBA/NAAC compliance observation",\n'
+        '  "obe_compliance": "1-sentence OBE compliance observation",\n'
         '  "recommendations": ["rec 1", "rec 2", "rec 3"],\n'
         '  "readiness_score": <integer 0-100 overall assessment readiness>\n'
         "}"
@@ -346,7 +508,7 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         row("  " + "  ".join(f"{r['attainment']:.2f}".ljust(5) for r in a["po_results"]))
     note("po_summary")
 
-    h2("5b. PO ATTAINMENT ANALYSIS  (NBA Method)")
+    h2("5b. PO ATTAINMENT ANALYSIS")
     if a["po_attainment"]:
         pa_sum = a["po_att_summary"]
         lines.append(f"  Mean PO Attainment: {pa_sum.get('mean_pct', 0):.1f}%  |  "
@@ -396,7 +558,7 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     lines.append(f"  Interpretation: {interp}")
     note("composite")
 
-    h2("10. NBA/NAAC ASSESSMENT COMPLIANCE CHECKLIST")
+    h2("10. OBE ASSESSMENT COMPLIANCE CHECKLIST")
     has_pomap   = bool(a["pomap_rows"])
     has_coatt   = bool(a["co_results"])
     has_sdgco   = bool(a["sdgco_contrib"])
@@ -417,29 +579,7 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         lines.append(f"  {'[OK]' if ok else '[  ]'}  {label}")
     note("checklist")
 
-    h2("11. ASSESSMENT READINESS DASHBOARD")
-    if ai:
-        lines.append(f"  Readiness Score: {ai.get('readiness_score', 'N/A')}/100")
-        lines.append("")
-        if ai.get("attainment_quality"):
-            lines.append(f"  Attainment Quality: {ai['attainment_quality']}")
-        if ai.get("mapping_strength"):
-            lines.append(f"  Mapping Strength: {ai['mapping_strength']}")
-        if ai.get("sdg_integration"):
-            lines.append(f"  SDG Integration: {ai['sdg_integration']}")
-        if ai.get("nba_compliance"):
-            lines.append(f"  NBA/NAAC Compliance: {ai['nba_compliance']}")
-        recs = ai.get("recommendations", [])
-        if recs:
-            lines.append("\n  Recommendations:")
-            for i, r in enumerate(recs, 1):
-                lines.append(f"  {i}. {r}")
-    else:
-        score = _rule_readiness(a)
-        lines.append(f"  Readiness Score: {score}/100")
-    note("readiness")
-
-    h2("12. ACTION TAKEN REPORT")
+    h2("11. ACTION TAKEN REPORT")
     lines.append("  Corrective actions for Programme Outcomes below attainment target.")
     lines.append("")
     if not a["po_attainment"]:
@@ -457,18 +597,6 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     note("atr")
 
     return "\n".join(lines)
-
-
-def _rule_readiness(a):
-    score = 0
-    if a["pomap_rows"]:          score += 20
-    if a["co_results"]:          score += 20
-    if a["po_attainment"]:       score += 20
-    if a["sdgco_contrib"]:       score += 10
-    if a["sdgpo_results"]:       score += 10
-    if a["mean_att_pct"] >= 60:  score += 10
-    if len(a["sdgs_covered"]) >= 2: score += 10
-    return score
 
 
 # ── TXT output ────────────────────────────────────────────────────────────────
@@ -695,7 +823,7 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     note("po_summary")
 
     # 5b. PO Attainment Analysis
-    add_h1("5b. PO Attainment Analysis (NBA Method)")
+    add_h1("5b. PO Attainment Analysis")
     if a["po_attainment"]:
         pa_sum = a["po_att_summary"]
         add_kv("Mean PO Attainment",   f"{pa_sum.get('mean_pct', 0):.1f}%")
@@ -797,8 +925,8 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     doc.add_paragraph()
     note("composite")
 
-    # 10. NBA/NAAC Compliance Checklist
-    add_h1("10. NBA/NAAC Assessment Compliance Checklist")
+    # 10. OBE Compliance Checklist
+    add_h1("10. OBE Assessment Compliance Checklist")
     has_atr = (not a["atr_rows"]) or all(p.get("atr", "").strip() for p in a["atr_rows"])
     checks = [
         ("CO-PO Mapping generated",                    bool(a["pomap_rows"])),
@@ -823,31 +951,8 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     doc.add_paragraph()
     note("checklist")
 
-    # 11. Assessment Readiness Dashboard
-    add_h1("11. Assessment Readiness Dashboard")
-    if ai:
-        add_kv("Readiness Score", f"{ai.get('readiness_score', 'N/A')}/100")
-        if ai.get("attainment_quality"):
-            add_kv("Attainment Quality",  ai["attainment_quality"])
-        if ai.get("mapping_strength"):
-            add_kv("Mapping Strength",    ai["mapping_strength"])
-        if ai.get("sdg_integration"):
-            add_kv("SDG Integration",     ai["sdg_integration"])
-        if ai.get("nba_compliance"):
-            add_kv("NBA/NAAC Compliance", ai["nba_compliance"])
-        recs = ai.get("recommendations", [])
-        if recs:
-            add_para("Recommendations:", bold=True, indent=True)
-            for i, r in enumerate(recs, 1):
-                add_para(f"{i}. {r}", indent=True)
-    else:
-        score = _rule_readiness(a)
-        add_kv("Readiness Score", f"{score}/100")
-    doc.add_paragraph()
-    note("readiness")
-
-    # 12. Action Taken Report
-    add_h1("12. Action Taken Report")
+    # 11. Action Taken Report
+    add_h1("11. Action Taken Report")
     add_para("Corrective actions for Programme Outcomes below attainment target.",
              size=9, color=GREY, indent=True)
     if not a["po_attainment"]:
@@ -1042,7 +1147,7 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     note("po_summary")
 
     # 5b. PO Attainment
-    h2("5b. PO Attainment Analysis (NBA Method)")
+    h2("5b. PO Attainment Analysis")
     if a["po_attainment"]:
         pa_sum = a["po_att_summary"]
         kv("Mean PO Attainment",  f"{pa_sum.get('mean_pct', 0):.1f}%")
@@ -1113,7 +1218,7 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     note("composite")
 
     # 10. Checklist
-    h2("10. NBA/NAAC Assessment Compliance Checklist")
+    h2("10. OBE Assessment Compliance Checklist")
     has_atr = (not a["atr_rows"]) or all(p.get("atr", "").strip() for p in a["atr_rows"])
     checks = [
         ("CO-PO Mapping generated",                    bool(a["pomap_rows"])),
@@ -1137,33 +1242,8 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     pdf.ln(3)
     note("checklist")
 
-    # 11. Dashboard
-    h2("11. Assessment Readiness Dashboard")
-    if ai:
-        kv("Readiness Score", f"{ai.get('readiness_score', 'N/A')}/100")
-        for fld, lbl in [
-            ("attainment_quality", "Attainment Quality"),
-            ("mapping_strength",   "Mapping Strength"),
-            ("sdg_integration",    "SDG Integration"),
-            ("nba_compliance",     "NBA/NAAC Compliance"),
-        ]:
-            if ai.get(fld):
-                kv(lbl, ai[fld])
-        recs = ai.get("recommendations", [])
-        if recs:
-            pdf.set_font("Helvetica", "B", 9)
-            pdf.cell(0, 6, "Recommendations:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-            pdf.set_font("Helvetica", "", 9)
-            for i, r in enumerate(recs, 1):
-                pdf.multi_cell(0, 5.5, _safe(f"{i}. {r}"), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    else:
-        score = _rule_readiness(a)
-        kv("Readiness Score", f"{score}/100")
-    pdf.ln(3)
-    note("readiness")
-
-    # 12. Action Taken Report
-    h2("12. Action Taken Report")
+    # 11. Action Taken Report
+    h2("11. Action Taken Report")
     pdf.set_font("Helvetica", "I", 8)
     pdf.cell(0, 5, "Corrective actions for Programme Outcomes below attainment target.",
              new_x=XPos.LMARGIN, new_y=YPos.NEXT)

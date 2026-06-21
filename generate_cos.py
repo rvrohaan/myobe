@@ -218,7 +218,7 @@ def _build_system_prompt(num_cos):
     co_lines   = "\n".join(f"CO{i}: {_prefix(i)} <Behavior: verb> <Condition: context/tool>, <Degree: standard>" for i in range(1, num_cos + 1))
     table_rows = "\n".join(f"| CO{i} | Unit N | <knowledge dimension> | <bloom level> |" for i in range(1, num_cos + 1))
     prefix_list = " | ".join(f'"{p}"' for p in _CO_PREFIXES)
-    return f"""You are an expert in Outcome-Based Education (OBE) and NBA accreditation.
+    return f"""You are an expert in Outcome-Based Education (OBE).
 Generate exactly {num_cos} Course Outcomes (COs) from the syllabus content provided.
 
 Internal rules (never mention these):

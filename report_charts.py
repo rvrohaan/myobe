@@ -75,7 +75,7 @@ def po_attainment_chart(po_attainment):
     ax.axvline(60, color=_C_AMBER, linestyle='--', linewidth=1.2, label='Target (60%)')
     ax.set_xlim(0, 112)
     ax.set_xlabel('Attainment %', fontsize=9)
-    ax.set_title('PO Attainment (NBA Method)', fontsize=11, fontweight='bold', color=_C_INDIGO)
+    ax.set_title('PO Attainment', fontsize=11, fontweight='bold', color=_C_INDIGO)
     ax.legend(fontsize=8)
     for bar, val in zip(bars, values):
         ax.text(val + 1.2, bar.get_y() + bar.get_height() / 2,

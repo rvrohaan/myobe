@@ -10,7 +10,7 @@ Builds a DOCX/PDF/TXT report covering all Module-3 deliverables:
   7.  CO-Session Coverage Matrix
   8.  Teaching Method Distribution
   9.  SDG & AI Integration
- 10.  NBA/NAAC Compliance Checklist
+ 10.  OBE Compliance Checklist
  11.  Course Delivery Readiness Dashboard
 """
 
@@ -43,7 +43,7 @@ def compute_analytics(lp_data: dict, td_data: dict) -> dict:
     lab_sessions    = td.get("lab_sessions", [])
     co_attainment   = td.get("co_attainment", [])
     integration     = td.get("integration_summary", {})
-    nba_alignment   = td.get("nba_alignment", [])
+    obe_alignment   = td.get("obe_alignment", [])
 
     n_cos = len(cos)
 
@@ -136,7 +136,7 @@ def compute_analytics(lp_data: dict, td_data: dict) -> dict:
         "n_mini_projects":    len(lp.get("mini_projects", [])),
         "n_ai_learning":      len(ai_learning),
         "n_industry_esg":     len(industry_esg),
-        "nba_alignment":      nba_alignment,
+        "obe_alignment":      obe_alignment,
         "integration":        integration,
         "final_summary":      td.get("final_summary", {}),
     }
@@ -156,7 +156,7 @@ def get_ai_analysis(client, lp_data: dict, td_data: dict, analytics: dict,
     sdg_str     = ", ".join(analytics["all_sdgs"]) or "None"
     bloom_str   = ", ".join(f"{k}:{v}" for k, v in analytics["bloom_dist"].items())
 
-    prompt = f"""You are an NBA/NAAC accreditation expert for Indian engineering colleges.
+    prompt = f"""You are an OBE accreditation expert for Indian engineering colleges.
 
 Course: {title} ({code})
 Course Outcomes ({analytics['n_cos']} total):
@@ -535,8 +535,8 @@ def build_docx(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
         )
         _spacer()
 
-    # ── Section 10: NBA/NAAC Compliance ──
-    _add_heading("10. NBA/NAAC Compliance Checklist", 2, color=INDIGO)
+    # ── Section 10: OBE Compliance ──
+    _add_heading("10. OBE Compliance Checklist", 2, color=INDIGO)
 
     # AI analysis sections
     obe = ai.get("obe_compliance", {})
@@ -551,9 +551,6 @@ def build_docx(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
         ("Delivery Coverage",      obe.get("delivery_coverage", "-")),
         ("Overall OBE Score",      f"{obe.get('overall_obe_score', '-')}/100"),
     ]
-    # Add NBA frameworks from TD
-    for nb in analytics["nba_alignment"]:
-        checklist_items.append((nb.get("framework", "-"), nb.get("evidence", "-")))
     _add_table(["Item", "Status / Evidence"], checklist_items, col_widths=[2.0, 4.0])
     _spacer()
 
@@ -612,6 +609,7 @@ def build_pdf(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
               code: str, title: str, semester, output_path: str):
     """Build a PDF version of the Module 3 report using fpdf2."""
     from fpdf import FPDF, XPos, YPos
+    from fpdf.enums import MethodReturnValue
 
     def _safe(text: str) -> str:
         if not text:
@@ -659,24 +657,30 @@ def build_pdf(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
                 else:
                     self.set_fill_color(255, 255, 255)
                 x0 = self.l_margin
-                y0 = self.get_y()
+                # Measure how many lines each cell actually wraps to. multi_cell
+                # wraps on word boundaries, so estimating from raw string width
+                # under-counts and makes the next row overlap this one.
+                safes = []
                 max_lines = 1
                 for ci, cell_text in enumerate(cells):
                     safe = _safe(str(cell_text))
+                    safes.append(safe)
                     cw = col_ws[ci] if ci < len(col_ws) else col_ws[-1]
                     if cw > 0:
-                        sw = self.get_string_width(safe)
-                        max_lines = max(max_lines, max(1, int(sw / max(cw - 4, 1)) + 1))
+                        n = len(self.multi_cell(cw, line_h, safe, dry_run=True,
+                                                output=MethodReturnValue.LINES))
+                        max_lines = max(max_lines, n)
                 max_h = max_lines * line_h + 2
+                y0 = self.get_y()
                 if y0 + max_h > self.h - 15:
                     self.add_page()
                     y0 = self.get_y()
-                for ci, cell_text in enumerate(cells):
-                    safe = _safe(str(cell_text))
+                for ci, safe in enumerate(safes):
                     cw = col_ws[ci] if ci < len(col_ws) else col_ws[-1]
                     self.set_xy(x0 + sum(col_ws[:ci]), y0)
-                    self.multi_cell(cw, line_h, safe, border=1, fill=fill,
-                                    new_x=XPos.RIGHT, new_y=YPos.TOP)
+                    self.multi_cell(cw, max_h, safe, border=1, fill=fill,
+                                    new_x=XPos.RIGHT, new_y=YPos.TOP,
+                                    max_line_height=line_h)
                 self.set_xy(x0, y0 + max_h)
 
             _row(headers, bold=True, fill=True)
@@ -854,18 +858,11 @@ def build_pdf(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
             col_ratios=[2, 1],
         )
 
-    # 10. NBA/NAAC
-    pdf._section_heading("10. NBA/NAAC Compliance Checklist", 2)
+    # 10. OBE Compliance
+    pdf._section_heading("10. OBE Compliance Checklist", 2)
     obe = ai.get("obe_compliance", {})
     cl = obe.get("compliance_level", "-")
     pdf._para(f"Compliance Level: {cl}  |  OBE Score: {obe.get('overall_obe_score','-')}/100", bold=True)
-    if analytics["nba_alignment"]:
-        pdf._table(
-            ["Framework", "Evidence"],
-            [(nb.get("framework","-"), nb.get("evidence","-"))
-             for nb in analytics["nba_alignment"]],
-            col_ratios=[1, 3],
-        )
     for s in obe.get("strengths", []):
         pdf._para(f"  + {s}", size=9)
     for r in obe.get("recommendations", []):
@@ -980,7 +977,7 @@ def build_txt(lp_data: dict, td_data: dict, analytics: dict, ai: dict,
     obe = ai.get("obe_compliance", {})
     lines += [
         "",
-        "10. NBA/NAAC COMPLIANCE",
+        "10. OBE COMPLIANCE",
         "-" * 40,
         f"  Compliance Level : {obe.get('compliance_level', '-')}",
         f"  OBE Score        : {obe.get('overall_obe_score', '-')}/100",

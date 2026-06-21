@@ -142,22 +142,168 @@ def _unit_sort_key(label):
     return int(m.group()) if m else 999
 
 
-def extract_unit_titles(client, course_text):
-    """Ask Claude to extract unit numbers and titles from syllabus text.
+# Heading-line detection for explicit "UNIT-<n>" sections (Roman or Arabic).
+_ROMAN_UNIT = {
+    'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5,
+    'VI': 6, 'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10,
+}
 
-    Returns {unit_label: title}, e.g. {'Unit 1': 'Network Security Fundamentals'}.
-    Falls back to an empty dict on any error.
+# Matches heading-style lines only: the line is essentially just the unit
+# marker, optionally followed by a period/hours count (e.g. "UNIT- I  12",
+# "UNIT-II  12 Periods", "UNIT-V", "Unit 3"). Prose mentions such as
+# "...from Unit 1 and Unit 4." are NOT matched (they don't end at the numeral).
+_UNIT_HEADING_RE = re.compile(
+    r'^[ \t]*UNIT[ \t]*[-–—:.]?[ \t]*([IVX]+|\d+)\b'
+    r'[ \t]*[\d ]*(?:periods?\b.*)?$',
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _unit_num_from_token(tok):
+    """Convert a heading numeral token ('IV', '4', 'iv') to an int, or None."""
+    tok = tok.upper()
+    n = int(tok) if tok.isdigit() else _ROMAN_UNIT.get(tok)
+    return n if (n and 1 <= n <= 20) else None
+
+
+def _detect_unit_numbers(text):
+    """Deterministically find unit numbers from explicit 'UNIT-X' heading lines.
+
+    Handles Roman (UNIT-I … UNIT-X) and Arabic (UNIT 1, UNIT-2) numbering and
+    is robust to a small model miscounting headings. Returns a sorted list.
+    Returns [] for table-style syllabi that have no 'UNIT' keyword (those rely
+    on the model pass instead).
     """
+    nums = set()
+    for m in _UNIT_HEADING_RE.finditer(text):
+        n = _unit_num_from_token(m.group(1))
+        if n:
+            nums.add(n)
+    return sorted(nums)
+
+
+# Captures the unit numbers in references like "Unit 5", "Unit-5",
+# "Units 2, 3 & 5", stopping at the first non-list token (so "Unit 1 in 2009"
+# yields only 1, not 2009).
+_UNIT_REF_RE = re.compile(
+    r'\bunits?\b[ \t:.\-]*'
+    r'(\d{1,2}(?:[ \t]*(?:,|&|and|to|-)[ \t]*\d{1,2})*)',
+    re.IGNORECASE,
+)
+
+
+def _max_referenced_unit(text):
+    """Highest unit number referenced anywhere, e.g. the SEE exam blueprint
+    ('one question each from Units 2, 3 & 5 ... Unit 1 and Unit 4').
+
+    Acts as a lower bound on the unit count for table-style syllabi whose
+    content table uses bare row numbers and where the model sometimes drops the
+    final row. Ignores numbers > 12 to stay conservative.
+    """
+    best = 0
+    for grp in _UNIT_REF_RE.findall(text):
+        for num in re.findall(r'\d{1,2}', grp):
+            v = int(num)
+            if 1 <= v <= 12:
+                best = max(best, v)
+    return best
+
+
+def _scrape_unit_title(text, n):
+    """Best-effort short title for unit n, used to backfill a unit the model
+    failed to return a title for."""
+    # Case 1: explicit "UNIT-n" heading -> title is on the line(s) after it.
+    for m in _UNIT_HEADING_RE.finditer(text):
+        if _unit_num_from_token(m.group(1)) != n:
+            continue
+        for raw in text[m.end():].split('\n'):
+            line = raw.strip()
+            if not line:
+                continue
+            # skip stray 'Periods' / bare period counts on their own line
+            if line.isdigit() or re.match(r'(?i)^\d*\s*periods?\.?$', line):
+                continue
+            if re.match(r'(?i)^learning outcomes', line):
+                break
+            # 'Heading: details' -> take the heading part if the colon is early
+            head = line.split(':', 1)[0].strip() if ':' in line[:60] else line
+            return head[:80]
+        return ''
+    # Case 2: table-style row. Either "n  <Topic>" on one line, or a bare "n"
+    # line followed by the topic on the next non-empty line (fitz often splits
+    # the row-number cell from the topic cell).
+    lines = text.split('\n')
+    for i, raw in enumerate(lines):
+        line = raw.strip()
+        cell = None
+        m = re.match(rf'^{n}[ \t.):]+([A-Z].{{3,}})', line)
+        if m:
+            cell = m.group(1).strip()
+        elif line == str(n):
+            for nxt in lines[i + 1:]:
+                s = nxt.strip()
+                if s:
+                    cell = s
+                    break
+        if cell and cell[:1].isupper() and len(cell) > 8:
+            head = cell.split(':', 1)[0].strip() if ':' in cell[:60] else cell
+            return head[:80]
+    return ''
+
+
+def extract_unit_titles(client, course_text):
+    """Extract {unit_label: title} from syllabus text, e.g. {'Unit 1': 'Introduction'}.
+
+    Robustness comes from three complementary signals so no unit is dropped:
+      1. explicit 'UNIT-X' headings (Roman or Arabic) — reliable for
+         unit-per-page formats like 'UNIT-I … UNIT-V';
+      2. the highest 'Unit N' reference in prose (e.g. the SEE exam blueprint)
+         — reliable for table-style syllabi with bare row numbers;
+      3. a model pass for the titles, hinted with the expected count so it does
+         not stop early and drop the final unit.
+    Any unit still missing after the model pass is backfilled deterministically.
+    """
+    detected   = _detect_unit_numbers(course_text)
+    referenced = _max_referenced_unit(course_text)
+    expected   = max([referenced, *detected, 0])
+    if expected > 12:          # guard against noisy text
+        expected = 0
+
+    titles = _model_unit_titles(client, course_text, expected_units=expected)
+
+    model_max = max((_unit_sort_key(k) for k in titles if _unit_sort_key(k) != 999),
+                    default=0)
+    target = max(expected, model_max)
+
+    for n in range(1, target + 1):
+        label = f"Unit {n}"
+        if not titles.get(label):
+            titles[label] = _scrape_unit_title(course_text, n)
+    return titles
+
+
+def _model_unit_titles(client, course_text, expected_units=0):
+    """Ask Claude to extract unit numbers and titles. Returns {} on any error."""
+    hint = ""
+    if expected_units >= 2:
+        hint = (
+            f"- The syllabus has {expected_units} units (Unit 1 through "
+            f"Unit {expected_units}); output a line for EVERY one of them, "
+            f"including Unit {expected_units}\n"
+        )
     prompt = (
         "From the syllabus text below, extract every unit/module heading. "
         "Output ONLY lines in this exact format, one per line:\n"
         "Unit N: Title\n\n"
         "Rules:\n"
-        "- N is the unit number (integer)\n"
+        "- N is the unit number (integer); convert Roman numerals "
+        "(UNIT-I, UNIT-II, …) to integers\n"
         "- Title is the unit heading, exactly as written in the syllabus\n"
+        f"{hint}"
+        "- Extract EVERY unit, including the last one\n"
         "- Do not include any explanation, numbering, or extra text\n"
         "- If no unit headings are found, output nothing\n\n"
-        f"Syllabus:\n{course_text[:4000]}"
+        f"Syllabus:\n{course_text[:12000]}"
     )
     try:
         resp = client.messages.create(

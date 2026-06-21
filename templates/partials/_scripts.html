@@ -1615,12 +1615,50 @@ function clearTplSlot(idx) {
 }
 
 /* ── Toast notification system ──────────────────────────────────────────── */
-function showToast(msg, type = 'info', duration = 4000) {
+const TOAST_ICONS = {
+  success: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  info:    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg>',
+  warning: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>',
+  error:   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/></svg>',
+};
+
+// showToast(msg, type, duration, action)
+//   type:     'success' | 'info' | 'warning' | 'error'
+//   duration: ms before auto-dismiss; 0 keeps it until dismissed
+//   action:   optional { label, onClick } — renders an inline action button
+//             (e.g. "Retry"). Errors persist by default so the action stays
+//             reachable; pass an explicit duration to override.
+function showToast(msg, type = 'info', duration = 4000, action = null) {
   const container = document.getElementById('toast-container');
   if (!container) return;
+
+  // Errors are alerts (assertive) and should not auto-vanish before the user
+  // can act on them; everything else is a polite status update.
+  const isUrgent = (type === 'error' || type === 'warning');
+  if (duration === 4000 && type === 'error') duration = 0;
+
   const t = document.createElement('div');
   t.className = `toast toast-${type}`;
-  t.innerHTML = `<span class="toast-body">${esc(msg)}</span><button class="toast-close-btn" onclick="dismissToast(this.parentElement)" aria-label="Close">&times;</button>`;
+  t.setAttribute('role', isUrgent ? 'alert' : 'status');
+  t.setAttribute('aria-live', isUrgent ? 'assertive' : 'polite');
+
+  const icon = TOAST_ICONS[type] || TOAST_ICONS.info;
+  const actionBtn = (action && action.label)
+    ? `<button class="toast-action-btn" type="button">${esc(action.label)}</button>`
+    : '';
+  t.innerHTML =
+    `<span class="toast-icon" aria-hidden="true">${icon}</span>` +
+    `<span class="toast-body">${esc(msg)}</span>` +
+    actionBtn +
+    `<button class="toast-close-btn" onclick="dismissToast(this.closest('.toast'))" aria-label="Close">&times;</button>`;
+
+  if (action && action.label && typeof action.onClick === 'function') {
+    t.querySelector('.toast-action-btn').addEventListener('click', () => {
+      dismissToast(t);
+      action.onClick();
+    });
+  }
+
   container.appendChild(t);
   if (duration > 0) setTimeout(() => dismissToast(t), duration);
   return t;
@@ -2561,6 +2599,21 @@ function aioSwitchModule(moduleId) {
   selectMode(moduleId);
 }
 
+// Return to the home/module-select grid but keep the uploaded syllabus and the
+// generated/uploaded COs cached, so re-entering a module from home can reuse them
+// instead of asking for another upload (same reuse behaviour as the "Module X →"
+// jump buttons). startOver() shows sec-mode-select for us; we just restore the cache
+// afterwards. A fresh syllabus/CO can still be supplied via the override buttons.
+function backToHome() {
+  const keepCourses  = S.courses;
+  const keepSelected = S.selected;
+  const keepCachedCo = _cachedCo;
+  startOver();
+  S.courses  = keepCourses  || [];
+  S.selected = keepSelected || null;
+  _cachedCo  = keepCachedCo || { code: null, cos: [] };
+}
+
 async function module2ComposePaper() {
   const errEl   = document.getElementById('mod2-token-err');
   const required = 2;
@@ -2931,6 +2984,7 @@ function _aioOnDone(toolId, previewText, resultData) {
   pomapAdjust.classList.add('hidden');
   richEl.classList.add('hidden');
   toolAdjust.classList.add('hidden');
+  document.getElementById('aio-co-head').classList.add('hidden');  // CO-step header
 
   if (isPomap) {
     tableWrap.style.maxHeight = '280px';
@@ -2961,8 +3015,11 @@ function _aioOnDone(toolId, previewText, resultData) {
   const tool = AIO_TOOLS.find(t => t.id === toolId);
   document.getElementById('aio-run-title').textContent = `${tool.label} — Done`;
 
-  // For CO step: replace plain-text preview with inline selection UI
+  // For CO step: fixed header above + scrollable selection list inside the box
   if (toolId === 'cos') {
+    const headEl = document.getElementById('aio-co-head');
+    headEl.innerHTML = _aioCoHeadHtml();
+    headEl.classList.remove('hidden');
     box.style.whiteSpace = 'normal';
     box.style.maxHeight  = '520px';
     box.style.overflow   = 'auto';
@@ -3116,6 +3173,46 @@ function _aioToggleInclude(cb) {
     countEl.textContent = `${total} / ${CO_MAX_SELECT}`;
     countEl.style.color = total >= CO_MAX_SELECT ? 'var(--success, #4ade80)' : 'var(--primary)';
   }
+  _aioUpdateCoClashWarning();
+}
+
+// Warn when selected COs share the same Revised Bloom's Taxonomy cell (same
+// knowledge dimension AND Bloom level), since they collapse into one cell in
+// the module 1 RBT table. Advisory only — selection is still allowed.
+function _aioUpdateCoClashWarning() {
+  const warnEl = document.getElementById('aio-co-clash-warn');
+  if (!warnEl) return;
+  const BLOOM_NAMES = { L1: 'Remember', L2: 'Understand', L3: 'Apply',
+                        L4: 'Analyze', L5: 'Evaluate', L6: 'Create' };
+  const checked = new Set(
+    [...document.querySelectorAll('.aio-co-include-check:checked')].map(cb => parseInt(cb.dataset.num, 10))
+  );
+  const groups = {};
+  _aio.cos.forEach(c => {
+    if (!checked.has(c.num) || !c.kdim || !c.bloom) return;
+    const key = `${c.kdim}||${c.bloom}`;
+    (groups[key] = groups[key] || []).push(c.num);
+  });
+  const clashes = Object.entries(groups).filter(([, nums]) => nums.length > 1);
+  if (!clashes.length) { warnEl.style.display = 'none'; warnEl.innerHTML = ''; return; }
+
+  const rows = clashes.map(([key, nums]) => {
+    const [kdim, bloom] = key.split('||');
+    const cat    = `${kdim} knowledge at the ${BLOOM_NAMES[bloom] || bloom} level`;
+    const coList = nums.sort((a, b) => a - b).map(n => `CO${n}`).join(', ');
+    return `<div style="margin-top:4px;"><strong>${coList}</strong> &rarr; ${cat}</div>`;
+  }).join('');
+
+  warnEl.innerHTML =
+    `<div style="display:flex;gap:8px;align-items:flex-start;">
+       <span style="flex-shrink:0;">&#9888;</span>
+       <div>
+         <div style="font-weight:700;">Some selected COs target the same Bloom's taxonomy category.</div>
+         ${rows}
+         <div style="margin-top:6px;opacity:.85;">They will overlap in the Bloom's taxonomy table. For wider coverage, consider swapping one for a CO at a different knowledge level.</div>
+       </div>
+     </div>`;
+  warnEl.style.display = '';
 }
 
 // ── AI Improve for CO step ────────────────────────────────────────────────────
@@ -3176,13 +3273,21 @@ function _aioApplyCo(num, btn) {
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────────
+// Fixed header (count + clash warning) for the CO step. Rendered into #aio-co-head,
+// which sits on the card surface above the scrolling list — so it stays visible and
+// inherits the surrounding background with no colour matching needed.
+function _aioCoHeadHtml() {
+  const included = new Set();
+  return `<div style="margin-bottom:8px;font-size:.82rem;color:var(--muted);">
+        Select up to <strong>${CO_MAX_SELECT}</strong> COs to use:
+        <span id="aio-include-count" style="font-weight:700;color:var(--primary);margin-left:6px;">${included.size} / ${CO_MAX_SELECT}</span>
+      </div>
+      <div id="aio-co-clash-warn" style="display:none;margin-bottom:10px;padding:9px 12px;border:1px solid rgba(245,158,11,.40);border-radius:8px;background:rgba(245,158,11,.12);color:#fbbf24;font-size:.78rem;line-height:1.45;"></div>`;
+}
+
 function _aioCoSelectionHtml() {
   const included = new Set();
-  return `<div style="margin-bottom:10px;font-size:.82rem;color:var(--muted);">
-      Select up to <strong>${CO_MAX_SELECT}</strong> COs to use:
-      <span id="aio-include-count" style="font-weight:700;color:var(--primary);margin-left:6px;">${included.size} / ${CO_MAX_SELECT}</span>
-    </div>` +
-    _aio.cos.map(c => {
+  return _aio.cos.map(c => {
       const sel = included.has(c.num);
       return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;margin-bottom:6px;
                   border:1.5px solid ${sel ? 'var(--primary)' : 'var(--border)'};border-radius:8px;
@@ -5535,15 +5640,31 @@ async function _aioDownload(toolId, fmt) {
     default: return;
   }
 
-  try {
-    const r = await fetch(url, {
+  // The export is idempotent (re-renders from the server-side store, no tokens
+  // charged), so a transient network failure — e.g. the dev server resetting a
+  // reused keep-alive socket left over from the generation SSE stream, which the
+  // browser will not auto-retry for a POST — is safe to retry once.
+  async function _postOnce() {
+    return fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(bodyData),
     });
+  }
+
+  try {
+    let r;
+    try {
+      r = await _postOnce();
+    } catch (netErr) {
+      // "Failed to fetch" / connection reset — wait a tick and retry once.
+      await new Promise(res => setTimeout(res, 400));
+      r = await _postOnce();
+    }
     if (!r.ok) {
       const d = await r.json().catch(() => ({}));
-      alert(d.error || 'Download failed');
+      showToast(d.error || 'Download failed. Please try again.', 'error', 0,
+                { label: 'Retry', onClick: () => _aioDownload(toolId, fmt) });
       return;
     }
     const blob = await r.blob();
@@ -5553,7 +5674,8 @@ async function _aioDownload(toolId, fmt) {
     a.click();
     URL.revokeObjectURL(a.href);
   } catch(e) {
-    alert('Download failed: ' + e.message);
+    showToast('Could not download the file - the connection dropped. Please try again.',
+              'error', 0, { label: 'Retry', onClick: () => _aioDownload(toolId, fmt) });
   }
 }
 </script>

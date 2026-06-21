@@ -1,6 +1,6 @@
 """Module 1 Comprehensive Report Generator.
 
-Builds a DOCX report covering all 11 Module-1 deliverables:
+Builds a DOCX report covering all 9 Module-1 deliverables:
   1.  Automatic CO Generation
   2.  Intelligent Question Bank Creation
   3.  Smart Question Paper (auto-generated sample)
@@ -8,10 +8,10 @@ Builds a DOCX report covering all 11 Module-1 deliverables:
   5.  CO Coverage Verification
   6.  Difficulty Level Analysis
   7.  Scenario & Case Study Analysis
-  8.  Question Quality Index (QQI)
-  9.  CO-wise Marks Distribution
- 10.  OBE/NBA/NAAC/NEP Compliance Report
- 11.  Accreditation Readiness Dashboard
+  8.  CO-wise Marks Distribution
+  9.  OBE Compliance Report
+  10. Question Quality vs Programme Outcomes (PO)
+  11. Question Quality vs Sustainable Development Goals (SDG)
 """
 
 import re
@@ -161,7 +161,7 @@ def _compute_bloom_analytics(cos: list, taxonomy_grid: dict) -> dict:
 
 
 def _la_alignment_checks(la: dict) -> list:
-    """Return NBA/OBE alignment indicators as (criterion, result, status) rows.
+    """Return OBE alignment indicators as (criterion, result, status) rows.
 
     The qualitative status is derived internally; the numeric cut-offs used to
     decide it are intentionally not exposed in the report.
@@ -193,7 +193,7 @@ def _la_observations(la: dict) -> list:
     if hots_pct >= 40:
         obs.append(
             f"Strong higher-order focus: {hots_pct}% of COs target Analyze, Evaluate "
-            f"or Create, indicating healthy higher-order thinking coverage for NBA/OBE."
+            f"or Create, indicating healthy higher-order thinking coverage for OBE."
         )
     elif hots_pct >= 25:
         obs.append(
@@ -272,9 +272,9 @@ def _learning_analytics_intro(title, code, la) -> str:
         f"{dom_name}, with a {lots}% Lower-Order (LOTS) to {hots}% Higher-Order (HOTS) "
         f"split across {kd_cov} of the 4 knowledge dimensions. The metrics below detail "
         f"this course's cognitive-level distribution, LOTS/HOTS balance, knowledge-"
-        f"dimension spread, cognitive balance, and NBA/OBE alignment - showing whether "
+        f"dimension spread, cognitive balance, and OBE alignment - showing whether "
         f"{code} builds from recall toward analysis, evaluation and creation, and where "
-        f"cognitive gaps remain for NBA, NAAC and NEP accreditation."
+        f"cognitive gaps remain for OBE accreditation."
     )
 
 
@@ -344,6 +344,30 @@ def _qqi_score_label(score) -> str:
         return label
 
 
+def _obe_band(score) -> str:
+    """Map a 0-100 OBE compliance score to a qualitative band only (no number).
+
+    Reuses the three-band thresholds of _qqi_label, but the lowest band is
+    labelled 'Needs Improvement' rather than 'Poor'.
+    """
+    band = _qqi_label(score)
+    return "Needs Improvement" if band == "Poor" else band
+
+
+def _co_assessment_count(key, analytics, co_tally, is_lab) -> int:
+    """Per-CO item count for the CO-coverage table.
+
+    For a lab course the assessment items are experiments (held in
+    analytics['co_marks']); for a written course they are the 2/5/10-mark
+    exam questions in co_tally. Using the lab source keeps this table in step
+    with the lab-aware coverage summary instead of always reporting 0.
+    """
+    if is_lab:
+        return analytics.get("co_marks", {}).get(key, 0)
+    t = co_tally.get(key, {})
+    return t.get(2, 0) + t.get(5, 0) + t.get(10, 0)
+
+
 # ── Accreditation improvement guidance ───────────────────────────────────────
 
 # Statuses that are considered healthy and need no improvement prompt.
@@ -389,7 +413,7 @@ _IMPROVEMENT_TIPS = [
 ]
 
 _FALLBACK_TARGET = "qbank"
-_FALLBACK_TIP = ("Review this area against NBA/OBE expectations and apply targeted "
+_FALLBACK_TIP = ("Review this area against OBE expectations and apply targeted "
                  "improvements, drawing on the recommendations and action items above.")
 
 
@@ -696,6 +720,265 @@ def compute_analytics(cos: list, co_tally: dict, raw_qb_text: str = "",
     }
 
 
+# ── Question quality vs POs and SDGs (Bloom sub-element heuristic) ────────────
+#
+# Module 1 has no CO-PO / CO-SDG mapping in session, so these two analyses are
+# self-contained: each question inherits its CO's Revised-Bloom cognitive level
+# (from the taxonomy grid) and its CO statement is scanned for the Bloom keyword
+# sub-element. POs are scored by whether the question set reaches the cognitive
+# level each Programme Outcome demands; SDGs by theme keywords in the CO
+# statements weighted by higher-order (Apply+) question share.
+
+_LEVEL_NUM = {lv: i + 1 for i, lv in enumerate(_LA_LEVEL_ORDER)}
+
+# Bloom keyword sub-elements per RBT cognitive level (the cognitive processes
+# that sit under each of the six levels — shown to the reader as the "keywords").
+_BLOOM_SUBELEMENTS = {
+    'L1': ['Recognising', 'Recalling', 'Defining', 'Listing', 'Naming', 'Stating', 'Identifying'],
+    'L2': ['Interpreting', 'Exemplifying', 'Classifying', 'Summarising', 'Inferring', 'Comparing', 'Explaining'],
+    'L3': ['Executing', 'Implementing', 'Solving', 'Using', 'Demonstrating', 'Calculating', 'Applying'],
+    'L4': ['Differentiating', 'Organising', 'Attributing', 'Analysing', 'Examining', 'Distinguishing'],
+    'L5': ['Checking', 'Critiquing', 'Evaluating', 'Justifying', 'Assessing', 'Judging', 'Defending'],
+    'L6': ['Generating', 'Planning', 'Producing', 'Designing', 'Developing', 'Constructing', 'Formulating'],
+}
+
+# All 12 NBA Programme Outcomes, each handled by how a question bank can assess it:
+#   'cognitive' : scored by the minimum Revised-Bloom level the PO demands.
+#   'thematic'  : scored by content-theme keywords in the COs (society / environment
+#                 / ethics) - assessable by questions but content- not level-driven.
+#   'process'   : behavioural outcomes (teamwork, communication, project management)
+#                 that a written/lab question bank cannot assess; reported as assessed
+#                 through projects, labs, seminars and internships instead.
+# (Descriptors mirror the NBA PO set in generate_po_mapping.py.)
+_PO_DEFINITIONS = [
+    ('PO1',  'Engineering Knowledge',           'cognitive', 'L3'),  # Apply
+    ('PO2',  'Problem Analysis',                'cognitive', 'L4'),  # Analyze
+    ('PO3',  'Design/Development of Solutions', 'cognitive', 'L6'),  # Create
+    ('PO4',  'Conduct Investigations',          'cognitive', 'L4'),  # Analyze
+    ('PO5',  'Modern Tool Usage',               'cognitive', 'L3'),  # Apply
+    ('PO6',  'The Engineer and Society',        'thematic',
+     ['societ', 'social', 'community', 'public', 'cultural', 'legal', 'welfare', 'human']),
+    ('PO7',  'Environment and Sustainability',  'thematic',
+     ['environment', 'sustainab', 'green', 'energy', 'climate', 'emission', 'ecolog', 'pollution', 'waste', 'renewable']),
+    ('PO8',  'Ethics',                          'thematic',
+     ['ethic', 'moral', 'integrity', 'plagiar', 'responsib', 'norms', 'professional conduct']),
+    ('PO9',  'Individual and Team Work',        'process',   None),
+    ('PO10', 'Communication',                   'process',   None),
+    ('PO11', 'Project Management and Finance',  'process',   None),
+    ('PO12', 'Life-long Learning',              'cognitive', 'L2'),  # Understand
+]
+
+# SDG themes detected from CO-statement keywords (lower-cased substring match).
+# Keyword sets are deliberately discipline-agnostic: foundational science, maths
+# and computing courses contribute to the SDGs through data, modelling, analysis
+# and decision-making, so SDG 8/9 capture quantitative and analytical themes, not
+# only physical engineering ones. A CO may match several SDGs.
+_SDG_THEMES = [
+    ('SDG 3',  'Good Health & Well-being',           ['health', 'safety', 'medical', 'hazard', 'risk', 'disease', 'clinical', 'patient', 'biomed', 'epidemi']),
+    ('SDG 4',  'Quality Education',                   ['learn', 'educat', 'skill', 'train', 'pedagog', 'literac', 'curriculum', 'teaching', 'foundation']),
+    ('SDG 6',  'Clean Water & Sanitation',           ['water', 'sanitation', 'wastewater', 'hydr', 'irrigation']),
+    ('SDG 7',  'Affordable & Clean Energy',          ['energy', 'renewable', 'solar', 'power', 'electric', 'grid', 'fuel', 'battery', 'thermal']),
+    ('SDG 8',  'Decent Work & Economic Growth',      ['econom', 'finance', 'financial', 'cost', 'productiv', 'business', 'market', 'employ', 'entrepreneur', 'bank', 'invest', 'forecast']),
+    ('SDG 9',  'Industry, Innovation & Infrastructure', ['design', 'develop', 'innovat', 'manufactur', 'industr', 'infrastructure', 'construct', 'automat',
+                                                         'data', 'statistic', 'probabilit', 'random', 'distribution', 'regress', 'model', 'algorithm',
+                                                         'comput', 'analyt', 'analys', 'optimis', 'optimiz', 'simulat', 'network', 'graph', 'digital',
+                                                         'software', 'machine', 'technolog', 'research', 'signal', 'control', 'logic']),
+    ('SDG 11', 'Sustainable Cities & Communities',   ['urban', 'city', 'transport', 'building', 'housing', 'community', 'traffic', 'smart city']),
+    ('SDG 12', 'Responsible Consumption & Production', ['waste', 'recycl', 'efficien', 'material', 'resource', 'optimis', 'optimiz', 'reuse', 'lifecycle']),
+    ('SDG 13', 'Climate Action',                     ['climate', 'emission', 'carbon', 'environment', 'green', 'pollution', 'sustainab', 'ecolog']),
+]
+
+
+def _co_subelement(statement: str, level: str) -> str:
+    """Return the Bloom keyword sub-element evidenced by a CO statement.
+
+    Prefers the actual action verb found in the statement (rendered as its
+    gerund/keyword form); falls back to the level's representative sub-element.
+    """
+    t = (statement or '').lower()
+    verbs = _BLOOM_LEVELS.get(_LEVEL_VERB_KEY.get(level, ''), [])
+    for v in verbs:
+        if re.search(r'\b' + re.escape(v) + r'\b', t):
+            # Render as a keyword sub-element (e.g. "design" -> "Designing").
+            base = v[:-1] + 'ing' if v.endswith('e') else v + 'ing'
+            return base.capitalize()
+    subs = _BLOOM_SUBELEMENTS.get(level, [])
+    return subs[0] if subs else '-'
+
+
+def _co_question_counts(cos: list, co_tally: dict, analytics: dict, is_lab: bool) -> dict:
+    """Questions (or lab experiments) attributed to each CO -> {'CO1': n, ...}."""
+    qn = {}
+    for c in cos:
+        key = str(c['num'])
+        if is_lab:
+            qn[f"CO{c['num']}"] = analytics.get('co_marks', {}).get(key, 0)
+        else:
+            t = co_tally.get(key, {})
+            qn[f"CO{c['num']}"] = t.get(2, 0) + t.get(5, 0) + t.get(10, 0)
+    return qn
+
+
+def _po_sdg_rating(pct: float) -> str:
+    """Coverage-share rating for a single PO/SDG (gentler bands than _qqi_label,
+    since few question sets put 60%+ of items at any one higher-order level)."""
+    if pct >= 40:
+        return "Good"
+    if pct >= 15:
+        return "Average"
+    return "Poor"
+
+
+def compute_po_quality(cos: list, co_tally: dict, analytics: dict,
+                       taxonomy_grid: dict, is_lab: bool = False) -> tuple:
+    """Score question quality against all 12 Programme Outcomes.
+
+    Returns (rows, summary). Each row is a dict with the PO, the basis used to
+    assess it, the item count/share, the Bloom sub-elements that carry it, and a
+    rating. Cognitive and thematic POs are assessable by the question bank; process
+    POs are reported as assessed through other components (not scored).
+    """
+    co_lvl = _compute_bloom_analytics(cos, taxonomy_grid)['co_to_level']
+    qn = _co_question_counts(cos, co_tally, analytics, is_lab)
+    total_q = sum(qn.values()) or 1
+
+    rows = []
+    addressed = 0
+    assessable = 0
+    for po, name, mode, spec in _PO_DEFINITIONS:
+        if mode == 'process':
+            rows.append({
+                'po': po, 'name': name, 'mode': mode,
+                'basis': 'Project / Lab / Seminar',
+                'count_str': '-', 'pct': None, 'pct_str': '-',
+                'verbs': '-', 'rating': 'Indirect',
+            })
+            continue
+
+        assessable += 1
+        n = 0
+        verbs = []
+        if mode == 'cognitive':
+            exp_n = _LEVEL_NUM[spec]
+            basis = f"{spec}-{_LA_LEVEL_NAMES[spec]}"
+            for c in cos:
+                key = f"CO{c['num']}"
+                lv = co_lvl.get(key)
+                if lv and _LEVEL_NUM[lv] >= exp_n and qn.get(key, 0) > 0:
+                    n += qn[key]
+                    sv = _co_subelement(c['statement'], lv)
+                    if sv and sv not in verbs:
+                        verbs.append(sv)
+        else:  # thematic
+            basis = 'Content theme'
+            for c in cos:
+                t = (c['statement'] or '').lower()
+                if any(k in t for k in spec) and qn.get(f"CO{c['num']}", 0) > 0:
+                    n += qn[f"CO{c['num']}"]
+                    lv = co_lvl.get(f"CO{c['num']}")
+                    if lv:
+                        sv = _co_subelement(c['statement'], lv)
+                        if sv and sv not in verbs:
+                            verbs.append(sv)
+
+        pct = round(n / total_q * 100)
+        if n > 0:
+            addressed += 1
+        rows.append({
+            'po': po, 'name': name, 'mode': mode,
+            'basis': basis,
+            'count_str': str(n), 'pct': pct, 'pct_str': f"{pct}%",
+            'verbs': ', '.join(verbs) or '-',
+            'rating': _po_sdg_rating(pct) if n > 0 else 'Poor',
+        })
+    summary = {
+        'addressed': addressed, 'assessable': assessable, 'total': len(_PO_DEFINITIONS),
+        'process': [r['po'] for r in rows if r['mode'] == 'process'],
+        'total_q': total_q,
+    }
+    return rows, summary
+
+
+def compute_sdg_quality(cos: list, co_tally: dict, analytics: dict,
+                        taxonomy_grid: dict, is_lab: bool = False) -> tuple:
+    """Score question quality against the SDGs the COs touch.
+
+    Returns (rows, summary). Only SDGs with at least one matching CO are listed.
+    Quality reflects the higher-order (Apply+) share of the SDG-relevant questions,
+    since meaningful SDG competency needs application, analysis or design - not recall.
+    """
+    co_lvl = _compute_bloom_analytics(cos, taxonomy_grid)['co_to_level']
+    qn = _co_question_counts(cos, co_tally, analytics, is_lab)
+    total_q = sum(qn.values()) or 1
+
+    rows = []
+    for sdg, name, keys in _SDG_THEMES:
+        matched = []
+        q = 0
+        hots = 0
+        verbs = []
+        for c in cos:
+            t = (c['statement'] or '').lower()
+            if any(k in t for k in keys):
+                key = f"CO{c['num']}"
+                matched.append(key)
+                q += qn.get(key, 0)
+                lv = co_lvl.get(key)
+                if lv and _LEVEL_NUM[lv] >= 3:
+                    hots += qn.get(key, 0)
+                if lv:
+                    sv = _co_subelement(c['statement'], lv)
+                    if sv and sv not in verbs:
+                        verbs.append(sv)
+        if not matched:
+            continue
+        hots_pct = round(hots / q * 100) if q else 0
+        if q == 0:
+            rating = "Poor"
+        elif hots_pct >= 50:
+            rating = "Good"
+        elif hots_pct >= 25:
+            rating = "Average"
+        else:
+            rating = "Poor"
+        rows.append({
+            'sdg': sdg, 'name': name,
+            'cos': ', '.join(matched),
+            'count': q, 'pct': round(q / total_q * 100),
+            'hots_pct': hots_pct,
+            'verbs': ', '.join(verbs) or '-',
+            'rating': rating,
+        })
+    summary = {'covered': len(rows), 'total': len(_SDG_THEMES), 'total_q': total_q}
+    return rows, summary
+
+
+def _po_quality_intro(title: str, code: str, summary: dict) -> str:
+    proc = ", ".join(summary.get('process', [])) or "none"
+    return (
+        f"This section assesses how the {summary['total_q']} assessment item(s) for "
+        f"{title} ({code}) exercise all {summary['total']} Programme Outcomes (POs). "
+        f"Cognitive POs (PO1-PO5, PO12) are scored by whether questions reach the Bloom "
+        f"level the PO demands, evidenced by the keyword sub-elements (e.g. Analysing, "
+        f"Designing) in the mapped COs; thematic POs (PO6 Society, PO7 Environment, PO8 "
+        f"Ethics) are scored by the relevant content in the COs. Process POs ({proc}) - "
+        f"teamwork, communication and project management - are assessed through projects, "
+        f"labs and seminars, not the written question bank. Of the "
+        f"{summary['assessable']} question-assessable POs, {summary['addressed']} are "
+        f"exercised by the current question set."
+    )
+
+
+def _sdg_quality_intro(title: str, code: str, summary: dict) -> str:
+    return (
+        f"This section assesses how the question set for {title} ({code}) supports the "
+        f"UN Sustainable Development Goals (SDGs). SDG themes are detected from the CO "
+        f"statements and weighted by the higher-order (Apply and above) share of their "
+        f"questions, since SDG competency requires applying, analysing and designing - "
+        f"not recall. {summary['covered']} SDG theme(s) are touched by the current COs."
+    )
+
+
 # ── Build sample question paper text ─────────────────────────────────────────
 
 def build_sample_paper_text(qb_data: dict, code: str, title: str) -> list:
@@ -856,7 +1139,7 @@ def get_ai_analysis(client, cos: list, co_tally: dict, bloom_summary: str,
         for k, v in co_tally.items()
     )
 
-    prompt = f"""You are an NBA/NAAC accreditation expert for Indian engineering colleges.
+    prompt = f"""You are an OBE accreditation expert for Indian engineering colleges.
 
 Course: {title} ({code})
 Course Outcomes:
@@ -870,7 +1153,6 @@ Question Bank Coverage per CO:
 CO Coverage: {analytics["coverage_pct"]}% ({len(analytics["covered"])} of {len(analytics["covered"]) + len(analytics["uncovered"])} COs covered)
 Total Questions: {analytics["total_2"]}×2-mark + {analytics["total_5"]}×5-mark + {analytics["total_10"]}×10-mark = {analytics["total_exam"]} exam questions
 Scenario/Case-study questions detected: {analytics["scenario_count"]} ({analytics["scenario_pct"]}%)
-Overall QQI (rule-based): {analytics["overall_qqi"]}/100
 
 Provide a structured analysis in this EXACT JSON format (no markdown, no extra text):
 {{
@@ -881,11 +1163,6 @@ Provide a structured analysis in this EXACT JSON format (no markdown, no extra t
     "assessment": "...(2-3 sentences on scenario coverage)",
     "recommendation": "...(1-2 sentences)"
   }},
-  "qqi_interpretation": {{
-    "overall": "...(2 sentences interpreting {analytics["overall_qqi"]}/100)",
-    "strengths": ["...", "..."],
-    "improvements": ["...", "..."]
-  }},
   "obe_compliance": {{
     "co_statement_quality": "Excellent|Good|Satisfactory|Needs Improvement",
     "bloom_alignment": "Excellent|Good|Satisfactory|Needs Improvement",
@@ -895,19 +1172,6 @@ Provide a structured analysis in this EXACT JSON format (no markdown, no extra t
     "strengths": ["...", "..."],
     "gaps": ["...", "..."],
     "recommendations": ["...", "..."]
-  }},
-  "accreditation_readiness": {{
-    "overall_score": 82,
-    "readiness_level": "Ready|Mostly Ready|Needs Work",
-    "key_metrics": [
-      {{"metric": "CO Formulation", "score": 90, "status": "Strong"}},
-      {{"metric": "QB Coverage", "score": 75, "status": "Good"}},
-      {{"metric": "Bloom's Alignment", "score": 80, "status": "Good"}},
-      {{"metric": "Difficulty Balance", "score": 70, "status": "Adequate"}},
-      {{"metric": "Scenario Integration", "score": 60, "status": "Needs Work"}}
-    ],
-    "action_items": ["...", "..."],
-    "strengths": ["...", "..."]
   }}
 }}"""
 
@@ -1145,8 +1409,6 @@ def build_docx(
     n_cos   = len(cos)
     n_total = analytics["total_exam"]
     cov     = analytics["coverage_pct"]
-    qqi     = analytics["overall_qqi"]
-    acc     = ai.get("accreditation_readiness", {}).get("overall_score", "—")
 
     if is_lab:
         qb_desc = (
@@ -1161,9 +1423,7 @@ def build_docx(
     _add_para(
         f"This report presents the complete Module 1 output for {title} ({code}). "
         f"A total of {n_cos} Course Outcomes were generated and mapped to Bloom's taxonomy. "
-        + qb_desc +
-        f"The overall Question Quality Index (QQI) is {_qqi_label(qqi)}, and the "
-        f"Accreditation Readiness is {_qqi_label(acc)}.",
+        + qb_desc,
         size=10
     )
 
@@ -1173,8 +1433,6 @@ def build_docx(
         ("Assignments in QB",         str(analytics["total_assign"])),
         ("Quiz Questions in QB",      str(analytics["total_quiz"])),
         ("CO Coverage",               f"{cov}%"),
-        ("Question Quality Index",    _qqi_label(qqi)),
-        ("Accreditation Score",       _qqi_label(acc)),
     ]
     _add_table(["Metric", "Value"], key_stats, col_widths=[3.5, 2.8])
 
@@ -1195,7 +1453,6 @@ def build_docx(
 
     # Revised Bloom's Taxonomy (RBT) Table — full 4×6 knowledge-dimension matrix
     _add_heading("Revised Bloom's Taxonomy (RBT) Table", level=2, color=TEAL)
-    _add_para("COGNITIVE PROCESS DIMENSION", bold=True, size=9)
 
     _RBT_LNAMES  = ['REMEMBER', 'UNDERSTAND', 'APPLY', 'ANALYZE', 'EVALUATE', 'CREATE']
     _RBT_LVERBS  = [
@@ -1343,7 +1600,7 @@ def build_docx(
     _ps_label = "Strong" if _ps >= 4.0 else "Moderate" if _ps >= 2.5 else "Low"
     _add_para(
         f"Bloom's Progression Score: {_ps} / 6.0 ({_ps_label} cognitive ambition). "
-        "A healthy share of higher-order thinking (L4-L6) supports NBA/OBE expectations.",
+        "A healthy share of higher-order thinking (L4-L6) supports OBE expectations.",
         size=9, italic=True
     )
 
@@ -1390,8 +1647,8 @@ def build_docx(
         col_widths=[3.0, 3.3]
     )
 
-    # E. NBA / OBE Alignment Indicators
-    _add_heading("E.  NBA / OBE Alignment Indicators", level=3, color=TEAL)
+    # E. OBE Alignment Indicators
+    _add_heading("E.  OBE Alignment Indicators", level=3, color=TEAL)
     _align_rows = _la_alignment_checks(_la)
     _at = _add_table(
         ["Criterion", "Result", "Status"],
@@ -1501,15 +1758,16 @@ def build_docx(
     # ── Section 5: CO Coverage Verification ─────────────────────────────────
     _section_divider(5, "CO Coverage Verification")
 
+    cov_set = set(analytics.get("covered", []))
+    item_header = "Experiments" if is_lab else "Questions"
     cov_rows = []
     for c in cos:
         key = str(c["num"])
-        t   = co_tally.get(key, {})
-        total_q = t.get(2, 0) + t.get(5, 0) + t.get(10, 0)
-        status  = "Covered" if total_q > 0 else "Not Covered"
-        cov_rows.append((f"CO{key}", c["statement"], str(total_q), status))
+        n   = _co_assessment_count(key, analytics, co_tally, is_lab)
+        status = "Covered" if key in cov_set else "Not Covered"
+        cov_rows.append((f"CO{key}", c["statement"], str(n), status))
 
-    _add_table(["CO", "Statement", "Questions", "Status"],
+    _add_table(["CO", "Statement", item_header, "Status"],
                cov_rows, col_widths=[0.6, 3.7, 0.9, 1.1])
 
     _add_para(f"Overall Coverage: {cov}%  |  Covered: {len(analytics['covered'])}  |  "
@@ -1564,34 +1822,8 @@ def build_docx(
 
     doc.add_page_break()
 
-    # ── Section 8: Question Quality Index (QQI) ──────────────────────────────
-    _section_divider(8, "Question Quality Index (QQI)")
-
-    qqi_pairs = list(analytics["qqi_scores"].items()) + [("Overall QQI", analytics['overall_qqi'])]
-    qqi_rows  = [(co, _qqi_score_label(score)) for co, score in qqi_pairs]
-    _qt = _add_table(["CO", "QQI Rating"], qqi_rows, col_widths=[1.2, 2.4])
-    # Colour each rating (score + band) by its quality band
-    for _qr, (_, _score) in enumerate(qqi_pairs, 1):
-        for _run in _qt.rows[_qr].cells[1].paragraphs[0].runs:
-            _run.bold = True
-            _run.font.color.rgb = STATUS_COLOR.get(_qqi_label(_score), GRAY)
-
-    qqi_ai = ai.get("qqi_interpretation", {})
-    if qqi_ai.get("overall"):
-        _add_para(qqi_ai["overall"], size=9.5)
-    if qqi_ai.get("strengths"):
-        _add_heading("Strengths", level=2, color=GREEN)
-        for s in qqi_ai["strengths"]:
-            _add_para(f"• {s}", size=9.5, indent=1)
-    if qqi_ai.get("improvements"):
-        _add_heading("Areas for Improvement", level=2, color=AMBER)
-        for s in qqi_ai["improvements"]:
-            _add_para(f"• {s}", size=9.5, indent=1)
-
-    doc.add_page_break()
-
-    # ── Section 9: CO-wise Marks Distribution ───────────────────────────────
-    _section_divider(9, "CO-wise Marks Distribution")
+    # ── Section 8: CO-wise Marks Distribution ───────────────────────────────
+    _section_divider(8, "CO-wise Marks Distribution")
 
     marks_rows = []
     for c in cos:
@@ -1612,15 +1844,15 @@ def build_docx(
 
     doc.add_page_break()
 
-    # ── Section 10: OBE/NBA/NAAC/NEP Compliance Report ──────────────────────
-    _section_divider(10, "OBE / NBA / NAAC / NEP Compliance Report")
+    # ── Section 9: OBE Compliance Report ──────────────────────
+    _section_divider(9, "OBE Compliance Report")
 
     obe = ai.get("obe_compliance", {})
     obe_rows = [
         ("CO Statement Quality",  obe.get("co_statement_quality", "—")),
         ("Bloom's Alignment",     obe.get("bloom_alignment", "—")),
         ("CO Coverage Status",    obe.get("co_coverage_status", "—")),
-        ("Overall OBE Score",     f"{obe.get('overall_obe_score', '—')}/100"),
+        ("Overall OBE Score",     _obe_band(obe.get('overall_obe_score'))),
         ("Compliance Level",      obe.get("compliance_level", "—")),
     ]
     _add_table(["Parameter", "Status"], obe_rows, col_widths=[3.0, 3.3])
@@ -1640,50 +1872,74 @@ def build_docx(
 
     doc.add_page_break()
 
-    # ── Section 11: Accreditation Readiness Dashboard ───────────────────────
-    _section_divider(11, "Accreditation Readiness Dashboard")
+    # ── Section 10: Question Quality vs Programme Outcomes (PO) ───────────────
+    _section_divider(10, "Question Quality vs Programme Outcomes (PO)")
+    _po_rows, _po_sum = compute_po_quality(cos, co_tally, analytics, taxonomy_grid, is_lab)
+    _add_para(_po_quality_intro(title, code, _po_sum), italic=True, size=9)
 
-    acc_data = ai.get("accreditation_readiness", {})
-    overall  = acc_data.get("overall_score", analytics["overall_qqi"])
-    # Readiness band on the same Good/Average/Poor scale as the QQI ratings.
-    level    = _qqi_label(overall)
+    _po_tbl = _add_table(
+        ["PO", "Programme Outcome", "Basis", "Items", "%", "Bloom Sub-elements", "Quality"],
+        [(r['po'], r['name'], r['basis'], r['count_str'], r['pct_str'], r['verbs'], r['rating'])
+         for r in _po_rows],
+        col_widths=[0.5, 1.6, 1.0, 0.5, 0.5, 1.6, 0.7]
+    )
+    for _ri, _r in enumerate(_po_rows, 1):
+        _cell = _po_tbl.rows[_ri].cells[6]
+        for _run in _cell.paragraphs[0].runs:
+            _run.bold = True
+            _run.font.color.rgb = STATUS_COLOR.get(_r['rating'], GRAY)
+    _add_bar_chart(
+        [(r['po'], r['pct']) for r in _po_rows if r['pct'] is not None], 100,
+        label_header="PO", unit_label="%"
+    )
+    _add_para(
+        f"Question-assessable POs exercised: {_po_sum['addressed']} of "
+        f"{_po_sum['assessable']}. Cognitive POs (PO2 Analysis, PO3 Design) need "
+        "Analyse/Create-level questions; thematic POs (PO6-PO8) need societal, "
+        "environmental or ethical content - add such questions where a PO is rated "
+        f"Poor. PO9-PO11 ({', '.join(_po_sum['process'])}) are assessed via projects, "
+        "labs and seminars, not the question bank.",
+        size=9, italic=True
+    )
 
-    _add_para(f"Overall Accreditation Readiness: {level}",
-              bold=True, size=12, color=STATUS_COLOR.get(level, GRAY))
-    doc.add_paragraph()
+    doc.add_page_break()
 
-    if acc_data.get("key_metrics"):
-        _add_heading("Key Metrics", level=2, color=TEAL)
-        metric_rows = [
-            (m.get("metric", ""), f"{m.get('score', '—')}/100", m.get("status", "—"))
-            for m in acc_data["key_metrics"]
-        ]
-        _add_table(["Metric", "Score", "Status"], metric_rows, col_widths=[2.8, 1.3, 1.5])
-        if _rc:
-            _insert_chart(_rc.accreditation_metrics_chart(acc_data["key_metrics"]))
+    # ── Section 11: Question Quality vs Sustainable Development Goals (SDG) ────
+    _section_divider(11, "Question Quality vs Sustainable Development Goals (SDG)")
+    _sdg_rows, _sdg_sum = compute_sdg_quality(cos, co_tally, analytics, taxonomy_grid, is_lab)
+    _add_para(_sdg_quality_intro(title, code, _sdg_sum), italic=True, size=9)
 
-        _weak = _weak_metric_tips(acc_data["key_metrics"])
-        if _weak:
-            _add_heading("How to Improve Weak Areas", level=2, color=AMBER)
-            _add_para(
-                "Targeted next steps for each metric rated below 'Good'.",
-                italic=True, size=9
-            )
-            for _mname, _mstat, _tip in _weak:
-                _wp = _add_para(f"{_mname} ({_mstat}): ", bold=True, size=9.5,
-                                indent=1, space_after=2)
-                _wr = _wp.add_run(_tip)
-                _wr.font.size = Pt(9.5)
+    if _sdg_rows:
+        _sdg_tbl = _add_table(
+            ["SDG", "Goal", "COs", "Items", "HOTS %", "Bloom Sub-elements", "Quality"],
+            [(r['sdg'], r['name'], r['cos'], str(r['count']), f"{r['hots_pct']}%", r['verbs'], r['rating'])
+             for r in _sdg_rows],
+            col_widths=[0.6, 1.5, 1.0, 0.5, 0.6, 1.5, 0.7]
+        )
+        for _ri, _r in enumerate(_sdg_rows, 1):
+            _cell = _sdg_tbl.rows[_ri].cells[6]
+            for _run in _cell.paragraphs[0].runs:
+                _run.bold = True
+                _run.font.color.rgb = STATUS_COLOR.get(_r['rating'], GRAY)
+        _add_bar_chart(
+            [(r['sdg'], r['hots_pct']) for r in _sdg_rows], 100,
+            label_header="SDG", unit_label="% HOTS"
+        )
+        _add_para(
+            "HOTS % is the share of each SDG's questions at Apply level or above. "
+            "Raise it by reframing recall-level questions on these themes toward "
+            "application, analysis or design.",
+            size=9, italic=True
+        )
+    else:
+        _add_para(
+            "No SDG themes were detected in the current Course Outcomes. Introduce COs "
+            "that connect the subject to sustainability, energy, environment, health, "
+            "industry or community contexts to strengthen SDG alignment.",
+            size=9.5
+        )
 
-    if acc_data.get("strengths"):
-        _add_heading("Strengths", level=2, color=GREEN)
-        for s in acc_data["strengths"]:
-            _add_para(f"• {s}", size=9.5, indent=1)
-
-    if acc_data.get("action_items"):
-        _add_heading("Action Items", level=2, color=AMBER)
-        for s in acc_data["action_items"]:
-            _add_para(f"• {s}", size=9.5, indent=1)
+    doc.add_page_break()
 
     _add_para()
     _add_para("─" * 80, size=8, color=GRAY)
@@ -1741,14 +1997,11 @@ def build_txt(
     lines.append(SEP)
     lines.append("EXECUTIVE SUMMARY")
     lines.append(SEP)
-    acc = ai.get("accreditation_readiness", {}).get("overall_score", "—")
     lines.append(f"COs Generated          : {len(cos)}")
     lines.append(f"Total Exam Questions   : {analytics['total_exam']}")
     lines.append(f"Assignments in QB      : {analytics['total_assign']}")
     lines.append(f"Quiz Questions in QB   : {analytics['total_quiz']}")
     lines.append(f"CO Coverage            : {analytics['coverage_pct']}%")
-    lines.append(f"Question Quality Index : {_qqi_label(analytics['overall_qqi'])}")
-    lines.append(f"Accreditation Readiness: {_qqi_label(acc)}")
 
     # Section 1: CO Generation
     _sec(1, "Automatic CO Generation")
@@ -1801,7 +2054,7 @@ def build_txt(
     lines.append(f"LOTS (L1-L3 Remember/Understand/Apply) : {_la_txt['lots_cos']} COs ({_lots_pct2}%)")
     lines.append(f"HOTS (L4-L6 Analyze/Evaluate/Create)   : {_la_txt['hots_cos']} COs ({_hots_pct2}%)")
     lines.append(f"Bloom's Progression Score               : {_ps2} / 6.0  ({_ps2_label})")
-    lines.append("(A healthy share of higher-order thinking supports NBA/OBE expectations)")
+    lines.append("(A healthy share of higher-order thinking supports OBE expectations)")
     if any(_la_txt['kdim_co_map'].values()):
         lines.append("")
         lines.append("Knowledge Dimension Coverage")
@@ -1829,9 +2082,9 @@ def build_txt(
     lines.append(f"Uncovered Levels                : {_empty_txt}")
     lines.append(f"Cognitive Balance Index         : {_bal_txt} / 100")
 
-    # NBA / OBE Alignment Indicators
+    # OBE Alignment Indicators
     lines.append("")
-    lines.append("NBA / OBE Alignment Indicators")
+    lines.append("OBE Alignment Indicators")
     lines.append("-" * 40)
     _align_txt = _la_alignment_checks(_la_txt)
     _tbl(["Criterion", "Result", "Status"], _align_txt, [30, 14, 8])
@@ -1893,14 +2146,15 @@ def build_txt(
 
     # Section 5: CO Coverage
     _sec(5, "CO Coverage Verification")
+    cov_set = set(analytics.get("covered", []))
+    item_header = "Experiments" if is_lab else "Questions"
     cov_rows = []
     for c in cos:
         key = str(c["num"])
-        t   = co_tally.get(key, {})
-        total_q = t.get(2,0) + t.get(5,0) + t.get(10,0)
-        cov_rows.append((f"CO{key}", c["statement"], str(total_q),
-                         "Covered" if total_q > 0 else "NOT COVERED"))
-    _tbl(["CO", "Statement", "Questions", "Status"], cov_rows, [5, 55, 10, 12])
+        n   = _co_assessment_count(key, analytics, co_tally, is_lab)
+        cov_rows.append((f"CO{key}", c["statement"], str(n),
+                         "Covered" if key in cov_set else "NOT COVERED"))
+    _tbl(["CO", "Statement", item_header, "Status"], cov_rows, [5, 55, 10, 12])
     lines.append(f"\nOverall Coverage: {analytics['coverage_pct']}%  |  "
                  f"Covered: {len(analytics['covered'])}  |  "
                  f"Not Covered: {len(analytics['uncovered'])}")
@@ -1935,23 +2189,8 @@ def build_txt(
         lines.append("Recommendation:")
         lines.append(sc_ai["recommendation"])
 
-    # Section 8: QQI
-    _sec(8, "Question Quality Index (QQI)")
-    qqi_rows = [(co, _qqi_score_label(score)) for co, score in analytics["qqi_scores"].items()]
-    qqi_rows.append(("Overall QQI", _qqi_score_label(analytics['overall_qqi'])))
-    _tbl(["CO", "QQI Rating"], qqi_rows, [12, 20])
-    qqi_ai = ai.get("qqi_interpretation", {})
-    if qqi_ai.get("overall"):
-        lines.append("\n" + qqi_ai["overall"])
-    for label, key in [("Strengths", "strengths"), ("Improvements", "improvements")]:
-        items = qqi_ai.get(key, [])
-        if items:
-            lines.append(f"\n{label}:")
-            for s in items:
-                lines.append(f"  • {s}")
-
-    # Section 9: CO-wise Marks
-    _sec(9, "CO-wise Marks Distribution")
+    # Section 8: CO-wise Marks
+    _sec(8, "CO-wise Marks Distribution")
     marks_rows = [(f"CO{c['num']}", analytics["co_marks"].get(str(c["num"]),0),
                    f"{round(analytics['co_marks'].get(str(c['num']),0)/analytics['total_marks']*100,1)}%")
                   for c in cos]
@@ -1964,14 +2203,14 @@ def build_txt(
         bar   = "█" * (pct // 5) + "░" * (20 - pct // 5)
         lines.append(f"  CO{key:<4}  {bar}  {marks} marks ({pct}%)")
 
-    # Section 10: OBE Compliance
-    _sec(10, "OBE / NBA / NAAC / NEP Compliance Report")
+    # Section 9: OBE Compliance
+    _sec(9, "OBE Compliance Report")
     obe = ai.get("obe_compliance", {})
     if obe:
         lines.append(f"CO Statement Quality  : {obe.get('co_statement_quality','—')}")
         lines.append(f"Bloom's Alignment     : {obe.get('bloom_alignment','—')}")
         lines.append(f"CO Coverage Status    : {obe.get('co_coverage_status','—')}")
-        lines.append(f"Overall OBE Score     : {obe.get('overall_obe_score','—')}/100")
+        lines.append(f"Overall OBE Score     : {_obe_band(obe.get('overall_obe_score'))}")
         lines.append(f"Compliance Level      : {obe.get('compliance_level','—')}")
         for label, key in [("Strengths","strengths"),("Gaps","gaps"),("Recommendations","recommendations")]:
             items = obe.get(key, [])
@@ -1982,33 +2221,40 @@ def build_txt(
     else:
         lines.append("OBE analysis not available.")
 
-    # Section 11: Accreditation Readiness
-    _sec(11, "Accreditation Readiness Dashboard")
-    acc_data = ai.get("accreditation_readiness", {})
-    overall  = acc_data.get("overall_score", analytics["overall_qqi"])
-    # Readiness band on the same Good/Average/Poor scale as the QQI ratings.
-    level    = _qqi_label(overall)
-    lines.append(f"Accreditation Readiness : {level}")
-    km = acc_data.get("key_metrics", [])
-    if km:
+    # Section 10: Question Quality vs Programme Outcomes
+    _sec(10, "Question Quality vs Programme Outcomes (PO)")
+    po_rows, po_sum = compute_po_quality(cos, co_tally, analytics, taxonomy_grid, is_lab)
+    lines.append(textwrap.fill(_po_quality_intro(title, code, po_sum), 72))
+    lines.append("")
+    _tbl(["PO", "Programme Outcome", "Basis", "Items", "%", "Quality"],
+         [(r['po'], r['name'], r['basis'], r['count_str'], r['pct_str'], r['rating'])
+          for r in po_rows],
+         [5, 26, 16, 6, 6, 9])
+    lines.append("")
+    for r in po_rows:
+        if r['mode'] != 'process':
+            lines.append(f"  {r['po']:<5} Bloom sub-elements: {r['verbs']}")
+    lines.append("")
+    lines.append(f"Question-assessable POs exercised: {po_sum['addressed']} of {po_sum['assessable']}")
+    lines.append(f"Process POs (assessed via projects/labs/seminars): {', '.join(po_sum['process'])}")
+
+    # Section 11: Question Quality vs Sustainable Development Goals
+    _sec(11, "Question Quality vs Sustainable Development Goals (SDG)")
+    sdg_rows, sdg_sum = compute_sdg_quality(cos, co_tally, analytics, taxonomy_grid, is_lab)
+    lines.append(textwrap.fill(_sdg_quality_intro(title, code, sdg_sum), 72))
+    lines.append("")
+    if sdg_rows:
+        _tbl(["SDG", "Goal", "Items", "HOTS%", "Quality"],
+             [(r['sdg'], r['name'], r['count'], f"{r['hots_pct']}%", r['rating'])
+              for r in sdg_rows],
+             [7, 34, 6, 7, 8])
         lines.append("")
-        _tbl(["Metric", "Score", "Status"],
-             [(m.get("metric",""), f"{m.get('score','—')}/100", m.get("status","")) for m in km],
-             [28, 10, 14])
-        _weak_txt = _weak_metric_tips(km)
-        if _weak_txt:
-            lines.append("")
-            lines.append("How to Improve Weak Areas")
-            lines.append("(Targeted next steps for each metric rated below 'Good')")
-            for _mname, _mstat, _tip in _weak_txt:
-                lines.append(f"  {_mname} ({_mstat}):")
-                lines.append(f"    {_tip}")
-    for label, key in [("Strengths","strengths"),("Action Items","action_items")]:
-        items = acc_data.get(key, [])
-        if items:
-            lines.append(f"\n{label}:")
-            for s in items:
-                lines.append(f"  • {s}")
+        for r in sdg_rows:
+            lines.append(f"  {r['sdg']:<7} COs: {r['cos']}  |  Sub-elements: {r['verbs']}")
+    else:
+        lines.append("No SDG themes were detected in the current Course Outcomes.")
+        lines.append("Introduce COs connecting the subject to sustainability, energy,")
+        lines.append("environment, health, industry or community contexts.")
 
     lines.append("")
     lines.append(SEP)
@@ -2145,7 +2391,6 @@ def build_pdf(
     # Executive Summary
     pdf.ln(6)
     _heading1("EXECUTIVE SUMMARY")
-    acc = ai.get("accreditation_readiness", {}).get("overall_score", "-")
     _tbl(
         ["Metric", "Value"],
         [
@@ -2154,8 +2399,6 @@ def build_pdf(
             ("Assignments in QB",       analytics["total_assign"]),
             ("Quiz Questions in QB",    analytics["total_quiz"]),
             ("CO Coverage",             f"{analytics['coverage_pct']}%"),
-            ("Question Quality Index",  _qqi_label(analytics['overall_qqi'])),
-            ("Accreditation Score",     _qqi_label(acc)),
         ],
         [110, 60],
     )
@@ -2351,7 +2594,7 @@ def build_pdf(
     _ps3_label = "Strong" if _ps3 >= 4.0 else "Moderate" if _ps3 >= 2.5 else "Low"
     _body(
         f"Bloom's Progression Score: {_ps3} / 6.0 ({_ps3_label} cognitive ambition). "
-        "A healthy share of higher-order thinking (L4-L6) supports NBA/OBE expectations."
+        "A healthy share of higher-order thinking (L4-L6) supports OBE expectations."
     )
     if any(_la_pdf['kdim_co_map'].values()):
         _heading2("Knowledge Dimension Coverage")
@@ -2385,8 +2628,8 @@ def build_pdf(
         [60, 110]
     )
 
-    # NBA / OBE Alignment Indicators (PDF)
-    _heading2("NBA / OBE Alignment Indicators")
+    # OBE Alignment Indicators (PDF)
+    _heading2("OBE Alignment Indicators")
     _align_pdf = _la_alignment_checks(_la_pdf)
     _tbl(["Criterion", "Result", "Status"], _align_pdf, [100, 40, 30])
     _met_pdf = sum(1 for r in _align_pdf if r[2] == "Met")
@@ -2471,11 +2714,14 @@ def build_pdf(
     LH       = 5.5   # line height per text line
     PAD      = 1.5
 
+    cov_set     = set(analytics.get("covered", []))
+    item_header = "Experiments" if is_lab else "Questions"
+
     def _cov_header():
         pdf.set_font("Helvetica", "B", 8.5)
         pdf.set_fill_color(210, 210, 235)
         for lbl, w in [("CO", COL_CO), ("Statement", COL_STMT),
-                        ("Questions", COL_Q), ("Status", COL_ST)]:
+                        (item_header, COL_Q), ("Status", COL_ST)]:
             pdf.cell(w, 7, lbl, border=1, fill=True)
         pdf.ln()
 
@@ -2483,9 +2729,8 @@ def build_pdf(
     pdf.set_font("Helvetica", "", 8.5)
     for c in cos:
         key  = str(c["num"])
-        t    = co_tally.get(key, {})
-        tot  = t.get(2,0) + t.get(5,0) + t.get(10,0)
-        stat = "Covered" if tot > 0 else "NOT COVERED"
+        tot  = _co_assessment_count(key, analytics, co_tally, is_lab)
+        stat = "Covered" if key in cov_set else "NOT COVERED"
 
         stmt_safe = _s(c["statement"])
         chars_per_line = max(1, int(COL_STMT / 2.1))
@@ -2554,25 +2799,9 @@ def build_pdf(
         _heading2("Recommendation")
         _body(sc_ai["recommendation"])
 
-    # Section 8: QQI
+    # Section 8: CO Marks
     pdf.add_page()
-    _heading1("SECTION 8: QUESTION QUALITY INDEX (QQI)")
-    qqi_rows = [(co, _qqi_score_label(score)) for co, score in analytics["qqi_scores"].items()]
-    qqi_rows.append(("Overall QQI", _qqi_score_label(analytics['overall_qqi'])))
-    _tbl(["CO", "QQI Rating"], qqi_rows, [40, 60])
-    qqi_ai = ai.get("qqi_interpretation", {})
-    if qqi_ai.get("overall"):
-        _body(qqi_ai["overall"])
-    if qqi_ai.get("strengths"):
-        _heading2("Strengths")
-        _bullets(qqi_ai["strengths"])
-    if qqi_ai.get("improvements"):
-        _heading2("Areas for Improvement")
-        _bullets(qqi_ai["improvements"])
-
-    # Section 9: CO Marks
-    pdf.add_page()
-    _heading1("SECTION 9: CO-WISE MARKS DISTRIBUTION")
+    _heading1("SECTION 8: CO-WISE MARKS DISTRIBUTION")
     marks_rows = [(f"CO{c['num']}",
                    analytics["co_marks"].get(str(c["num"]), 0),
                    f"{round(analytics['co_marks'].get(str(c['num']),0)/analytics['total_marks']*100,1)}%")
@@ -2586,16 +2815,16 @@ def build_pdf(
         _bar_row(f"CO{key}", pct, f"{marks} marks ({pct}%)")
     _pdf_chart(_rc.co_marks_chart(cos, analytics["co_marks"], analytics["total_marks"]) if _rc else None)
 
-    # Section 10: OBE Compliance
+    # Section 9: OBE Compliance
     pdf.add_page()
-    _heading1("SECTION 10: OBE / NBA / NAAC / NEP COMPLIANCE REPORT")
+    _heading1("SECTION 9: OBE COMPLIANCE REPORT")
     obe = ai.get("obe_compliance", {})
     if obe:
         _tbl(["Parameter", "Status"], [
             ("CO Statement Quality",  obe.get("co_statement_quality", "-")),
             ("Bloom's Alignment",     obe.get("bloom_alignment", "-")),
             ("CO Coverage Status",    obe.get("co_coverage_status", "-")),
-            ("Overall OBE Score",     f"{obe.get('overall_obe_score','-')}/100"),
+            ("Overall OBE Score",     _obe_band(obe.get('overall_obe_score'))),
             ("Compliance Level",      obe.get("compliance_level", "-")),
         ], [90, 80])
         if obe.get("strengths"):
@@ -2610,37 +2839,40 @@ def build_pdf(
     else:
         _body("OBE analysis not available.")
 
-    # Section 11: Accreditation Readiness
+    # Section 10: Question Quality vs Programme Outcomes
     pdf.add_page()
-    _heading1("SECTION 11: ACCREDITATION READINESS DASHBOARD")
-    acc_data = ai.get("accreditation_readiness", {})
-    overall  = acc_data.get("overall_score", analytics["overall_qqi"])
-    # Readiness band on the same Good/Average/Poor scale as the QQI ratings.
-    level    = _qqi_label(overall)
-    _kv("Accreditation Readiness", level)
-    pdf.ln(2)
-    km = acc_data.get("key_metrics", [])
-    if km:
-        _heading2("Key Metrics")
-        _tbl(["Metric", "Score", "Status"],
-             [(m.get("metric",""), f"{m.get('score','-')}/100", m.get("status","")) for m in km],
-             [90, 30, 40])
-        _pdf_chart(_rc.accreditation_metrics_chart(km) if _rc else None)
-        _weak_pdf = _weak_metric_tips(km)
-        if _weak_pdf:
-            _heading2("How to Improve Weak Areas")
-            _body("Targeted next steps for each metric rated below 'Good'.")
-            for _mname, _mstat, _tip in _weak_pdf:
-                pdf.set_font("Helvetica", "B", 9.5)
-                pdf.cell(0, 5.5, _s(f"{_mname} ({_mstat}):"),
-                         new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-                _body(_tip, indent=1)
-    if acc_data.get("strengths"):
-        _heading2("Strengths")
-        _bullets(acc_data["strengths"])
-    if acc_data.get("action_items"):
-        _heading2("Action Items")
-        _bullets(acc_data["action_items"])
+    _heading1("SECTION 10: QUESTION QUALITY VS PROGRAMME OUTCOMES (PO)")
+    po_rows, po_sum = compute_po_quality(cos, co_tally, analytics, taxonomy_grid, is_lab)
+    _body(_po_quality_intro(title, code, po_sum))
+    pdf.ln(1)
+    _tbl(["PO", "Programme Outcome", "Basis", "Items", "%", "Bloom Sub-elements", "Quality"],
+         [(r['po'], r['name'], r['basis'], r['count_str'], r['pct_str'], r['verbs'], r['rating'])
+          for r in po_rows],
+         [14, 38, 26, 14, 14, 50, 24])
+    _body(f"Question-assessable POs exercised: {po_sum['addressed']} of {po_sum['assessable']}. "
+          "Cognitive POs (PO2 Analysis, PO3 Design) need Analyse/Create-level questions; "
+          "thematic POs (PO6-PO8) need societal, environmental or ethical content - add such "
+          f"questions where a PO is rated Poor. PO9-PO11 ({', '.join(po_sum['process'])}) are "
+          "assessed via projects, labs and seminars, not the question bank.")
+
+    # Section 11: Question Quality vs Sustainable Development Goals
+    pdf.add_page()
+    _heading1("SECTION 11: QUESTION QUALITY VS SUSTAINABLE DEVELOPMENT GOALS (SDG)")
+    sdg_rows, sdg_sum = compute_sdg_quality(cos, co_tally, analytics, taxonomy_grid, is_lab)
+    _body(_sdg_quality_intro(title, code, sdg_sum))
+    pdf.ln(1)
+    if sdg_rows:
+        _tbl(["SDG", "Goal", "COs", "Items", "HOTS %", "Bloom Sub-elements", "Quality"],
+             [(r['sdg'], r['name'], r['cos'], r['count'], f"{r['hots_pct']}%", r['verbs'], r['rating'])
+              for r in sdg_rows],
+             [16, 40, 24, 14, 18, 38, 20])
+        _body("HOTS % is the share of each SDG's questions at Apply level or above. "
+              "Raise it by reframing recall-level questions on these themes toward "
+              "application, analysis or design.")
+    else:
+        _body("No SDG themes were detected in the current Course Outcomes. Introduce COs "
+              "that connect the subject to sustainability, energy, environment, health, "
+              "industry or community contexts to strengthen SDG alignment.")
 
     pdf.ln(4)
     pdf.set_font("Helvetica", "I", 8)

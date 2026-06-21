@@ -9,7 +9,7 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)),
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-# ── PO definitions (NBA standard, 12 POs) ─────────────────────────────────────
+# ── PO definitions (standard, 12 POs) ─────────────────────────────────────────
 
 POS = [
     ("PO1",  "Engineering Knowledge",
@@ -121,7 +121,7 @@ def parse_pos_from_text(text: str) -> list:
 
 POS_BY_TYPE = {
 
-    "engineering": POS,  # NBA standard (above)
+    "engineering": POS,  # standard (above)
 
     "medical": [
         ("PO1",  "Clinician",
@@ -395,11 +395,89 @@ POS_BY_TYPE = {
          "Practice agriculture with integrity, follow ICAR regulations, and contribute to agricultural policy. "
          "1=Knows regulatory framework; 2=Applies ethical practices; 3=Advocates for science-based policy."),
     ],
+
+    "science": [
+        ("PO1",  "Scientific Knowledge",
+         "Apply core concepts, principles, and theories of the discipline to explain natural phenomena and solve problems. "
+         "1=Recalls concepts; 2=Applies principles; 3=Integrates concepts to solve complex problems."),
+        ("PO2",  "Scientific Inquiry & Problem Solving",
+         "Formulate questions, frame hypotheses, and apply the scientific method to investigate problems systematically. "
+         "1=Identifies problems; 2=Designs an approach; 3=Conducts independent inquiry and draws conclusions."),
+        ("PO3",  "Experimentation & Laboratory Skills",
+         "Perform experiments safely and accurately, record observations, and handle instruments and laboratory protocols. "
+         "1=Follows procedures; 2=Conducts experiments accurately; 3=Designs and troubleshoots experiments."),
+        ("PO4",  "Analytical & Quantitative Reasoning",
+         "Apply mathematical, statistical, and logical reasoning to interpret data and validate scientific results. "
+         "1=Performs basic calculations; 2=Analyses data sets; 3=Models and interprets complex data."),
+        ("PO5",  "Modern Tools & ICT Usage",
+         "Use scientific software, instrumentation, and digital tools for computation, simulation, and data analysis. "
+         "1=Uses standard tools; 2=Applies tools to problems; 3=Selects and adapts advanced tools."),
+        ("PO6",  "Critical Thinking & Scientific Temper",
+         "Evaluate evidence objectively, question assumptions, and distinguish science from pseudoscience. "
+         "1=Aware of evidence-based reasoning; 2=Analyses claims critically; 3=Synthesises balanced judgements."),
+        ("PO7",  "Environment & Sustainability",
+         "Understand the impact of science on the environment and society and promote sustainable practices. "
+         "1=Understands impact; 2=Analyses environmental issues; 3=Designs sustainable solutions."),
+        ("PO8",  "Ethics & Scientific Integrity",
+         "Uphold research ethics, academic honesty, data integrity, and responsible conduct of science. "
+         "1=Aware of ethical norms; 2=Applies integrity in work; 3=Champions ethical scientific practice."),
+        ("PO9",  "Individual & Team Work",
+         "Work effectively as an individual and as a member or leader in diverse and collaborative teams. "
+         "1=Participates in team activities; 2=Contributes and collaborates; 3=Leads and manages teams."),
+        ("PO10", "Communication",
+         "Communicate scientific ideas clearly through reports, presentations, and visual representation of data. "
+         "1=Aware of communication needs; 2=Communicates adequately; 3=Communicates proficiently in multiple modes."),
+        ("PO11", "Research Aptitude & Innovation",
+         "Conduct guided research, review literature, and apply findings to generate new ideas or applications. "
+         "1=Reads and summarises; 2=Conducts guided research; 3=Designs independent research."),
+        ("PO12", "Life-long Learning",
+         "Recognise the need for, and engage in, independent and life-long learning to keep pace with advances. "
+         "1=Aware of need; 2=Pursues self-directed learning; 3=Demonstrates reflective, continuous learning."),
+    ],
+
+    "arts": [
+        ("PO1",  "Disciplinary Knowledge",
+         "Demonstrate comprehensive understanding of the concepts, theories, and texts of the chosen discipline. "
+         "1=Recalls key ideas; 2=Applies concepts to contexts; 3=Synthesises across themes and perspectives."),
+        ("PO2",  "Critical Thinking & Analytical Reasoning",
+         "Analyse ideas, arguments, and texts critically and construct well-reasoned, evidence-based conclusions. "
+         "1=Identifies arguments; 2=Analyses and evaluates; 3=Synthesises complex, multi-perspective arguments."),
+        ("PO3",  "Communication Skills",
+         "Express ideas clearly and persuasively in written and spoken forms for diverse audiences. "
+         "1=Basic expression; 2=Clear and structured communication; 3=Persuasive and audience-aware communication."),
+        ("PO4",  "Research-Related Skills",
+         "Frame research questions, gather and evaluate sources, and present findings with proper referencing. "
+         "1=Locates basic sources; 2=Conducts guided research; 3=Designs and presents independent research."),
+        ("PO5",  "Information & Digital Literacy",
+         "Locate, evaluate, and use information and digital tools responsibly for study and inquiry. "
+         "1=Uses basic resources; 2=Evaluates sources critically; 3=Applies digital tools for scholarship."),
+        ("PO6",  "Social & Cultural Awareness",
+         "Appreciate cultural diversity, historical context, and multiple social perspectives. "
+         "1=Aware of diversity; 2=Analyses social/cultural contexts; 3=Engages critically with plural perspectives."),
+        ("PO7",  "Environment & Sustainability",
+         "Understand human–environment relationships and the social dimensions of sustainable development. "
+         "1=Understands issues; 2=Analyses social-environmental links; 3=Advocates for sustainable practices."),
+        ("PO8",  "Ethics, Values & Moral Reasoning",
+         "Apply ethical reasoning, recognise values, and act with academic and personal integrity. "
+         "1=Aware of values; 2=Applies ethical reasoning; 3=Navigates complex ethical questions."),
+        ("PO9",  "Teamwork & Collaboration",
+         "Work effectively and respectfully in diverse groups toward shared goals. "
+         "1=Participates; 2=Contributes and coordinates; 3=Leads diverse teams to outcomes."),
+        ("PO10", "Creative & Reflective Expression",
+         "Demonstrate creativity, imagination, and reflective self-awareness in academic and creative work. "
+         "1=Follows models; 2=Produces original work; 3=Creates innovative, reflective work."),
+        ("PO11", "Social Responsibility & Citizenship",
+         "Engage with community, uphold democratic values, and contribute to social well-being as a responsible citizen. "
+         "1=Aware of civic roles; 2=Participates in community; 3=Leads socially responsible initiatives."),
+        ("PO12", "Life-long Learning",
+         "Recognise the need for, and engage in, independent and life-long learning across changing contexts. "
+         "1=Aware of need; 2=Pursues self-directed learning; 3=Demonstrates reflective, continuous learning."),
+    ],
 }
 
 # Mapping college_type → display metadata
 COLLEGE_TYPE_META = {
-    "engineering":   {"label": "Engineering",            "accreditation": "NBA/NAAC",   "short": "Engg"},
+    "engineering":   {"label": "Engineering",            "accreditation": "OBE",        "short": "Engg"},
     "medical":       {"label": "Medical",                "accreditation": "NMC",        "short": "Med"},
     "dental":        {"label": "Dental",                 "accreditation": "DCI",        "short": "Dent"},
     "law":           {"label": "Law",                    "accreditation": "BCI",        "short": "Law"},
@@ -407,6 +485,8 @@ COLLEGE_TYPE_META = {
     "management":    {"label": "Management",             "accreditation": "AICTE/AACSB","short": "Mgmt"},
     "architecture":  {"label": "Architecture & Planning","accreditation": "COA",        "short": "Arch"},
     "agriculture":   {"label": "Agriculture & Allied",   "accreditation": "ICAR/ICAR",  "short": "Agri"},
+    "science":       {"label": "Science (Degree)",        "accreditation": "UGC/NAAC",   "short": "Sci"},
+    "arts":          {"label": "Arts (Degree)",           "accreditation": "UGC/NAAC",   "short": "Arts"},
 }
 
 
@@ -462,7 +542,7 @@ def parse_course_header(text: str) -> tuple[str, str]:
 # ── Prompt builder ────────────────────────────────────────────────────────────
 
 _MAPPING_SYSTEM = """\
-You are an expert NBA/OBE evaluator tasked with generating a CO-PO mapping table.
+You are an expert OBE evaluator tasked with generating a CO-PO mapping table.
 
 SCORING RUBRIC (strictly follow):
   3 – Major   : CO directly and thoroughly addresses this PO. The topic is fully introduced,
@@ -480,7 +560,7 @@ DECISION LOGIC (one-step):
     (b) What depth of learning does the CO require?
   The answer directly yields 0 / 1 / 2 / 3. No guessing; no padding non-zero values.
 
-NBA EXPECTATION: A typical 5–6 CO course maps to 5–8 POs. Scores of 2 or 3 should be earned,
+OBE EXPECTATION: A typical 5–6 CO course maps to 5–8 POs. Scores of 2 or 3 should be earned,
 not given by default. Most COs will map to only 2–4 POs significantly.
 
 OUTPUT FORMAT — return ONLY a JSON object, no explanation, no markdown fences:

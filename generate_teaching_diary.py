@@ -10,9 +10,9 @@ if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 _SYSTEM = """\
-You are an expert in Outcome-Based Education (OBE), NBA accreditation, NAAC, NEP 2020,
-and SDG integration for engineering courses. You specialize in creating comprehensive
-Teaching Diaries that comply with NBA/NAAC accreditation standards.
+You are an expert in Outcome-Based Education (OBE) and SDG integration for engineering
+courses. You specialize in creating comprehensive Teaching Diaries that comply with OBE
+standards.
 
 Generate a complete Teaching Diary as a single JSON object. The JSON must be valid,
 complete, and follow the exact structure specified. Keep ALL string field values
@@ -127,12 +127,9 @@ OUTPUT — return ONLY this JSON (no markdown, no explanation):
   "co_attainment": [
     {{"co": "CO1", "target": 60}}
   ],
-  "nba_alignment": [
-    {{"framework": "NBA", "evidence": "<evidence>"}},
-    {{"framework": "NAAC", "evidence": "<evidence>"}},
-    {{"framework": "NEP 2020", "evidence": "<evidence>"}},
-    {{"framework": "SDGs", "evidence": "<evidence>"}},
-    {{"framework": "THE Impact", "evidence": "<evidence>"}}
+  "obe_alignment": [
+    {{"framework": "OBE", "evidence": "<evidence>"}},
+    {{"framework": "SDGs", "evidence": "<evidence>"}}
   ],
   "final_summary": {{
     "syllabus_coverage": "100%",
@@ -570,14 +567,11 @@ def build_docx(data: dict, meta: dict, course_code: str, course_title: str,
     )
     doc.add_paragraph()
 
-    # ── 14. NBA / NAAC / NEP 2020 / THE Impact Alignment ─────────────────────
-    _heading(doc, "14. NBA / NAAC / NEP 2020 / THE IMPACT ALIGNMENT")
-    nba = data.get("nba_alignment", [
-        {"framework": "NBA",         "evidence": "CO-PO attainment, CEP"},
-        {"framework": "NAAC",        "evidence": "ICT-enabled teaching, innovation"},
-        {"framework": "NEP 2020",    "evidence": "Skill-based learning"},
+    # ── 14. OBE & SDG Alignment ──────────────────────────────────────────────
+    _heading(doc, "14. OBE & SDG ALIGNMENT")
+    nba = data.get("obe_alignment", [
+        {"framework": "OBE",         "evidence": "CO-PO attainment, CEP"},
         {"framework": "SDGs",        "evidence": "Sustainability integration"},
-        {"framework": "THE Impact",  "evidence": "Societal impact evidence"},
     ])
     _make_table(doc,
         ["Framework", "Alignment Evidence"],
@@ -868,14 +862,11 @@ def build_pdf(data: dict, meta: dict, course_code: str, course_title: str,
     t.setStyle(_ts(len(sr)))
     story += [t, Spacer(1,6)]
 
-    story.append(Paragraph("14. NBA / NAAC / NEP 2020 / THE IMPACT ALIGNMENT", head_s))
+    story.append(Paragraph("14. OBE & SDG ALIGNMENT", head_s))
     nba_rows = [[_w("Framework"), _w("Alignment Evidence")]]
-    for r in data.get("nba_alignment", [
-        {"framework":"NBA","evidence":"CO-PO attainment, CEP"},
-        {"framework":"NAAC","evidence":"ICT-enabled teaching"},
-        {"framework":"NEP 2020","evidence":"Skill-based learning"},
+    for r in data.get("obe_alignment", [
+        {"framework":"OBE","evidence":"CO-PO attainment, CEP"},
         {"framework":"SDGs","evidence":"Sustainability integration"},
-        {"framework":"THE Impact","evidence":"Societal impact evidence"},
     ]):
         nba_rows.append([_w(r.get("framework","")), _w(r.get("evidence",""))])
     t = Table(nba_rows, colWidths=[1.5*inch, W-1.5*inch])
@@ -988,8 +979,8 @@ def build_txt(data: dict, meta: dict, course_code: str, course_title: str,
     tbl(["CO","Target (%)","Attainment (%)"],
         [(r.get("co",""),str(r.get("target",60))+"%","") for r in co_att])
 
-    sec("14. NBA / NAAC ALIGNMENT")
-    for r in data.get("nba_alignment", []):
+    sec("14. OBE & SDG ALIGNMENT")
+    for r in data.get("obe_alignment", []):
         lines.append(f"  {r.get('framework','')} : {r.get('evidence','')}")
 
     with open(output_path, 'w', encoding='utf-8') as f:

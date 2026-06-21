@@ -161,7 +161,7 @@
       <button class="btn btn-primary" id="btn-gen-paper" onclick="generatePaper()">Preview Paper →</button>
       <button class="btn btn-ghost" onclick="openTemplateFill()" style="border-color:var(--primary);color:var(--primary);"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.125em" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg> Fill Template Paper</button>
       <span class="spacer"></span>
-      <button class="btn btn-ghost" onclick="startOver()">&#8962; Back to Home</button>
+      <button class="btn btn-ghost" onclick="backToHome()">&#8962; Back to Home</button>
     </div>
     <div class="uni-progress hidden" id="gen-paper-progress">
       <span class="uni-progress-label">Composing paper…</span>
@@ -223,7 +223,7 @@
       <button class="btn btn-ghost" onclick="goBack('paper-preview')">← Back</button>
       <span class="spacer"></span>
       <button class="btn btn-primary" id="btn-dl-edited-paper" onclick="downloadEditedPaper()">⬇ Download Paper</button>
-      <button class="btn btn-ghost" onclick="startOver()">&#8962; Back to Home</button>
+      <button class="btn btn-ghost" onclick="backToHome()">&#8962; Back to Home</button>
     </div>
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
       <span style="font-size:.75rem;font-weight:700;color:var(--muted);">Go to:</span>
@@ -314,7 +314,7 @@
         <button class="btn btn-ghost" onclick="showSection('configure-paper'); setStepBar(3);">← Back</button>
         <button class="btn btn-primary" id="btn-gen-tpl" onclick="generateTemplatePaper()">Preview Paper →</button>
         <span class="spacer"></span>
-        <button class="btn btn-ghost" onclick="startOver()">&#8962; Back to Home</button>
+        <button class="btn btn-ghost" onclick="backToHome()">&#8962; Back to Home</button>
       </div>
       <div class="uni-progress hidden" id="gen-tpl-progress">
         <span class="uni-progress-label">Composing paper from template…</span>

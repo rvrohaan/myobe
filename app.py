@@ -134,10 +134,10 @@ def load_users() -> dict:
 _COLLEGE_CONTEXTS = {
     "engineering": {
         "type": "Engineering", "discipline": "engineering",
-        "accreditation": "NBA/NAAC (National Board of Accreditation)",
+        "accreditation": "OBE (Outcome-Based Education)",
         "professional": "engineer", "program": "B.Tech / B.E.",
         "outcomes_term": "Programme Outcomes (POs)",
-        "body": "NBA", "framework": "OBE/NBA",
+        "body": "OBE", "framework": "OBE",
     },
     "medical": {
         "type": "Medical", "discipline": "medicine",
@@ -187,6 +187,20 @@ _COLLEGE_CONTEXTS = {
         "professional": "agronomist / agricultural scientist", "program": "B.Sc Ag / M.Sc Ag",
         "outcomes_term": "Programme Outcomes (POs)",
         "body": "ICAR", "framework": "OBE/ICAR",
+    },
+    "science": {
+        "type": "Science (Degree)", "discipline": "science",
+        "accreditation": "UGC/NAAC (LOCF)",
+        "professional": "scientist / science graduate", "program": "B.Sc / M.Sc",
+        "outcomes_term": "Programme Outcomes (POs)",
+        "body": "UGC", "framework": "OBE/NAAC",
+    },
+    "arts": {
+        "type": "Arts (Degree)", "discipline": "arts / humanities",
+        "accreditation": "UGC/NAAC (LOCF)",
+        "professional": "humanities / social science graduate", "program": "B.A / M.A",
+        "outcomes_term": "Programme Outcomes (POs)",
+        "body": "UGC", "framework": "OBE/NAAC",
     },
 }
 
@@ -797,6 +811,14 @@ def generate():
             store["co_taxonomy"] = _co_tax
             summary = bloom_level_summary(result)
             cos_parsed = _parse_cos_from_raw(result)
+            # Attach each CO's RBT cell (knowledge dimension + Bloom level) so the
+            # frontend can warn when selected COs land in the same taxonomy cell.
+            from generate_cos import _KDIM_NORM as _KN
+            for _c in cos_parsed:
+                _entry = _co_tax.get(_c['num'])
+                if _entry:
+                    _c['kdim']  = _KN.get(_entry['kdim'].lower(), _entry['kdim'])
+                    _c['bloom'] = _entry['bloom']
             _success = True
             yield f"data: {json.dumps({'done': True, 'summary': summary, 'cos': cos_parsed})}\n\n"
         finally:
@@ -2279,7 +2301,7 @@ def m1_report_ai_suggest():
     ctx_part = f"\n\nSelected section from the report:\n\"{context[:800]}\"" if context else ""
 
     prompt = (
-        "You are an expert OBE/NBA academic quality advisor reviewing a Module 1 comprehensive "
+        "You are an expert OBE academic quality advisor reviewing a Module 1 comprehensive "
         "report for an Indian engineering college course. The report covers Course Outcomes, "
         "Question Bank quality, Bloom's taxonomy compliance, CO coverage, scenario analysis, "
         "QQI scores, marks distribution, and accreditation readiness."
@@ -2343,7 +2365,7 @@ def _m1_apply_tip_to_cos(client, store, code, title, tip):
     )
     levels_help = " | ".join(f"L{i} - {n}" for i, n in enumerate(_LNAMES, 1))
     prompt = (
-        "You are an NBA/NAAC accreditation expert for an Indian engineering college.\n"
+        "You are an OBE accreditation expert for an Indian engineering college.\n"
         f"Course: {title} ({code})\n\n"
         f"Current Course Outcomes (with their Bloom level and knowledge dimension):\n"
         f"{co_block}\n\n"
@@ -2436,7 +2458,7 @@ def _m1_apply_tip_to_qbank(client, store, code, title, tip, metric):
     co_list = "\n".join(f'CO{c["num"]}: {c["statement"]}' for c in cos) or "CO1, CO2, CO3"
 
     prompt = (
-        "You are an NBA/NAAC question-bank expert for an Indian engineering college.\n"
+        "You are an OBE question-bank expert for an Indian engineering college.\n"
         f"Course: {title} ({code})\n\n"
         f"Course Outcomes:\n{co_list}\n\n"
         f"Improvement to apply: {tip}\n\n"
@@ -2611,7 +2633,7 @@ def lp_ai_review():
         return jsonify({"error": "API key not configured", "suggestions": []})
 
     if item_type == "co":
-        prompt = f"""You are an OBE/NBA expert reviewing a Course Outcome statement.
+        prompt = f"""You are an OBE expert reviewing a Course Outcome statement.
 
 CO statement: "{text}"
 Stated Bloom's Level: {bloom or "not specified"}
@@ -2628,7 +2650,7 @@ Return ONLY valid JSON (no markdown):
 Rules:
 - clarity: Is it specific, free of vague verbs (know, understand, learn)? 1 - 2 sentences.
 - blooms_alignment: Does the action verb match {bloom or 'the stated Bloom level'}? 1 - 2 sentences.
-- obe_compliance: Does it express ONE measurable competency in NBA OBE format? 1 - 2 sentences.
+- obe_compliance: Does it express ONE measurable competency in OBE format? 1 - 2 sentences.
 - level: "ok"=no issue, "tip"=minor improvement, "warning"=significant problem."""
     else:
         prompt = f"""You are an OBE curriculum expert reviewing a lesson plan session entry.
@@ -2695,7 +2717,7 @@ def lp_ai_rephrase():
     if item_type == "co":
         prompt = (
             f"Rephrase the following Course Outcome statement to be clearer, more specific, "
-            f"and fully NBA/OBE-compliant using a strong Bloom's action verb at the "
+            f"and fully OBE-compliant using a strong Bloom's action verb at the "
             f"{bloom or 'appropriate'} level.\n\n"
             f'Original CO: "{text}"\n\n'
             f"Return ONLY the rephrased CO statement  -  no explanation, no label, no quotes."
@@ -3021,7 +3043,7 @@ def upload_po_pomap():
     """Parse an uploaded Programme Outcome file into a custom PO list.
 
     Used by Module 4's "Upload Syllabus + PO File" option so the user's own
-    POs drive the whole pipeline instead of the standard NBA POs. The parsed
+    POs drive the whole pipeline instead of the standard POs. The parsed
     POs are returned to the client, which then configures them via
     /configure_po_mapping (same path as manually-entered custom POs)."""
     if "file" not in request.files:
@@ -4032,7 +4054,7 @@ def generate_po_attainments():
         return jsonify({"error": "API key not configured"}), 500
 
     prompt = (
-        f"You are an NBA/NAAC accreditation expert for Indian engineering colleges.\n\n"
+        f"You are an OBE accreditation expert for Indian engineering colleges.\n\n"
         f"Course: {title} ({course})\n"
         f"Syllabus excerpt:\n{text}\n\n"
         "Estimate realistic Programme Outcome (PO) attainment percentages for this course. "
@@ -4098,7 +4120,7 @@ def generate_po_sdg_weights():
         return jsonify({"error": "API key not configured"}), 500
 
     prompt = (
-        f"You are an NBA/NAAC accreditation expert.\n\n"
+        f"You are an OBE accreditation expert.\n\n"
         f"Course: {title} ({course})\nSyllabus excerpt:\n{text}\n\n"
         f"Rate how strongly each of PO1–PO12 contributes to {sdg}.\n"
         f"Scale: 3=Strong, 2=Moderate, 1=Low, 0=None.\n\n"
@@ -4152,7 +4174,7 @@ def generate_sdg_po_auto():
         return jsonify({"error": "API key not configured"}), 500
 
     prompt = (
-        f"You are an NBA/NAAC accreditation expert for Indian engineering colleges.\n\n"
+        f"You are an OBE accreditation expert for Indian engineering colleges.\n\n"
         f"Course: {title} ({course})\nSyllabus excerpt:\n{text}\n\n"
         "Based on this syllabus, do TWO things:\n\n"
         "1. Estimate realistic PO attainment percentages (0-100) for PO1-PO12:\n"
@@ -4235,7 +4257,7 @@ def generate_sdg_po_all():
     sdg_key_row = "  ".join(short_sdgs)
 
     prompt = (
-        f"You are an NBA/NAAC OBE expert for Indian engineering colleges.\n\n"
+        f"You are an OBE expert for Indian engineering colleges.\n\n"
         f"Course: {title} ({course})\nSyllabus excerpt:\n{text}\n\n"
         "Do TWO things:\n\n"
         "1. Estimate realistic PO attainment % (0-100) for PO1-PO12.\n"
@@ -4300,16 +4322,25 @@ def generate_sdg_po_all():
     results = []
     for short, full in short_to_full.items():
         wts_for_sdg = weights_raw.get(short, weights_raw.get(full, {}))
+        # Rank POs by their weight toward this SDG and keep only the top 4
+        # contributors, so the score reflects the POs most aligned to the goal.
+        top_pos = sorted(
+            ((po, float(wts_for_sdg.get(po["name"], 0))) for po in pos),
+            key=lambda pw: pw[1], reverse=True,
+        )[:4]
         num = den = 0.0
-        for po in pos:
-            w = float(wts_for_sdg.get(po["name"], 0))
+        for po, w in top_pos:
             if w > 0:
                 num += po["attainment"] * w
                 den += w
         contribution = round(num / den, 2) if den > 0 else 0.0
         results.append({"sdg": full, "contribution": contribution, "interpretation": _interp(contribution)})
 
-    composite = round(sum(r["contribution"] for r in results) / len(results), 2) if results else 0.0
+    # Composite = mean of the top 4 SDG contributions, so the index reflects the
+    # goals this course actually aligns to rather than being diluted by the many
+    # SDGs an engineering course has no link to (which score 0).
+    top_contribs = sorted((r["contribution"] for r in results), reverse=True)[:4]
+    composite = round(sum(top_contribs) / len(top_contribs), 2) if top_contribs else 0.0
 
     return jsonify({"pos": pos, "results": results, "composite": composite})
 
@@ -5182,7 +5213,7 @@ def regenerate_selected_cos():
     keep_str = "\n".join(f"- {c['name']}: {c['statement']}" for c in keep_cos) if keep_cos else "None"
 
     prompt = (
-        f"You are an NBA/NAAC accreditation expert for Indian engineering colleges.\n\n"
+        f"You are an OBE accreditation expert for Indian engineering colleges.\n\n"
         f"Course: {title} ({code})\n"
         + (f"Syllabus excerpt:\n{text}\n\n" if text else "\n")
         + f"Existing Course Outcomes to KEEP unchanged:\n{keep_str}\n\n"
@@ -5325,7 +5356,7 @@ def generate_co_attainment_ai():
     co_list_str = "\n".join(f"- {c['name']}: {c['statement']}" for c in cos)
 
     prompt = (
-        f"You are an NBA/NAAC accreditation expert for Indian engineering colleges.\n\n"
+        f"You are an OBE accreditation expert for Indian engineering colleges.\n\n"
         f"Course: {title} ({course})\nCourse Outcomes:\n{co_list_str}\n\n"
         "Based on these COs for a typical engineering course, do TWO things:\n\n"
         "1. Estimate CO attainment % (0-100) for each CO. Well-run courses typically attain 55-80%. "
@@ -5721,10 +5752,10 @@ def _m4_suggest_context(analytics, ai_data):
 _SUGGEST_MODULES = {
     "m3": ("Module 3 (Course Delivery)",
            "course delivery quality, CO-session coverage, teaching-method variety, "
-           "Bloom alignment, SDG integration and NBA/NAAC delivery evidence"),
+           "Bloom alignment, SDG integration and OBE delivery evidence"),
     "m4": ("Module 4 (CO/PO Attainment)",
            "CO and PO attainment levels, attainment gaps, CO-PO mapping strength, "
-           "SDG coverage and NBA/NAAC attainment evidence"),
+           "SDG coverage and OBE attainment evidence"),
 }
 
 
@@ -5755,7 +5786,7 @@ def module_report_suggest():
 
     label, focus = _SUGGEST_MODULES[module]
     prompt = (
-        "You are an NBA/NAAC accreditation quality advisor for an Indian engineering college.\n"
+        "You are an OBE accreditation quality advisor for an Indian engineering college.\n"
         f"You are reviewing the {label} report for {ctx.get('title', 'a course')} "
         f"({ctx.get('code', '')}). Focus on {focus}.\n\n"
         "Report brief:\n"
@@ -5816,6 +5847,15 @@ def generate_module3_report():
     body     = request.get_json() or {}
     lp_data  = store.get("lp_data")
     td_data  = store.get("td_data")
+
+    # The lesson-plan / teaching-diary generators return their course metadata
+    # separately (store["lp_meta"] / store["td_meta"]); it is not part of the
+    # generated data dict. The M3 report reads it from lp_data["meta"] /
+    # td_data["meta"], so merge it in here or Section 1's table renders blank.
+    if lp_data is not None:
+        lp_data = {**lp_data, "meta": store.get("lp_meta") or {}}
+    if td_data is not None:
+        td_data = {**td_data, "meta": store.get("td_meta") or {}}
 
     code  = (store.get("lp_code") or store.get("td_code") or "COURSE").strip().upper()
     title = store.get("lp_title") or store.get("td_title") or "Untitled"
@@ -5904,7 +5944,7 @@ def generate_module3_report():
 @app.route("/generate_po_attainment_ai", methods=["POST"])
 @tokens_required(1)
 def generate_po_attainment_ai():
-    """Compute PO attainment via NBA method from CO-PO mapping + CO attainment, with AI ATR."""
+    """Compute PO attainment from CO-PO mapping + CO attainment, with AI ATR."""
     import anthropic as _ant, json as _json
 
     body            = request.get_json() or {}
@@ -5953,7 +5993,7 @@ def generate_po_attainment_ai():
             co_lines  = "\n".join(f"  {c['name']}: {c.get('statement','')}" for c in cos[:8])
             po_lines  = "\n".join(f"  {pk}: {po_pct_map[pk]:.1f}% (name: {po_name_map.get(pk,'?')})" for pk in below)
             atr_prompt = (
-                f"You are an NBA/NAAC accreditation expert.\n\n"
+                f"You are an OBE accreditation expert.\n\n"
                 f"Course: {title} ({course})\nCourse Outcomes:\n{co_lines}\n\n"
                 f"The following Programme Outcomes are below the target threshold of {target_threshold}%:\n{po_lines}\n\n"
                 "For each PO listed, write ONE concise Action Taken Report (ATR) sentence "
@@ -6000,7 +6040,7 @@ def generate_po_attainment_ai():
 
         co_lines = "\n".join(f"  {c['name']}: {c.get('statement','')}" for c in cos)
         prompt = (
-            f"You are an NBA/NAAC accreditation expert for Indian engineering colleges.\n\n"
+            f"You are an OBE accreditation expert for Indian engineering colleges.\n\n"
             f"Course: {title} ({course})\nCourse Outcomes:\n{co_lines}\n\n"
             "Do THREE things:\n\n"
             "1. Estimate CO attainment levels (0-3) for each CO. "

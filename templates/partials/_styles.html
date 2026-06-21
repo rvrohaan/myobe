@@ -788,8 +788,25 @@
     .toast-success { border-color: #10b981; }
     .toast-info    { border-color: #4f46e5; }
     .toast-warning { border-color: #f59e0b; }
+    .toast-error   { border-color: #ef4444; }
     .toast-out { animation: slideOutRight .25s ease forwards; }
     .toast-body { flex: 1; }
+    /* Leading status icon — pairs with colour so meaning isn't colour-only.
+       Colours are lightened for AA contrast on the dark toast surface. */
+    .toast-icon { flex-shrink: 0; display: flex; align-items: center; }
+    .toast-success .toast-icon { color: #34d399; }
+    .toast-info    .toast-icon { color: #818cf8; }
+    .toast-warning .toast-icon { color: #fbbf24; }
+    .toast-error   .toast-icon { color: #f87171; }
+    .toast-action-btn {
+      flex-shrink: 0; background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.18); color: #f1f5f9;
+      font-size: .8rem; font-weight: 600; cursor: pointer;
+      padding: 6px 12px; border-radius: 7px; line-height: 1;
+      transition: background .18s ease;
+    }
+    .toast-action-btn:hover  { background: rgba(255,255,255,.16); }
+    .toast-action-btn:focus-visible { outline: 2px solid #818cf8; outline-offset: 2px; }
     .toast-close-btn {
       background: none; border: none; cursor: pointer;
       color: #94a3b8; font-size: 1.1rem; padding: 0; flex-shrink: 0; line-height: 1;

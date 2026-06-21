@@ -9,7 +9,7 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)),
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-# ── Standard POs (NBA, 12) ────────────────────────────────────────────────────
+# ── Standard POs (12) ─────────────────────────────────────────────────────────
 _STANDARD_POS = [
     "PO1", "PO2", "PO3", "PO4", "PO5", "PO6",
     "PO7", "PO9", "PO10", "PO12",
@@ -17,8 +17,7 @@ _STANDARD_POS = [
 
 # ── System prompt ─────────────────────────────────────────────────────────────
 _SYSTEM = """\
-You are an expert in Outcome-Based Education (OBE), NBA accreditation, NAAC, NEP 2020,
-and SDG integration for engineering courses.
+You are an expert in Outcome-Based Education (OBE) and SDG integration for engineering courses.
 
 Generate a complete Course Lesson Plan as a single JSON object. The JSON must be valid,
 complete, and follow the exact structure specified. No markdown fences, no explanation —
@@ -55,12 +54,9 @@ _IMPACT_MEASUREMENT = [
     {"indicator": "Industry Readiness", "method": "Internship outcomes",  "evidence": "Placement data"},
 ]
 
-_NBA_ALIGNMENT = [
-    {"framework": "NBA",                 "details": "CO-PO attainment, CEP"},
-    {"framework": "NAAC",                "details": "ICT-enabled teaching"},
-    {"framework": "NEP 2020",            "details": "Skill-based learning"},
+_OBE_ALIGNMENT = [
+    {"framework": "OBE",                 "details": "CO-PO attainment, CEP"},
     {"framework": "SDGs",                "details": "Sustainability integration"},
-    {"framework": "THE Impact Rankings", "details": "Societal impact evidence"},
 ]
 
 
@@ -118,7 +114,7 @@ REQUIREMENTS:
 
 OUTPUT — return ONLY this JSON (no markdown, no explanation):
 {{
-  "course_overview": "<2-3 sentence description of the course integrating AI, SDGs, NBA/NAAC>",
+  "course_overview": "<2-3 sentence description of the course integrating AI, SDGs, OBE>",
   "cos": [
     {{
       "num": 1,
@@ -577,11 +573,11 @@ def build_docx(data: dict, meta: dict, course_code: str, course_title: str,
     )
     doc.add_paragraph()
 
-    # ── 13. NBA / NAAC / NEP 2020 Alignment ───────────────────────────────────
-    _heading(doc, "13. NBA / NAAC / NEP 2020 ALIGNMENT")
+    # ── 13. OBE & SDG Alignment ───────────────────────────────────────────────
+    _heading(doc, "13. OBE & SDG ALIGNMENT")
     _make_table(doc,
         ["Framework", "Alignment Details"],
-        [(r["framework"], r["details"]) for r in _NBA_ALIGNMENT]
+        [(r["framework"], r["details"]) for r in _OBE_ALIGNMENT]
     )
 
     doc.save(output_path)
@@ -880,11 +876,11 @@ def build_pdf(data: dict, meta: dict, course_code: str, course_title: str,
     t.setStyle(_tbl_style(len(im_rows)))
     story += [t, Spacer(1, 8)]
 
-    # 13. NBA Alignment
-    story.append(Paragraph("13. NBA / NAAC / NEP 2020 ALIGNMENT", heading_style))
+    # 13. OBE & SDG Alignment
+    story.append(Paragraph("13. OBE & SDG ALIGNMENT", heading_style))
     nba_headers = ["Framework", "Alignment Details"]
     nba_rows = [nba_headers]
-    for r in _NBA_ALIGNMENT:
+    for r in _OBE_ALIGNMENT:
         nba_rows.append([_wrap(r["framework"]), _wrap(r["details"])])
     t = Table(nba_rows, colWidths=[2.0*inch, W - 2.0*inch])
     t.setStyle(_tbl_style(len(nba_rows)))
@@ -1014,10 +1010,10 @@ def build_txt(data: dict, meta: dict, course_code: str, course_title: str,
         [(r["indicator"], r["method"], r["evidence"]) for r in _IMPACT_MEASUREMENT]
     )
 
-    sec("13. NBA / NAAC / NEP 2020 ALIGNMENT")
+    sec("13. OBE & SDG ALIGNMENT")
     table_txt(
         ["Framework", "Alignment Details"],
-        [(r["framework"], r["details"]) for r in _NBA_ALIGNMENT]
+        [(r["framework"], r["details"]) for r in _OBE_ALIGNMENT]
     )
 
     with open(output_path, 'w', encoding='utf-8') as f:
