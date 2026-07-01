@@ -208,6 +208,8 @@
       transition:border-color .15s,box-shadow .15s;
     }
     .dark-input:focus { border-color:rgba(99,102,241,.6); box-shadow:0 0 0 3px rgba(99,102,241,.15); }
+    .dark-input option { background:#1e293b; color:#fff; }
+    html.light-theme .dark-input option { background:#fff; color:#1e293b; }
 
     .btn-save {
       display: inline-block;
@@ -370,8 +372,7 @@
         ('management',  'Management',  'AICTE'),
         ('architecture','Architecture','COA'),
         ('agriculture', 'Agriculture', 'ICAR'),
-        ('science',     'Science',     'NAAC'),
-        ('arts',        'Arts',        'NAAC'),
+        ('science_arts','Science & Arts', 'UGC/NAAC'),
       ] %}
       {% for val, lbl, acc in types %}
       <button class="college-btn{% if college_type == val %} active{% endif %}"
@@ -380,6 +381,21 @@
       </button>
       {% endfor %}
     </div>
+
+    <!-- Branch selector (Science &amp; Arts only) -->
+    <div id="branch-wrap" style="margin-top:16px;{% if college_type != 'science_arts' %}display:none;{% endif %}">
+      <label class="field-label" for="branch-select">Branch / Programme</label>
+      <p style="font-size:.8rem;color:var(--muted);margin:4px 0 8px;">
+        Selects the specific Science or Arts degree programme and its Programme Outcomes (POs).
+      </p>
+      <select id="branch-select" class="dark-input" onchange="setBranch(this.value)">
+        <option value="">-- Select a branch --</option>
+        {% for code, lbl, stream in science_arts_branches %}
+        <option value="{{ code }}"{% if branch == code %} selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
     <div id="ct-msg"></div>
   </div>
 
@@ -544,19 +560,21 @@
 </main>
 
 <script>
-  async function setCollegeType(ct, btn) {
+  async function saveCollegeType(ct, branch, btn) {
     const msg = document.getElementById('ct-msg');
     msg.className = ''; msg.textContent = 'Saving...';
     try {
       const r = await fetch('/set_college_type', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({college_type: ct})
+        body: JSON.stringify({college_type: ct, branch: branch})
       });
       const data = await r.json();
       if (data.ok) {
-        document.querySelectorAll('.college-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+        if (btn) {
+          document.querySelectorAll('.college-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
         msg.className = 'ok';
         msg.textContent = 'College type updated to ' + data.label + '.';
       } else {
@@ -567,6 +585,32 @@
       msg.className = 'err';
       msg.textContent = 'Network error. Please try again.';
     }
+  }
+
+  function setCollegeType(ct, btn) {
+    const wrap = document.getElementById('branch-wrap');
+    if (ct === 'science_arts') {
+      // Reveal the branch selector; only persist once a branch is chosen.
+      if (wrap) wrap.style.display = '';
+      document.querySelectorAll('.college-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      const sel = document.getElementById('branch-select');
+      const msg = document.getElementById('ct-msg');
+      if (sel && sel.value) {
+        saveCollegeType(ct, sel.value, btn);
+      } else {
+        msg.className = ''; msg.textContent = 'Select a branch below to finish.';
+      }
+      return;
+    }
+    if (wrap) wrap.style.display = 'none';
+    saveCollegeType(ct, '', btn);
+  }
+
+  function setBranch(branch) {
+    if (!branch) return;
+    const btn = document.querySelector('.college-btn[data-ct="science_arts"]');
+    saveCollegeType('science_arts', branch, btn);
   }
 
   async function doTopup(pkgId, btn) {

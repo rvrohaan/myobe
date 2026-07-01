@@ -1,0 +1,2481 @@
+{
+  "science_arts": {
+    "mode": "branched",
+    "branches": {
+      "bsc_mpc": {
+        "label": "B.Sc. MPC (Mathematics, Physics, Chemistry)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Scientific Knowledge",
+            "Apply the knowledge of Mathematics, Physics, Chemistry, and scientific fundamentals to the solution of complex scientific problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific literature, and analyze complex scientific problems reaching substantiated conclusions using first principles of Mathematics, Physics, and Chemistry."
+          ],
+          [
+            "PO3",
+            "Design / Development of Scientific Solutions",
+            "Design scientific solutions, experiments, models, or processes for complex scientific problems that meet specified needs with appropriate consideration for public health, safety, societal, cultural, and environmental requirements."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Scientific Problems",
+            "Use research-based knowledge and scientific methods including design of experiments, analysis and interpretation of data, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Scientific Tool Usage",
+            "Create, select, and apply appropriate techniques, resources, laboratory instruments, computational tools, and modern scientific software including prediction and modelling tools to complex scientific activities with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Science and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, cultural, and economic issues and responsibilities relevant to scientific practice."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of scientific solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, academic integrity, professional responsibilities, and norms of scientific practice."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex scientific activities with the scientific community and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of scientific and management principles and apply these to individual and team work, project management, and entrepreneurial activities."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and life-long learning in the broadest context of scientific and technological change."
+          ]
+        ]
+      },
+      "bsc_mpcs": {
+        "label": "B.Sc. MPCS (Mathematics, Physics, Computer Science)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Scientific and Computational Knowledge",
+            "Apply the knowledge of Mathematics, Physics, Computer Science, computational fundamentals, and scientific principles to the solution of complex scientific and computational problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific and technical literature, and analyze complex scientific and computational problems reaching substantiated conclusions using first principles of Mathematics, Physics, and Computer Science."
+          ],
+          [
+            "PO3",
+            "Design / Development of Scientific and Computational Solutions",
+            "Design scientific models, computational solutions, software applications, simulations, or processes for complex scientific and computational problems with appropriate consideration for public health, safety, societal, cultural, and environmental factors."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Scientific and Computational Problems",
+            "Use research-based knowledge and scientific methods including experimentation, simulation, algorithm validation, data analysis, and interpretation to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Scientific and Computational Tool Usage",
+            "Create, select, and apply appropriate scientific techniques, computational resources, software tools, programming platforms, simulation tools, and modern technologies to complex scientific and computational activities with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Science and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, cultural, and economic issues and responsibilities relevant to scientific and computing practice."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of scientific and computational solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, computing ethics, academic integrity, professional responsibilities, and norms of practice."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse and multidisciplinary teams."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex scientific and computational activities with the scientific community and society."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of scientific, computational, and management principles and apply these to individual work, team activities, project management, and entrepreneurial initiatives."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of scientific, computational, and technological change."
+          ]
+        ]
+      },
+      "bsc_mscs": {
+        "label": "B.Sc. MSCS (Mathematics, Statistics, Computer Science)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Mathematical, Statistical and Computational Knowledge",
+            "Apply the knowledge of Mathematics, Statistics, Computer Science, computational fundamentals, and analytical techniques to the solution of complex scientific, computational, and data-driven problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific and technical literature, and analyze complex scientific, computational, and data-driven problems reaching substantiated conclusions using first principles of Mathematics, Statistics, and Computer Science."
+          ],
+          [
+            "PO3",
+            "Design / Development of Analytical and Computational Solutions",
+            "Design analytical models, statistical solutions, software applications, algorithms, and computational processes for complex scientific and data-driven problems with consideration for societal, ethical, environmental, and business requirements."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Scientific, Statistical, and Computational Problems",
+            "Use research-based knowledge and methods including statistical analysis, computational experiments, simulations, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Analytical and Computational Tool Usage",
+            "Create, select, and apply appropriate statistical tools, computational resources, programming environments, data analytics platforms, modelling tools, and modern technologies to complex analytical activities with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Science, Data, and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, economic, health, legal, ethical, and technological issues related to scientific and data-driven decision making."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of analytical and computational solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, data ethics, computing ethics, academic integrity, professional responsibilities, and responsible use of information."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary environments."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex analytical, statistical, and computational activities with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of analytical, computational, management, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of scientific, analytical, computational, and technological change."
+          ]
+        ]
+      },
+      "bsc_mecs": {
+        "label": "B.Sc. MECS (Mathematics, Electronics, Computer Science)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Mathematical, Electronics and Computational Knowledge",
+            "Apply the knowledge of Mathematics, Electronics, Computer Science, scientific fundamentals, and computational techniques to the solution of complex scientific and technological problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific and technical literature, and analyze complex scientific, electronic, and computational problems reaching substantiated conclusions using first principles of Mathematics, Electronics, and Computer Science."
+          ],
+          [
+            "PO3",
+            "Design / Development of Scientific and Technological Solutions",
+            "Design scientific models, electronic systems, software applications, computational solutions, and integrated hardware-software systems for complex scientific and technological problems with appropriate consideration for societal, health, safety, environmental, and sustainability requirements."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Scientific and Technological Problems",
+            "Use research-based knowledge and scientific methods including experimentation, circuit analysis, simulations, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Scientific and Technological Tool Usage",
+            "Create, select, and apply appropriate scientific techniques, laboratory instruments, electronic tools, software platforms, simulation packages, and computational resources to complex scientific and technological activities with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Science, Technology, and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, cultural, and economic issues and responsibilities relevant to scientific and technological practice."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of scientific and technological solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, technology ethics, academic integrity, professional responsibilities, and norms of scientific and technological practice."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex scientific and technological activities with the scientific community and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of scientific, technological, management, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of scientific, technological, and societal change."
+          ]
+        ]
+      },
+      "bsc_ai": {
+        "label": "B.Sc. AI & Data Science (Mathematics, Physics, Computer Science with Artificial Intelligence)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Mathematical, Scientific, Artificial Intelligence and Data Science Knowledge",
+            "Apply the knowledge of Mathematics, Physics, Computer Science, Artificial Intelligence, Data Science, scientific fundamentals, and computational techniques to the solution of complex scientific, computational, and data-driven problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific and technical literature, and analyze complex scientific, computational, artificial intelligence, and data-driven problems reaching substantiated conclusions using first principles of Mathematics, Physics, Computer Science, and Data Science."
+          ],
+          [
+            "PO3",
+            "Design / Development of Intelligent Solutions",
+            "Design intelligent systems, AI models, data-driven solutions, software applications, predictive models, and computational processes for complex scientific and technological problems with appropriate consideration for societal, health, safety, ethical, and environmental requirements."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Scientific, Computational, and Data-Driven Problems",
+            "Use research-based knowledge and methods including experimentation, simulation, machine learning experimentation, data analysis, interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern AI, Data Science, and Computational Tool Usage",
+            "Create, select, and apply appropriate computational resources, AI frameworks, statistical tools, software platforms, data analytics tools, visualization tools, and modern technologies to complex scientific and data-driven activities with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "AI, Data Science, and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, cultural, economic, and technological issues and responsibilities relevant to AI and Data Science practice."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of AI, Data Science, and computational solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, AI ethics, data ethics, academic integrity, professional responsibilities, and responsible innovation."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse and multidisciplinary teams."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex scientific, computational, AI, and data-driven activities with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of AI, Data Science, computational, management, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of Artificial Intelligence, Data Science, scientific, and technological change."
+          ]
+        ]
+      },
+      "bsc_mpe": {
+        "label": "B.Sc. MPE (Mathematics, Physics, Electronics)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Mathematical, Physical and Electronics Knowledge",
+            "Apply the knowledge of Mathematics, Physics, Electronics, scientific fundamentals, and analytical techniques to the solution of complex scientific and technological problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific and technical literature, and analyze complex scientific and technological problems reaching substantiated conclusions using first principles of Mathematics, Physics, and Electronics."
+          ],
+          [
+            "PO3",
+            "Design / Development of Scientific and Electronic Solutions",
+            "Design scientific models, electronic circuits, measurement systems, instrumentation solutions, and technological applications for complex scientific and technological problems with appropriate consideration for societal, health, safety, environmental, and sustainability requirements."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Scientific and Technological Problems",
+            "Use research-based knowledge and scientific methods including experimentation, measurements, simulations, data analysis, and interpretation to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Scientific and Electronics Tool Usage",
+            "Create, select, and apply appropriate scientific techniques, laboratory instruments, electronic equipment, simulation software, computational tools, and modern technologies to complex scientific and technological activities with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Science, Technology, and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, cultural, and economic issues and responsibilities relevant to scientific and technological practice."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of scientific and electronic solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, technology ethics, academic integrity, professional responsibilities, and norms of scientific and technological practice."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex scientific and technological activities with the scientific community and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of scientific, technological, management, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of scientific, technological, and societal change."
+          ]
+        ]
+      },
+      "bsc_mse": {
+        "label": "B.Sc. MSE (Mathematics, Statistics, Electronics)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Mathematical, Statistical and Electronics Knowledge",
+            "Apply the knowledge of Mathematics, Statistics, Electronics, scientific fundamentals, and analytical techniques to the solution of complex scientific, technological, and data-driven problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific and technical literature, and analyze complex scientific, technological, and analytical problems reaching substantiated conclusions using first principles of Mathematics, Statistics, and Electronics."
+          ],
+          [
+            "PO3",
+            "Design / Development of Scientific and Technological Solutions",
+            "Design scientific models, electronic systems, analytical solutions, instrumentation applications, and technological processes for complex scientific and technological problems with consideration for societal, health, safety, environmental, and sustainability requirements."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Scientific and Technological Problems",
+            "Use research-based knowledge and scientific methods including experimentation, measurements, statistical analysis, simulations, and interpretation of data to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Scientific, Statistical and Electronics Tool Usage",
+            "Create, select, and apply appropriate scientific techniques, statistical software, laboratory instruments, electronic equipment, simulation tools, and modern technologies to complex scientific and technological activities with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Science, Technology, and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, cultural, and economic issues and responsibilities relevant to scientific and technological practice."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of scientific, analytical, and technological solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, technology ethics, data ethics, academic integrity, professional responsibilities, and norms of scientific and technological practice."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex scientific, analytical, and technological activities with the scientific community and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of scientific, analytical, technological, management, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of scientific, analytical, technological, and societal change."
+          ]
+        ]
+      },
+      "bsc_mcs": {
+        "label": "B.Sc. MCS (Mathematics, Computer Science, Statistics)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Mathematical, Computational and Statistical Knowledge",
+            "Apply the knowledge of Mathematics, Computer Science, Statistics, computational fundamentals, and analytical techniques to the solution of complex scientific, computational, and data-driven problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific and technical literature, and analyze complex scientific, computational, and analytical problems reaching substantiated conclusions using first principles of Mathematics, Computer Science, and Statistics."
+          ],
+          [
+            "PO3",
+            "Design / Development of Computational and Analytical Solutions",
+            "Design computational models, software applications, data-driven solutions, algorithms, analytical systems, and technological applications for complex scientific and computational problems with consideration for societal, ethical, environmental, and business requirements."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Scientific, Computational, and Analytical Problems",
+            "Use research-based knowledge and methods including computational experiments, simulations, statistical analysis, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Computational and Analytical Tool Usage",
+            "Create, select, and apply appropriate computational resources, programming environments, statistical software, database systems, data analytics tools, visualization tools, modelling tools, and modern technologies to complex scientific and computational activities with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Computing, Analytics, and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, cultural, economic, and technological issues and responsibilities relevant to computational and analytical practice."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of computational and analytical solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, computing ethics, data ethics, academic integrity, professional responsibilities, and responsible use of information."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse and multidisciplinary teams."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex scientific, computational, and analytical activities with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of computational, analytical, management, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of scientific, computational, analytical, and technological change."
+          ]
+        ]
+      },
+      "bsc_mds": {
+        "label": "B.Sc. Data Science (MDS - Mathematics, Data Science, Statistics)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Mathematical, Statistical and Data Science Knowledge",
+            "Apply the knowledge of Mathematics, Statistics, Data Science, scientific fundamentals, and analytical techniques to the solution of complex scientific, computational, and data-driven problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific and technical literature, and analyze complex scientific, analytical, and data-driven problems reaching substantiated conclusions using first principles of Mathematics, Statistics, and Data Science."
+          ],
+          [
+            "PO3",
+            "Design / Development of Data-Driven Solutions",
+            "Design analytical models, predictive systems, data-driven solutions, decision-support systems, and intelligent applications for complex scientific and business problems with consideration for societal, ethical, environmental, and organizational requirements."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Scientific and Data-Driven Problems",
+            "Use research-based knowledge and methods including data collection, statistical analysis, predictive modelling, experimentation, interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Data Science Tool Usage",
+            "Create, select, and apply appropriate analytical tools, statistical software, programming environments, databases, visualization platforms, machine learning frameworks, and modern technologies to complex data-driven activities with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Data Science and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, cultural, economic, and technological issues and responsibilities relevant to Data Science practice."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of data-driven solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, data ethics, academic integrity, professional responsibilities, and responsible use of information."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse and multidisciplinary teams."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex analytical and data-driven activities with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of Data Science, analytical, management, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of Data Science, analytics, scientific, and technological change."
+          ]
+        ]
+      },
+      "bsc_mcg": {
+        "label": "B.Sc. Multimedia & Graphics (MCG - Mathematics, Computer Graphics, Statistics)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Mathematical, Computer Graphics and Statistical Knowledge",
+            "Apply the knowledge of Mathematics, Computer Graphics, Statistics, multimedia technologies, scientific fundamentals, and analytical techniques to the solution of complex multimedia, visualization, and design-related problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific and technical literature, and analyze complex multimedia, visualization, and graphical communication problems reaching substantiated conclusions using first principles of Mathematics, Computer Graphics, and Statistics."
+          ],
+          [
+            "PO3",
+            "Design / Development of Multimedia and Graphics Solutions",
+            "Design multimedia products, graphical systems, digital content, visual communication solutions, interactive media, and creative applications for complex visualization and communication problems with consideration for societal, cultural, ethical, and business requirements."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Multimedia and Visualization Problems",
+            "Use research-based knowledge and methods including user studies, multimedia experiments, visualization analysis, statistical evaluation, interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Multimedia and Graphics Tool Usage",
+            "Create, select, and apply appropriate multimedia software, graphics tools, animation platforms, visualization tools, statistical software, digital media technologies, and modern computational resources to complex multimedia activities with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Multimedia, Society, and Culture",
+            "Apply reasoning informed by contextual knowledge to assess societal, cultural, legal, ethical, economic, and technological issues and responsibilities relevant to multimedia and graphical communication."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of multimedia and digital technologies in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to professional ethics, media ethics, academic integrity, intellectual property rights, and responsible use of digital technologies."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse and multidisciplinary teams."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex multimedia, graphical, and visualization activities with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of multimedia, graphics, management, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of multimedia, graphics, creative technologies, and societal change."
+          ]
+        ]
+      },
+      "bsc_bzc": {
+        "label": "B.Sc. BZC (Botany, Zoology, Chemistry)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Biological and Chemical Science Knowledge",
+            "Apply the knowledge of Botany, Zoology, Chemistry, life sciences, and scientific fundamentals to the solution of complex biological, environmental, and chemical problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific literature, and analyze complex biological, ecological, environmental, and chemical problems reaching substantiated conclusions using first principles of Botany, Zoology, and Chemistry."
+          ],
+          [
+            "PO3",
+            "Design / Development of Biological and Environmental Solutions",
+            "Design scientific solutions, ecological interventions, biological investigations, conservation strategies, and environmental management approaches for complex biological and environmental problems with consideration for public health, biodiversity, sustainability, and societal well-being."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Biological and Environmental Problems",
+            "Use research-based knowledge and scientific methods including laboratory experiments, field investigations, ecological studies, chemical analysis, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Biological and Scientific Tool Usage",
+            "Create, select, and apply appropriate laboratory techniques, field instruments, microscopy tools, analytical equipment, computational resources, and modern biological technologies to complex scientific investigations with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Life Sciences and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, cultural, agricultural, and environmental issues and responsibilities relevant to biological sciences."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of biological and environmental solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, environmental ethics, academic integrity, professional responsibilities, and responsible conduct in biological sciences."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex biological, environmental, and chemical activities with the scientific community and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of biological sciences, environmental management, entrepreneurship, and management principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of biological sciences, environmental sustainability, and societal change."
+          ]
+        ]
+      },
+      "bsc_bcb": {
+        "label": "B.Sc. Biotechnology (BCB - Botany, Chemistry, Biotechnology)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Biological, Chemical and Biotechnology Knowledge",
+            "Apply the knowledge of Botany, Chemistry, Biotechnology, life sciences, and scientific fundamentals to the solution of complex biological, biotechnological, agricultural, environmental, and healthcare-related problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific literature, and analyze complex biological, biotechnological, agricultural, environmental, and healthcare problems reaching substantiated conclusions using first principles of Botany, Chemistry, and Biotechnology."
+          ],
+          [
+            "PO3",
+            "Design / Development of Biotechnology Solutions",
+            "Design biological products, biotechnological processes, laboratory investigations, agricultural interventions, healthcare applications, and environmental solutions for complex biological and biotechnological problems with consideration for public health, biosafety, ethics, sustainability, and societal well-being."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Biological and Biotechnological Problems",
+            "Use research-based knowledge and scientific methods including laboratory experiments, molecular techniques, biological investigations, data analysis, interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Biotechnology Tool Usage",
+            "Create, select, and apply appropriate laboratory techniques, biotechnological tools, molecular biology methods, analytical instruments, bioinformatics resources, and modern biological technologies to complex scientific investigations with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Biotechnology and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, ethical, agricultural, and environmental issues and responsibilities relevant to biotechnology and life sciences."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of biotechnology solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, bioethics, academic integrity, professional responsibilities, and responsible conduct in biotechnology practice."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex biological and biotechnological activities with the scientific community and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of biotechnology, life sciences, management, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of biotechnology, life sciences, healthcare, agriculture, and societal change."
+          ]
+        ]
+      },
+      "bsc_mbc": {
+        "label": "B.Sc. MBC (Microbiology, Biochemistry, Chemistry)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Microbiological, Biochemical and Chemical Science Knowledge",
+            "Apply the knowledge of Microbiology, Biochemistry, Chemistry, life sciences, and scientific fundamentals to the solution of complex biological, biochemical, microbiological, healthcare, industrial, and environmental problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific literature, and analyze complex microbiological, biochemical, healthcare, industrial, and environmental problems reaching substantiated conclusions using first principles of Microbiology, Biochemistry, and Chemistry."
+          ],
+          [
+            "PO3",
+            "Design / Development of Biological and Biochemical Solutions",
+            "Design laboratory investigations, microbiological processes, biochemical analyses, healthcare applications, industrial bioprocesses, and environmental solutions for complex biological and biochemical problems with consideration for public health, biosafety, sustainability, and societal well-being."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Microbiological and Biochemical Problems",
+            "Use research-based knowledge and scientific methods including laboratory experiments, microbial studies, biochemical analysis, molecular investigations, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Biological and Laboratory Tool Usage",
+            "Create, select, and apply appropriate laboratory techniques, microbiological methods, biochemical analysis tools, molecular biology techniques, analytical instruments, bioinformatics resources, and modern biological technologies to complex scientific investigations with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Biological Sciences and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, ethical, industrial, and environmental issues and responsibilities relevant to microbiology, biochemistry, and healthcare sciences."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of microbiological and biochemical solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, bioethics, academic integrity, professional responsibilities, and responsible conduct in microbiology and biochemistry."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex microbiological and biochemical activities with the scientific community and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of microbiology, biochemistry, management, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of microbiology, biochemistry, healthcare, biotechnology, and societal change."
+          ]
+        ]
+      },
+      "bsc_bbc": {
+        "label": "B.Sc. BBC (Biotechnology, Biochemistry, Chemistry)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Biotechnology, Biochemical and Chemical Science Knowledge",
+            "Apply the knowledge of Biotechnology, Biochemistry, Chemistry, life sciences, and scientific fundamentals to the solution of complex biological, biochemical, biotechnological, healthcare, industrial, agricultural, and environmental problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific literature, and analyze complex biological, biochemical, healthcare, agricultural, industrial, and biotechnological problems reaching substantiated conclusions using first principles of Biotechnology, Biochemistry, and Chemistry."
+          ],
+          [
+            "PO3",
+            "Design / Development of Biotechnology Solutions",
+            "Design biological products, biotechnological processes, healthcare applications, industrial bioprocesses, agricultural interventions, and environmental solutions for complex biological and biotechnological problems with consideration for public health, biosafety, sustainability, ethics, and societal well-being."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Biological and Biotechnological Problems",
+            "Use research-based knowledge and scientific methods including laboratory experiments, molecular techniques, biological investigations, biochemical analysis, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Biotechnology Tool Usage",
+            "Create, select, and apply appropriate laboratory techniques, molecular biology methods, biotechnology tools, biochemical analysis techniques, bioinformatics resources, analytical instruments, and modern biological technologies to complex scientific investigations with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Biotechnology and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, ethical, agricultural, industrial, and environmental issues and responsibilities relevant to biotechnology and life sciences."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of biotechnology solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, bioethics, academic integrity, professional responsibilities, and responsible conduct in biotechnology practice."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex biological and biotechnological activities with the scientific community and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of biotechnology, life sciences, management, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of biotechnology, biochemistry, healthcare, agriculture, industry, and societal change."
+          ]
+        ]
+      },
+      "bsc_mbzc": {
+        "label": "B.Sc. Life Sciences (MBZC - Microbiology, Botany, Zoology, Chemistry)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Life Science and Chemical Science Knowledge",
+            "Apply the knowledge of Microbiology, Botany, Zoology, Chemistry, life sciences, and scientific fundamentals to the solution of complex biological, ecological, environmental, healthcare, agricultural, and life science problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific literature, and analyze complex biological, ecological, environmental, healthcare, and agricultural problems reaching substantiated conclusions using first principles of Microbiology, Botany, Zoology, and Chemistry."
+          ],
+          [
+            "PO3",
+            "Design / Development of Life Science Solutions",
+            "Design biological investigations, healthcare interventions, ecological studies, conservation strategies, environmental management approaches, and life science solutions for complex biological and environmental problems with consideration for public health, biodiversity, sustainability, and societal well-being."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Life Science Problems",
+            "Use research-based knowledge and scientific methods including laboratory experiments, microbial studies, field investigations, ecological assessments, chemical analysis, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Life Science Tool Usage",
+            "Create, select, and apply appropriate laboratory techniques, microscopy tools, microbiological methods, analytical instruments, field survey tools, bioinformatics resources, and modern biological technologies to complex scientific investigations with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Life Sciences and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, cultural, agricultural, and environmental issues and responsibilities relevant to life sciences."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of life science solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, bioethics, environmental ethics, academic integrity, professional responsibilities, and responsible conduct in life sciences."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex life science, environmental, and healthcare-related activities with the scientific community and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of life sciences, environmental management, entrepreneurship, and management principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of life sciences, healthcare, environmental sustainability, and societal change."
+          ]
+        ]
+      },
+      "bsc_gbc": {
+        "label": "B.Sc. Genetics (GBC - Genetics, Biotechnology, Chemistry)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Genetics, Biotechnology and Chemical Science Knowledge",
+            "Apply the knowledge of Genetics, Biotechnology, Chemistry, life sciences, and scientific fundamentals to the solution of complex genetic, molecular, biological, healthcare, agricultural, and environmental problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific literature, and analyze complex genetic, molecular, healthcare, agricultural, and biotechnological problems reaching substantiated conclusions using first principles of Genetics, Biotechnology, and Chemistry."
+          ],
+          [
+            "PO3",
+            "Design / Development of Genetic and Biotechnology Solutions",
+            "Design genetic studies, biotechnology applications, healthcare interventions, agricultural improvements, molecular diagnostics, and environmental solutions for complex genetic and biological problems with consideration for public health, biosafety, sustainability, ethics, and societal well-being."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Genetic and Molecular Problems",
+            "Use research-based knowledge and scientific methods including laboratory experiments, genetic studies, molecular biology techniques, genomic analysis, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Genetics and Biotechnology Tool Usage",
+            "Create, select, and apply appropriate laboratory techniques, molecular biology methods, genomics tools, biotechnology techniques, bioinformatics resources, analytical instruments, and modern biological technologies to complex scientific investigations with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Genetics, Biotechnology and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, ethical, agricultural, and environmental issues and responsibilities relevant to genetics and biotechnology."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of genetics and biotechnology solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, bioethics, genetic ethics, academic integrity, professional responsibilities, and responsible conduct in genetics and biotechnology practice."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex genetic and biotechnology activities with the scientific community and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of genetics, biotechnology, management, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of genetics, biotechnology, healthcare, agriculture, genomics, and societal change."
+          ]
+        ]
+      },
+      "bsc_cbz": {
+        "label": "B.Sc. CBZ (Chemistry, Botany, Zoology)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Chemical and Biological Science Knowledge",
+            "Apply the knowledge of Chemistry, Botany, Zoology, life sciences, and scientific fundamentals to the solution of complex biological, environmental, ecological, agricultural, healthcare, and chemical science problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific literature, and analyze complex biological, ecological, environmental, agricultural, healthcare, and chemical science problems reaching substantiated conclusions using first principles of Chemistry, Botany, and Zoology."
+          ],
+          [
+            "PO3",
+            "Design / Development of Biological and Environmental Solutions",
+            "Design biological investigations, ecological studies, conservation strategies, environmental management approaches, healthcare interventions, and scientific solutions for complex biological and environmental problems with consideration for public health, biodiversity, sustainability, and societal well-being."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Biological and Environmental Problems",
+            "Use research-based knowledge and scientific methods including laboratory experiments, field investigations, ecological assessments, chemical analysis, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Scientific Tool Usage",
+            "Create, select, and apply appropriate laboratory techniques, microscopy tools, analytical instruments, field survey tools, environmental monitoring equipment, computational resources, and modern biological technologies to complex scientific investigations with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Biological Sciences and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, cultural, agricultural, and environmental issues and responsibilities relevant to biological sciences."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of biological and environmental solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, bioethics, environmental ethics, academic integrity, professional responsibilities, and responsible conduct in biological sciences."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex biological, environmental, and healthcare-related activities with the scientific community and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of biological sciences, environmental management, entrepreneurship, and management principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of biological sciences, healthcare, environmental sustainability, and societal change."
+          ]
+        ]
+      },
+      "bsc_czg": {
+        "label": "B.Sc. Genetics & Molecular Biology (CZG - Chemistry, Zoology, Genetics)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Genetics, Molecular Biology and Chemical Science Knowledge",
+            "Apply the knowledge of Genetics, Molecular Biology, Zoology, Chemistry, life sciences, and scientific fundamentals to the solution of complex genetic, molecular, biological, healthcare, environmental, and biotechnology-related problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific literature, and analyze complex genetic, molecular, healthcare, environmental, and biological problems reaching substantiated conclusions using first principles of Genetics, Molecular Biology, Zoology, and Chemistry."
+          ],
+          [
+            "PO3",
+            "Design / Development of Genetics and Molecular Biology Solutions",
+            "Design genetic studies, molecular diagnostics, healthcare interventions, biomedical applications, biotechnology solutions, and environmental applications for complex genetic and molecular problems with consideration for public health, biosafety, sustainability, ethics, and societal well-being."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Genetic and Molecular Problems",
+            "Use research-based knowledge and scientific methods including laboratory experiments, molecular biology techniques, genetic studies, genomic analysis, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Genetics and Molecular Biology Tool Usage",
+            "Create, select, and apply appropriate laboratory techniques, molecular biology methods, genomics tools, proteomics tools, bioinformatics resources, analytical instruments, and modern biological technologies to complex scientific investigations with an understanding of limitations."
+          ]
+        ]
+      },
+      "bsc_fnc": {
+        "label": "B.Sc. Food Science (FNC - Food Science, Nutrition, Chemistry)",
+        "stream": "science",
+        "pos": [
+          [
+            "PO1",
+            "Food Science, Nutrition and Chemical Science Knowledge",
+            "Apply the knowledge of Food Science, Nutrition, Chemistry, life sciences, and scientific fundamentals to the solution of complex food, nutrition, healthcare, food safety, food processing, and public health problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review scientific literature, and analyze complex food, nutrition, public health, food safety, and food processing problems reaching substantiated conclusions using first principles of Food Science, Nutrition, and Chemistry."
+          ],
+          [
+            "PO3",
+            "Design / Development of Food and Nutrition Solutions",
+            "Design food products, nutritional interventions, food processing systems, quality assurance programs, public health nutrition strategies, and sustainable food solutions for complex food and nutrition problems with consideration for public health, food safety, sustainability, and societal well-being."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Food and Nutrition Problems",
+            "Use research-based knowledge and scientific methods including laboratory experiments, food analysis, nutritional assessment, quality testing, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Food Science Tool Usage",
+            "Create, select, and apply appropriate laboratory techniques, food analysis methods, nutritional assessment tools, quality testing instruments, food processing technologies, software tools, and modern food science technologies to complex scientific investigations with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Food Science, Nutrition and Society",
+            "Apply reasoning informed by contextual knowledge to assess societal, health, safety, legal, ethical, agricultural, and environmental issues and responsibilities relevant to food science and nutrition."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of food and nutrition solutions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to scientific ethics, food ethics, academic integrity, professional responsibilities, and responsible conduct in food science and nutrition practice."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex food science and nutrition activities with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Project Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of food science, nutrition, management, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of food science, nutrition, public health, food technology, and societal change."
+          ]
+        ]
+      },
+      "ba_cep": {
+        "label": "B.A. CEP (Civics, Economics, Political Science)",
+        "stream": "arts",
+        "pos": [
+          [
+            "PO1",
+            "Social Science, Economic and Political Knowledge",
+            "Apply the knowledge of Civics, Economics, Political Science, social sciences, and public policy fundamentals to understand and address complex societal, economic, governance, and public administration problems."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review literature, and analyze complex social, economic, governance, and public policy problems reaching substantiated conclusions using principles of Civics, Economics, Political Science, and social sciences."
+          ],
+          [
+            "PO3",
+            "Design / Development of Social and Public Policy Solutions",
+            "Design public policy interventions, governance frameworks, development strategies, community programs, and social solutions for complex societal and economic problems with consideration for equity, justice, sustainability, and public welfare."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Social and Economic Problems",
+            "Use research-based knowledge and social science methods including surveys, case studies, policy analysis, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Analytical and Digital Tool Usage",
+            "Create, select, and apply appropriate analytical tools, statistical software, digital platforms, e-governance tools, information systems, and modern technologies for social science investigations and public policy analysis with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Society, Governance and Public Responsibility",
+            "Apply reasoning informed by contextual knowledge to assess societal, economic, political, legal, cultural, and governance issues and responsibilities relevant to public administration and citizenship."
+          ],
+          [
+            "PO7",
+            "Sustainable Development and Social Responsibility",
+            "Understand the impact of public policies and governance decisions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics and Public Service Values",
+            "Apply ethical principles and commit to professional ethics, public service values, constitutional morality, integrity, accountability, and social responsibility."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex social, economic, governance, and public policy issues with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Leadership, Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of leadership, governance, management, public administration, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of social sciences, governance, public policy, and societal change."
+          ]
+        ]
+      },
+      "ba_hec": {
+        "label": "B.A. HEC (History, Economics, Civics)",
+        "stream": "arts",
+        "pos": [
+          [
+            "PO1",
+            "Historical, Economic and Civic Knowledge",
+            "Apply the knowledge of History, Economics, Civics, social sciences, and governance fundamentals to understand and address complex societal, economic, developmental, and public policy issues."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review literature, and analyze complex historical, economic, governance, and societal problems reaching substantiated conclusions using principles of History, Economics, Civics, and social sciences."
+          ],
+          [
+            "PO3",
+            "Design / Development of Social and Developmental Solutions",
+            "Design public policy interventions, governance frameworks, developmental strategies, heritage conservation initiatives, community programs, and social solutions for complex societal and developmental problems with consideration for equity, justice, sustainability, and public welfare."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Historical and Socio-Economic Problems",
+            "Use research-based knowledge and social science methods including archival studies, surveys, case studies, policy analysis, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Analytical and Digital Tool Usage",
+            "Create, select, and apply appropriate analytical tools, statistical software, digital archives, e-governance tools, information systems, and modern technologies for social science investigations and policy analysis with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Society, Governance and Citizenship",
+            "Apply reasoning informed by contextual knowledge to assess societal, economic, political, legal, cultural, historical, and governance issues and responsibilities relevant to citizenship and public administration."
+          ],
+          [
+            "PO7",
+            "Sustainable Development and Social Responsibility",
+            "Understand the impact of public policies, historical developments, and governance decisions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics and Civic Responsibility",
+            "Apply ethical principles and commit to professional ethics, civic values, constitutional morality, integrity, accountability, and social responsibility."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex historical, economic, civic, governance, and developmental issues with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Leadership, Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of leadership, governance, management, public administration, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of history, economics, civics, governance, and societal change."
+          ]
+        ]
+      },
+      "ba_hep": {
+        "label": "B.A. HEP (History, Economics, Political Science)",
+        "stream": "arts",
+        "pos": [
+          [
+            "PO1",
+            "Historical, Economic and Political Knowledge",
+            "Apply the knowledge of History, Economics, Political Science, social sciences, and governance fundamentals to understand and address complex societal, economic, political, developmental, and public policy issues."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review literature, and analyze complex historical, economic, political, governance, and societal problems reaching substantiated conclusions using principles of History, Economics, Political Science, and social sciences."
+          ],
+          [
+            "PO3",
+            "Design / Development of Governance and Public Policy Solutions",
+            "Design public policy interventions, governance frameworks, developmental strategies, democratic processes, community programs, and social solutions for complex societal and political problems with consideration for equity, justice, sustainability, and public welfare."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Historical, Economic and Political Problems",
+            "Use research-based knowledge and social science methods including archival studies, surveys, case studies, policy analysis, political analysis, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Analytical and Digital Tool Usage",
+            "Create, select, and apply appropriate analytical tools, statistical software, digital archives, governance information systems, policy analysis tools, and modern technologies for social science investigations and public policy analysis with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Society, Governance and Political Responsibility",
+            "Apply reasoning informed by contextual knowledge to assess societal, economic, political, legal, cultural, governance, and international issues and responsibilities relevant to public administration and citizenship."
+          ],
+          [
+            "PO7",
+            "Sustainable Development and Global Citizenship",
+            "Understand the impact of public policies, political decisions, and governance systems in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics and Democratic Values",
+            "Apply ethical principles and commit to professional ethics, democratic values, constitutional morality, integrity, accountability, and social responsibility."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex historical, economic, political, governance, and public policy issues with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Leadership, Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of leadership, governance, management, public administration, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of history, economics, political science, governance, international relations, and societal change."
+          ]
+        ]
+      },
+      "ba_ppe": {
+        "label": "B.A. PPE (Philosophy, Politics, Economics)",
+        "stream": "arts",
+        "pos": [
+          [
+            "PO1",
+            "Philosophical, Political and Economic Knowledge",
+            "Apply the knowledge of Philosophy, Politics, Economics, social sciences, public policy, governance, ethics, and human values to understand and address complex societal, political, economic, and developmental challenges."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review literature, and analyze complex ethical, political, economic, governance, and societal problems reaching substantiated conclusions using principles of Philosophy, Politics, Economics, and social sciences."
+          ],
+          [
+            "PO3",
+            "Design / Development of Public Policy and Social Solutions",
+            "Design public policy interventions, governance frameworks, ethical guidelines, developmental strategies, community programs, and social solutions for complex societal and political problems with consideration for justice, equity, sustainability, ethics, and public welfare."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Social, Political and Economic Problems",
+            "Use research-based knowledge and social science methods including surveys, case studies, policy analysis, ethical analysis, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Analytical and Digital Tool Usage",
+            "Create, select, and apply appropriate analytical tools, statistical software, policy analysis tools, governance information systems, digital platforms, and modern technologies for social science investigations and public policy analysis with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Society, Governance and Public Responsibility",
+            "Apply reasoning informed by contextual knowledge to assess societal, economic, political, legal, ethical, cultural, and governance issues and responsibilities relevant to citizenship, leadership, and public administration."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of public policies, governance systems, and economic decisions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics",
+            "Apply ethical principles and commit to professional ethics, public service values, integrity, accountability, social justice, and responsible citizenship."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex philosophical, political, economic, governance, and public policy issues with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Leadership, Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of leadership, governance, management, public administration, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of philosophy, politics, economics, governance, public policy, and societal change."
+          ]
+        ]
+      },
+      "ba_eps": {
+        "label": "B.A. EPS (Economics, Political Science, Sociology)",
+        "stream": "arts",
+        "pos": [
+          [
+            "PO1",
+            "Economic, Political and Sociological Knowledge",
+            "Apply the knowledge of Economics, Political Science, Sociology, social sciences, governance, and public policy fundamentals to understand and address complex societal, economic, political, developmental, and governance challenges."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review literature, and analyze complex economic, political, social, governance, and developmental problems reaching substantiated conclusions using principles of Economics, Political Science, Sociology, and social sciences."
+          ],
+          [
+            "PO3",
+            "Design / Development of Social and Public Policy Solutions",
+            "Design public policy interventions, governance frameworks, social development strategies, community programs, welfare initiatives, and societal solutions for complex socio-economic and political problems with consideration for equity, justice, sustainability, and public welfare."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Social, Economic and Political Problems",
+            "Use research-based knowledge and social science methods including surveys, case studies, social research, policy analysis, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Analytical and Digital Tool Usage",
+            "Create, select, and apply appropriate analytical tools, statistical software, governance information systems, policy analysis tools, digital platforms, and modern technologies for social science investigations and public policy analysis with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Society, Governance and Social Responsibility",
+            "Apply reasoning informed by contextual knowledge to assess societal, economic, political, legal, cultural, governance, and social issues and responsibilities relevant to citizenship, leadership, and public administration."
+          ],
+          [
+            "PO7",
+            "Sustainable Development and Social Inclusion",
+            "Understand the impact of public policies, governance systems, and economic decisions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics and Social Justice",
+            "Apply ethical principles and commit to professional ethics, public service values, integrity, accountability, social justice, equality, and responsible citizenship."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex economic, political, sociological, governance, and public policy issues with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Leadership, Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of leadership, governance, management, public administration, social development, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of economics, political science, sociology, governance, public policy, and societal change."
+          ]
+        ]
+      },
+      "ba_hsp": {
+        "label": "B.A. HSP (History, Sociology, Political Science)",
+        "stream": "arts",
+        "pos": [
+          [
+            "PO1",
+            "Historical, Sociological and Political Knowledge",
+            "Apply the knowledge of History, Sociology, Political Science, social sciences, governance, and public policy fundamentals to understand and address complex societal, political, cultural, governance, and developmental challenges."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review literature, and analyze complex historical, social, political, governance, and developmental problems reaching substantiated conclusions using principles of History, Sociology, Political Science, and social sciences."
+          ],
+          [
+            "PO3",
+            "Design / Development of Social and Governance Solutions",
+            "Design public policy interventions, governance frameworks, community development programs, social welfare initiatives, heritage and cultural preservation strategies, and societal solutions for complex social and political problems with consideration for equity, justice, sustainability, and public welfare."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Historical, Social and Political Problems",
+            "Use research-based knowledge and social science methods including archival studies, surveys, case studies, policy analysis, social research, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Analytical and Digital Tool Usage",
+            "Create, select, and apply appropriate analytical tools, digital archives, governance information systems, policy analysis tools, statistical software, and modern technologies for social science investigations and public policy analysis with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Society, Governance and Citizenship",
+            "Apply reasoning informed by contextual knowledge to assess societal, political, legal, cultural, governance, and social issues and responsibilities relevant to citizenship, leadership, and public administration."
+          ],
+          [
+            "PO7",
+            "Sustainable Development and Social Inclusion",
+            "Understand the impact of public policies, governance systems, and social development initiatives in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics and Social Responsibility",
+            "Apply ethical principles and commit to professional ethics, civic values, integrity, accountability, social justice, equality, and responsible citizenship."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex historical, sociological, political, governance, and public policy issues with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Leadership, Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of leadership, governance, management, public administration, social development, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of history, sociology, political science, governance, public policy, and societal change."
+          ]
+        ]
+      },
+      "ba_jsp": {
+        "label": "B.A. Journalism & Mass Communication (JSP - Journalism, Sociology, Political Science)",
+        "stream": "arts",
+        "pos": [
+          [
+            "PO1",
+            "Journalism, Social and Political Knowledge",
+            "Apply the knowledge of Journalism, Mass Communication, Sociology, Political Science, media studies, and social sciences to understand and address complex communication, societal, political, cultural, and public affairs issues."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review literature, and analyze complex communication, social, political, governance, and media-related problems reaching substantiated conclusions using principles of Journalism, Sociology, Political Science, and social sciences."
+          ],
+          [
+            "PO3",
+            "Design / Development of Communication Solutions",
+            "Design communication strategies, media campaigns, public awareness programs, digital content, social communication initiatives, and media solutions for complex societal and communication problems with consideration for ethics, inclusivity, public interest, and social responsibility."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Communication and Social Problems",
+            "Use research-based knowledge and communication research methods including surveys, interviews, media analysis, audience studies, content analysis, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Media and Digital Tool Usage",
+            "Create, select, and apply appropriate media technologies, digital communication tools, content creation platforms, social media tools, multimedia software, analytics platforms, and modern communication technologies with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Media, Society and Public Responsibility",
+            "Apply reasoning informed by contextual knowledge to assess societal, political, legal, cultural, governance, and media-related issues and responsibilities relevant to journalism and public communication."
+          ],
+          [
+            "PO7",
+            "Sustainable Development and Social Awareness",
+            "Understand the impact of media and communication activities in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics and Media Responsibility",
+            "Apply ethical principles and commit to media ethics, professional ethics, integrity, accountability, objectivity, fairness, and responsible journalism."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex communication, social, political, and public affairs issues with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Leadership, Media Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of leadership, media management, communication enterprises, governance, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of journalism, mass communication, media technologies, public affairs, and societal change."
+          ]
+        ]
+      },
+      "basc_esp": {
+        "label": "B.A./B.Sc. ESP (Economics, Statistics, Political Science)",
+        "stream": "arts",
+        "pos": [
+          [
+            "PO1",
+            "Economic, Statistical and Political Knowledge",
+            "Apply the knowledge of Economics, Statistics, Political Science, social sciences, quantitative methods, governance, and public policy fundamentals to understand and address complex economic, political, developmental, governance, and public policy challenges."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review literature, and analyze complex economic, statistical, political, governance, and developmental problems reaching substantiated conclusions using principles of Economics, Statistics, Political Science, and social sciences."
+          ],
+          [
+            "PO3",
+            "Design / Development of Economic and Public Policy Solutions",
+            "Design public policy interventions, governance frameworks, economic development strategies, welfare programs, analytical models, and societal solutions for complex socio-economic and political problems with consideration for equity, justice, sustainability, and public welfare."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Economic, Statistical and Political Problems",
+            "Use research-based knowledge and social science methods including surveys, statistical analysis, econometric techniques, policy analysis, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Analytical and Digital Tool Usage",
+            "Create, select, and apply appropriate analytical tools, statistical software, econometric tools, governance information systems, policy analysis platforms, and modern technologies for social science investigations and public policy analysis with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Society, Governance and Public Responsibility",
+            "Apply reasoning informed by contextual knowledge to assess societal, economic, political, legal, cultural, governance, and developmental issues and responsibilities relevant to citizenship, leadership, and public administration."
+          ],
+          [
+            "PO7",
+            "Sustainable Development and Data-Driven Governance",
+            "Understand the impact of public policies, governance systems, and economic decisions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics and Public Accountability",
+            "Apply ethical principles and commit to professional ethics, public service values, integrity, accountability, transparency, and responsible citizenship."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex economic, statistical, political, governance, and public policy issues with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Leadership, Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of leadership, governance, management, public administration, analytics, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of economics, statistics, political science, governance, analytics, and societal change."
+          ]
+        ]
+      },
+      "ba_egs": {
+        "label": "B.A. EGS (Economics, Geography, Sociology)",
+        "stream": "arts",
+        "pos": [
+          [
+            "PO1",
+            "Economic, Geographical and Sociological Knowledge",
+            "Apply the knowledge of Economics, Geography, Sociology, social sciences, environmental studies, and development principles to understand and address complex socio-economic, geographical, environmental, and developmental challenges."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review literature, and analyze complex socio-economic, geographical, environmental, and developmental problems reaching substantiated conclusions using principles of Economics, Geography, Sociology, and social sciences."
+          ],
+          [
+            "PO3",
+            "Design / Development of Sustainable Development Solutions",
+            "Design development strategies, community programs, environmental management plans, resource utilization frameworks, socio-economic interventions, and sustainability solutions for complex societal and environmental problems with consideration for equity, inclusion, environmental protection, and public welfare."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Socio-Economic and Environmental Problems",
+            "Use research-based knowledge and social science methods including surveys, field studies, geographical analysis, case studies, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Analytical and Geospatial Tool Usage",
+            "Create, select, and apply appropriate analytical tools, GIS applications, mapping tools, statistical software, geospatial technologies, information systems, and modern technologies for socio-economic and environmental investigations with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Society, Environment and Community Responsibility",
+            "Apply reasoning informed by contextual knowledge to assess societal, economic, environmental, cultural, developmental, and community issues and responsibilities relevant to sustainable development and social welfare."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of socio-economic activities and development decisions in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics and Social Responsibility",
+            "Apply ethical principles and commit to professional ethics, environmental ethics, integrity, accountability, social justice, and responsible citizenship."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex socio-economic, geographical, environmental, and developmental issues with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Leadership, Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of leadership, development management, resource management, community development, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of economics, geography, sociology, sustainable development, and societal change."
+          ]
+        ]
+      },
+      "ba_psg": {
+        "label": "B.A. PSG (Political Science, Sociology, Geography)",
+        "stream": "arts",
+        "pos": [
+          [
+            "PO1",
+            "Political, Sociological and Geographical Knowledge",
+            "Apply the knowledge of Political Science, Sociology, Geography, social sciences, governance, environmental studies, and public policy fundamentals to understand and address complex societal, political, environmental, developmental, and governance challenges."
+          ],
+          [
+            "PO2",
+            "Problem Analysis",
+            "Identify, formulate, review literature, and analyze complex political, social, geographical, governance, environmental, and developmental problems reaching substantiated conclusions using principles of Political Science, Sociology, Geography, and social sciences."
+          ],
+          [
+            "PO3",
+            "Design / Development of Governance and Community Solutions",
+            "Design public policy interventions, governance frameworks, community development programs, regional development strategies, environmental management plans, and societal solutions for complex social and political problems with consideration for equity, justice, sustainability, and public welfare."
+          ],
+          [
+            "PO4",
+            "Conduct Investigations of Complex Social, Political and Environmental Problems",
+            "Use research-based knowledge and social science methods including surveys, field studies, policy analysis, geographical investigations, case studies, data interpretation, and synthesis of information to provide valid conclusions."
+          ],
+          [
+            "PO5",
+            "Modern Analytical and Geospatial Tool Usage",
+            "Create, select, and apply appropriate analytical tools, GIS applications, mapping tools, governance information systems, statistical software, geospatial technologies, and modern technologies for social science investigations and policy analysis with an understanding of limitations."
+          ],
+          [
+            "PO6",
+            "Society, Governance and Community Responsibility",
+            "Apply reasoning informed by contextual knowledge to assess societal, political, legal, cultural, environmental, governance, and developmental issues and responsibilities relevant to citizenship, leadership, and public administration."
+          ],
+          [
+            "PO7",
+            "Environment and Sustainability",
+            "Understand the impact of public policies, governance systems, and developmental activities in societal and environmental contexts and demonstrate knowledge of sustainable development."
+          ],
+          [
+            "PO8",
+            "Ethics and Social Responsibility",
+            "Apply ethical principles and commit to professional ethics, civic values, integrity, accountability, social justice, environmental responsibility, and responsible citizenship."
+          ],
+          [
+            "PO9",
+            "Individual and Team Work",
+            "Function effectively as an individual and as a member or leader in diverse teams and multidisciplinary settings."
+          ],
+          [
+            "PO10",
+            "Communication",
+            "Communicate effectively on complex political, sociological, geographical, governance, and developmental issues with professional communities and society at large."
+          ],
+          [
+            "PO11",
+            "Leadership, Management and Entrepreneurship",
+            "Demonstrate knowledge and understanding of leadership, governance, development management, community development, resource management, and entrepreneurial principles and apply these to projects and multidisciplinary environments."
+          ],
+          [
+            "PO12",
+            "Life-long Learning",
+            "Recognize the need for and have the preparation and ability to engage in independent and lifelong learning in the broadest context of political science, sociology, geography, governance, sustainable development, and societal change."
+          ]
+        ]
+      }
+    }
+  },
+  "engineering": {
+    "mode": "single",
+    "pos": [
+      [
+        "PO1",
+        "Engineering knowledge",
+        "Apply the knowledge of mathematics, science, engineering fundamentals, and an engineering specialization to the solution of complex engineering problems"
+      ],
+      [
+        "PO2",
+        "Problem analysis",
+        "Identify, formulate, review research literature, and analyze complex engineering problems reaching substantiated conclusions using first principles of mathematics, natural sciences, and engineering sciences."
+      ],
+      [
+        "PO3",
+        "Design/development of solutions",
+        "Design solutions for complex engineering problems and design system components or processes that meet the specified needs with appropriate consideration for the public health and safety, and the cultural, societal, and environmental considerations"
+      ],
+      [
+        "PO4",
+        "Conduct investigations of complex problems",
+        "Use research-based knowledge and research methods including design of experiments, analysis and interpretation of data, and synthesis of the information to provide valid conclusions"
+      ],
+      [
+        "PO5",
+        "Modern tool usage",
+        "Create, select, and apply appropriate techniques, resources, and modern engineering and IT tools including prediction and modeling to complex engineering activities with an understanding of the limitations."
+      ],
+      [
+        "PO6",
+        "The engineer and society",
+        "Apply reasoning informed by the contextual knowledge to assess societal, health, safety, legal and cultural issues and the consequent responsibilities relevant to the professional engineering practice."
+      ],
+      [
+        "PO7",
+        "Environment and sustainability",
+        "Understand the impact of the professional engineering solutions in societal and environmental contexts, and demonstrate the knowledge of, and need for sustainable development"
+      ],
+      [
+        "PO8",
+        "Ethics",
+        "Apply ethical principles and commit to professional ethics and responsibilities and norms of the engineering practice."
+      ],
+      [
+        "PO9",
+        "Individual and team work",
+        "Function effectively as an individual, and as a member or leader in diverse teams, and in multidisciplinary settings.  PO-11:Project management and finance: Demonstrate knowledge and understanding of the engineering and management principles and apply these to one's own work, as a member and leader in a team, to manage projects and in multidisciplinary environments"
+      ],
+      [
+        "PO10",
+        "Communication",
+        "Communicate effectively on complex engineering activities with the engineering community and with society at large, such as, being able to comprehend and write effective reports and design documentation, make effective presentations, and give and receive clear instructions"
+      ],
+      [
+        "PO11",
+        "Project Management and Finance",
+        "Demonstrate knowledge of engineering and management principles; apply to manage projects and in multidisciplinary environments. 1=Aware of project management concepts; 2=Applies management principles; 3=Plans and manages projects."
+      ],
+      [
+        "PO12",
+        "Life-long learning",
+        "Recognize the need for, and have the preparation and ability to engage in independent and life-long learning in the broadest context of technological change."
+      ]
+    ]
+  },
+  "medical": {
+    "mode": "single",
+    "pos": [
+      [
+        "PO1",
+        "Medical and Health Sciences Knowledge",
+        "Apply knowledge of biomedical sciences, clinical sciences, public health, healthcare systems, and evidence-based medicine to healthcare practice."
+      ],
+      [
+        "PO2",
+        "Clinical Problem Analysis",
+        "Identify, analyze, and manage health-related problems using scientific reasoning, clinical judgment, and evidence-based approaches."
+      ],
+      [
+        "PO3",
+        "Patient Care and Clinical Decision Making",
+        "Provide safe, effective, patient-centered healthcare through appropriate diagnosis, treatment, rehabilitation, and follow-up."
+      ],
+      [
+        "PO4",
+        "Research and Evidence-Based Practice",
+        "Conduct and apply research using scientific methods to improve healthcare outcomes and medical knowledge."
+      ],
+      [
+        "PO5",
+        "Healthcare Technology and Digital Health",
+        "Utilize modern healthcare technologies, digital tools, health informatics, AI, telemedicine, and diagnostic systems effectively."
+      ],
+      [
+        "PO6",
+        "Community Health and Public Health Practice",
+        "Assess and address community health needs through preventive, promotive, and population-based healthcare interventions."
+      ],
+      [
+        "PO7",
+        "Sustainable Healthcare and Global Health",
+        "Understand healthcare sustainability, environmental health, climate-health interactions, SDGs, and global health challenges."
+      ],
+      [
+        "PO8",
+        "Medical Ethics and Professionalism",
+        "Apply ethical principles, professionalism, legal responsibilities, and patient rights in healthcare practice."
+      ],
+      [
+        "PO9",
+        "Teamwork and Interprofessional Collaboration",
+        "Function effectively as an individual and as a member or leader of multidisciplinary healthcare teams."
+      ],
+      [
+        "PO10",
+        "Communication Skills",
+        "Communicate effectively with patients, families, healthcare professionals, and society."
+      ],
+      [
+        "PO11",
+        "Healthcare Management and Leadership",
+        "Apply management principles, healthcare administration, quality assurance, patient safety, and resource optimization."
+      ],
+      [
+        "PO12",
+        "Lifelong Learning and Professional Development",
+        "Recognize the need for continuous professional development and lifelong learning in healthcare."
+      ],
+      [
+        "PO13",
+        "Patient Safety and Quality Improvement",
+        "Clinical governance"
+      ],
+      [
+        "PO14",
+        "AI, Precision Medicine and Digital Healthcare",
+        "Artificial Intelligence in diagnostics"
+      ],
+      [
+        "PO15",
+        "Social Accountability and SDG Leadership",
+        "SDG 3 (Good Health and Well-being)"
+      ]
+    ]
+  },
+  "dental": {
+    "mode": "single",
+    "pos": [
+      [
+        "PO1",
+        "Dental and Biomedical Knowledge",
+        "Apply knowledge of basic medical sciences, dental sciences, oral biology, and clinical dentistry for comprehensive oral healthcare."
+      ],
+      [
+        "PO2",
+        "Clinical Diagnosis and Problem Analysis",
+        "Identify, evaluate, and diagnose oral and maxillofacial diseases using scientific reasoning and evidence-based approaches."
+      ],
+      [
+        "PO3",
+        "Patient Care and Dental Treatment Planning",
+        "Provide comprehensive, safe, effective, and patient-centered dental care."
+      ],
+      [
+        "PO4",
+        "Research and Evidence-Based Dentistry",
+        "Conduct and apply research to improve oral healthcare outcomes and professional practice."
+      ],
+      [
+        "PO5",
+        "Modern Dental Technologies and Digital Dentistry",
+        "Apply modern dental technologies, digital tools, AI applications, and diagnostic systems in dental practice."
+      ],
+      [
+        "PO6",
+        "Community Oral Health and Public Health Dentistry",
+        "Apply principles of public health and preventive dentistry to improve community oral health."
+      ],
+      [
+        "PO7",
+        "Sustainable Healthcare and Environmental Responsibility",
+        "Understand environmental sustainability and its impact on oral healthcare systems."
+      ],
+      [
+        "PO8",
+        "Ethics and Professionalism",
+        "Apply ethical principles, professional standards, legal responsibilities, and patient rights in dental practice."
+      ],
+      [
+        "PO9",
+        "Teamwork and Interprofessional Collaboration",
+        "Function effectively as an individual and as a member or leader of multidisciplinary healthcare teams."
+      ],
+      [
+        "PO10",
+        "Communication Skills",
+        "Communicate effectively with patients, families, healthcare professionals, and society."
+      ],
+      [
+        "PO11",
+        "Dental Practice Management and Leadership",
+        "Apply principles of practice management, healthcare administration, quality assurance, and leadership."
+      ],
+      [
+        "PO12",
+        "Lifelong Learning and Professional Development",
+        "Recognize the need for continuous learning and adaptation to advances in dental science and healthcare."
+      ],
+      [
+        "PO13",
+        "Advanced Clinical Competency",
+        "Complex case management"
+      ],
+      [
+        "PO14",
+        "Digital and AI-Enabled Dentistry",
+        "AI-assisted diagnostics"
+      ],
+      [
+        "PO15",
+        "Social Accountability and Oral Health Leadership",
+        "Rural oral healthcare"
+      ]
+    ]
+  },
+  "law": {
+    "mode": "single",
+    "pos": [
+      [
+        "PO1",
+        "Legal Knowledge and Constitutional Understanding",
+        "Apply knowledge of constitutional law, statutory law, jurisprudence, international law, and legal principles to legal and societal issues."
+      ],
+      [
+        "PO2",
+        "Legal Analysis and Problem Solving",
+        "Identify, analyze, interpret, and resolve legal issues using legal reasoning, precedents, statutes, and judicial principles."
+      ],
+      [
+        "PO3",
+        "Legal Research and Drafting",
+        "Conduct legal research and prepare professional legal documents using appropriate legal methodologies and resources."
+      ],
+      [
+        "PO4",
+        "Advocacy and Dispute Resolution",
+        "Demonstrate advocacy, negotiation, mediation, arbitration, and litigation skills in legal practice."
+      ],
+      [
+        "PO5",
+        "Digital Law and Legal Technology",
+        "Apply legal technologies, digital research tools, AI systems, cyber law frameworks, and e-governance platforms in legal practice."
+      ],
+      [
+        "PO6",
+        "Law, Society and Justice",
+        "Apply legal knowledge to promote justice, social welfare, public interest, and access to justice."
+      ],
+      [
+        "PO7",
+        "Sustainability, Environment and Global Governance",
+        "Analyze environmental, sustainability, governance, and international legal issues in local and global contexts."
+      ],
+      [
+        "PO8",
+        "Professional Ethics and Responsibility",
+        "Apply ethical principles, professional conduct, and legal responsibilities in legal practice."
+      ],
+      [
+        "PO9",
+        "Leadership and Teamwork",
+        "Function effectively as an individual and as a member or leader of multidisciplinary legal and professional teams."
+      ],
+      [
+        "PO10",
+        "Communication and Advocacy Skills",
+        "Communicate effectively through oral advocacy, legal writing, negotiation, presentations, and professional interactions."
+      ],
+      [
+        "PO11",
+        "Legal Practice Management and Entrepreneurship",
+        "Apply management, organizational, entrepreneurial, and leadership principles in legal practice and legal service delivery."
+      ],
+      [
+        "PO12",
+        "Lifelong Learning and Professional Development",
+        "Recognize the need for continuous learning and adaptation to evolving legal systems, technologies, and societal needs."
+      ],
+      [
+        "PO13",
+        "Alternative Dispute Resolution and Justice Innovation",
+        "Mediation"
+      ],
+      [
+        "PO14",
+        "AI, Cyber Law and Digital Governance",
+        "Artificial Intelligence regulation"
+      ],
+      [
+        "PO15",
+        "SDG, Human Rights and Social Impact Leadership",
+        "SDG 16 (Peace, Justice and Strong Institutions)"
+      ]
+    ]
+  },
+  "pharmacy": {
+    "mode": "single",
+    "pos": [
+      [
+        "PO1",
+        "Pharmaceutical Knowledge",
+        "Apply knowledge of pharmaceutical sciences, biomedical sciences, medicinal chemistry, pharmacology, pharmaceutics, pharmacognosy, and pharmacy practice to healthcare and pharmaceutical industries."
+      ],
+      [
+        "PO2",
+        "Problem Analysis and Therapeutic Decision Making",
+        "Identify, analyze, and solve pharmaceutical and healthcare-related problems using scientific reasoning and evidence-based approaches."
+      ],
+      [
+        "PO3",
+        "Drug Development and Pharmaceutical Solutions",
+        "Design, formulate, evaluate, and optimize pharmaceutical products and healthcare interventions."
+      ],
+      [
+        "PO4",
+        "Research and Evidence-Based Practice",
+        "Conduct pharmaceutical and clinical research using scientific methods and research tools."
+      ],
+      [
+        "PO5",
+        "Modern Pharmaceutical Tools and Technologies",
+        "Apply modern pharmaceutical technologies, analytical instruments, digital health tools, AI, and bioinformatics in pharmaceutical practice."
+      ],
+      [
+        "PO6",
+        "Pharmacist and Society",
+        "Apply pharmaceutical knowledge to improve patient care, public health, medication safety, and community well-being."
+      ],
+      [
+        "PO7",
+        "Environment and Sustainable Pharmacy",
+        "Understand the environmental impact of pharmaceutical products and promote sustainable pharmaceutical practices."
+      ],
+      [
+        "PO8",
+        "Ethics and Professional Responsibility",
+        "Apply ethical principles, legal requirements, and professional responsibilities in pharmacy practice."
+      ],
+      [
+        "PO9",
+        "Leadership and Teamwork",
+        "Function effectively as an individual and as a member or leader of multidisciplinary healthcare and pharmaceutical teams."
+      ],
+      [
+        "PO10",
+        "Communication Skills",
+        "Communicate effectively with patients, healthcare professionals, regulatory authorities, and society."
+      ],
+      [
+        "PO11",
+        "Pharmaceutical Management and Entrepreneurship",
+        "Apply management, regulatory, financial, and entrepreneurial principles in pharmaceutical organizations and healthcare settings."
+      ],
+      [
+        "PO12",
+        "Lifelong Learning and Professional Development",
+        "Recognize the need for continuous professional development and lifelong learning in pharmaceutical sciences."
+      ],
+      [
+        "PO13",
+        "Clinical Pharmacy and Patient-Centered Care",
+        "Medication therapy management"
+      ],
+      [
+        "PO14",
+        "AI and Digital Healthcare in Pharmacy",
+        "AI-assisted drug discovery"
+      ],
+      [
+        "PO15",
+        "Pharmaceutical Innovation and Global Health",
+        "Drug innovation"
+      ]
+    ]
+  },
+  "management": {
+    "mode": "single",
+    "pos": [
+      [
+        "PO1",
+        "Management Knowledge",
+        "Apply knowledge of management theories, business functions, economics, accounting, finance, marketing, human resources, operations, and analytics to solve organizational problems."
+      ],
+      [
+        "PO2",
+        "Business Problem Analysis",
+        "Identify, formulate, analyze, and solve complex business and managerial problems using data, analytical thinking, and evidence-based decision making."
+      ],
+      [
+        "PO3",
+        "Strategic Decision Making and Business Solutions",
+        "Design and develop innovative business strategies, policies, and solutions to address organizational challenges and opportunities."
+      ],
+      [
+        "PO4",
+        "Research and Business Analytics",
+        "Conduct business research using qualitative and quantitative methods to support managerial decisions."
+      ],
+      [
+        "PO5",
+        "Digital and Analytical Tools Usage",
+        "Apply modern business technologies, digital platforms, AI tools, analytics software, ERP systems, and business intelligence tools."
+      ],
+      [
+        "PO6",
+        "Business, Society and Governance",
+        "Evaluate business decisions considering societal, legal, regulatory, governance, and stakeholder perspectives."
+      ],
+      [
+        "PO7",
+        "Sustainability and ESG Management",
+        "Integrate environmental, social, governance (ESG), sustainability, and SDG principles into business strategy and operations."
+      ],
+      [
+        "PO8",
+        "Ethics and Professional Responsibility",
+        "Apply ethical principles and demonstrate integrity, accountability, transparency, and professional conduct."
+      ],
+      [
+        "PO9",
+        "Leadership and Teamwork",
+        "Function effectively as an individual, team member, and leader in diverse organizational environments."
+      ],
+      [
+        "PO10",
+        "Communication and Stakeholder Engagement",
+        "Communicate effectively with internal and external stakeholders through reports, presentations, negotiations, and business correspondence."
+      ],
+      [
+        "PO11",
+        "Entrepreneurship and Project Management",
+        "Apply entrepreneurial thinking, innovation, financial planning, and project management principles to create and manage ventures and organizational initiatives."
+      ],
+      [
+        "PO12",
+        "Lifelong Learning and Professional Development",
+        "Recognize the need for continuous learning and adapt to emerging business trends, technologies, and global developments."
+      ],
+      [
+        "PO13",
+        "Global Business Perspective",
+        "Understand global business environments, international markets, cross-cultural management, and global competitiveness."
+      ],
+      [
+        "PO14",
+        "AI and Data-Driven Management",
+        "Apply Artificial Intelligence, Generative AI, Machine Learning, and Data Analytics for managerial decision making."
+      ],
+      [
+        "PO15",
+        "SDG and Social Impact Leadership",
+        "Develop business strategies that contribute to the UN Sustainable Development Goals (SDGs) and societal well-being."
+      ]
+    ]
+  },
+  "architecture": {
+    "mode": "single",
+    "pos": [
+      [
+        "PO1",
+        "Architecture and Planning Knowledge",
+        "Apply the knowledge of architecture, planning, building sciences, environmental sciences, structural systems, materials, construction technologies, humanities, social sciences, mathematics, and professional specialization to the solution of complex architectural and planning problems."
+      ],
+      [
+        "PO2",
+        "Problem Analysis",
+        "Identify, formulate, review literature, and analyze complex architectural, urban, regional, environmental, housing, infrastructure, and planning problems using scientific, social, environmental, economic, and cultural perspectives."
+      ],
+      [
+        "PO3",
+        "Design / Development of Solutions",
+        "Design architectural, urban, regional, landscape and infrastructure solutions that address human needs, functionality, aesthetics, safety, sustainability, accessibility, resilience and cultural values."
+      ],
+      [
+        "PO4",
+        "Conduct Investigations of Complex Problems",
+        "Use research-based knowledge, surveys, field studies, experiments, simulations, spatial analysis, and data interpretation to provide valid conclusions for architectural and planning problems."
+      ],
+      [
+        "PO5",
+        "Modern Tool Usage",
+        "Create, select and apply appropriate architectural, planning, visualization, GIS, BIM, simulation, digital fabrication, AI and decision-support tools with an understanding of their limitations."
+      ],
+      [
+        "PO6",
+        "Architecture, Planning and Society",
+        "Apply contextual knowledge to assess societal, cultural, health, safety, legal, economic and governance issues and responsibilities relevant to professional architectural and planning practice."
+      ],
+      [
+        "PO7",
+        "Environment and Sustainability",
+        "Understand the impact of architecture and planning solutions on society, ecosystems and natural resources, and demonstrate commitment towards sustainable development."
+      ],
+      [
+        "PO8",
+        "Ethics and Professional Responsibility",
+        "Apply ethical principles and commit to professional ethics, responsibilities, regulations and standards of architectural and planning practice."
+      ],
+      [
+        "PO9",
+        "Individual and Team Work",
+        "Function effectively as an individual and as a member or leader in multidisciplinary and multicultural teams involved in architecture, planning and development projects."
+      ],
+      [
+        "PO10",
+        "Communication",
+        "Communicate effectively with clients, communities, professionals, government agencies and society through drawings, reports, presentations and digital media."
+      ],
+      [
+        "PO11",
+        "Project Management and Professional Practice",
+        "Demonstrate knowledge of project management, professional practice, contracts, regulations, finance, entrepreneurship and leadership in architecture and planning projects."
+      ],
+      [
+        "PO12",
+        "Life-long Learning",
+        "Recognize the need for and engage in independent and life-long learning to adapt to advances in architecture, planning, technology, sustainability, policy and societal needs."
+      ]
+    ]
+  },
+  "agriculture": {
+    "mode": "single",
+    "pos": [
+      [
+        "PO1",
+        "Agricultural Knowledge",
+        "Apply the knowledge of agricultural sciences, biological sciences, environmental sciences, mathematics, statistics, economics, and agricultural specialization to solve complex agricultural and allied sector problems."
+      ],
+      [
+        "PO2",
+        "Problem Analysis",
+        "Identify, formulate, analyze and solve complex agricultural, environmental, food production, resource management and rural development problems using scientific principles, research evidence and field observations."
+      ],
+      [
+        "PO3",
+        "Design / Development of Agricultural Solutions",
+        "Design sustainable agricultural systems, production technologies, agribusiness models, extension interventions, and resource management practices considering productivity, profitability, environmental sustainability and societal needs."
+      ],
+      [
+        "PO4",
+        "Conduct Investigations of Agricultural Problems",
+        "Use scientific methods, field experimentation, laboratory techniques, surveys, statistical analysis and interpretation of agricultural data to provide valid conclusions."
+      ],
+      [
+        "PO5",
+        "Modern Tool Usage",
+        "Create, select and apply appropriate agricultural technologies, ICT tools, precision agriculture systems, GIS, remote sensing, drones, AI, IoT and decision-support systems with an understanding of their limitations."
+      ],
+      [
+        "PO6",
+        "Agriculture and Society",
+        "Apply contextual knowledge to assess agricultural, food security, rural development, health, cultural, policy and socio-economic issues and responsibilities relevant to agricultural practice."
+      ],
+      [
+        "PO7",
+        "Environment and Sustainability",
+        "Understand the impact of agricultural practices on natural resources, ecosystems and society and demonstrate commitment towards sustainable development."
+      ],
+      [
+        "PO8",
+        "Ethics",
+        "Apply ethical principles and commit to professional ethics, integrity, food safety, environmental responsibility and societal welfare."
+      ],
+      [
+        "PO9",
+        "Individual and Team Work",
+        "Function effectively as an individual and as a member or leader in multidisciplinary agricultural teams and stakeholder networks."
+      ],
+      [
+        "PO10",
+        "Communication",
+        "Communicate effectively with farmers, extension agencies, agribusiness organizations, policymakers, researchers and society."
+      ],
+      [
+        "PO11",
+        "Project Management and Agribusiness",
+        "Demonstrate knowledge of farm management, agribusiness, agricultural finance, entrepreneurship and project management principles."
+      ],
+      [
+        "PO12",
+        "Life-long Learning",
+        "Recognize the need for and engage in independent and life-long learning in response to advances in agricultural science, technology, climate change and global food systems."
+      ]
+    ]
+  }
+}

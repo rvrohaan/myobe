@@ -198,6 +198,19 @@ def build_explanations(a, ai=None):
             "needs more time and practice. The remedy differs, so review the "
             "assessment design before concluding the teaching was at fault."
         ),
+        "co_compare": (
+            "Two independent readings of the same course sit side by side here. The "
+            "marks-based column is direct evidence: it counts how many students actually "
+            "cleared the target in each CO, separately for the internal tests (CIE) and "
+            "the semester exam (SEE), then combines them as 20% CIE and 80% SEE on the "
+            "0-3 attainment scale. The AI column is an indicative estimate made from the "
+            "CO statements alone, before any marks are seen. Where the two agree, the "
+            "estimate is corroborated by real performance; where they diverge, trust the "
+            "marks-based figure for accreditation and read the gap as a sign that the CO "
+            "was harder or easier in practice than its wording suggested. A CO that the "
+            "AI rated highly but students attained poorly is the most important one to "
+            "examine - the topic likely needs more time or a gentler assessment."
+        ),
         "po_summary": (
             "PO attainment is carried over from CO performance: each PO draws its "
             "strength from the COs mapped to it and how well those COs were attained. "
@@ -287,12 +300,84 @@ def build_explanations(a, ai=None):
 
 # ── Analytics ─────────────────────────────────────────────────────────────────
 
-def compute_analytics(pomap_rows, coatt_data, poatt_data, sdgco_data, sdgpo_data):
+def _norm_co(v):
+    """Normalize a CO label so 'CO 1' / 'co1' / 'CO1' all compare equal."""
+    return str(v or "").strip().upper().replace(" ", "")
+
+
+def _build_marks_comparison(pomap, coatt_marks, co_results, po_attainment):
+    """Build CO and PO comparison rows: marks-based (direct) vs AI-estimated.
+
+    Returns (co_compare, po_compare, po_marks) or (None, None, None) when no
+    marks data is present.
+    """
+    marks_co = (coatt_marks or {}).get("coResults") or []
+    if not marks_co:
+        return None, None, None
+
+    # AI lookups keyed by normalized CO label.
+    ai_co = {_norm_co(r.get("co")): r for r in (co_results or [])}
+
+    co_compare = []
+    for m in marks_co:
+        key = _norm_co(m.get("co"))
+        ai  = ai_co.get(key, {})
+        ai_level = ai.get("level")
+        co_compare.append({
+            "co":         m.get("co"),
+            "ia_pct":     m.get("ia_pct"),
+            "see_pct":    m.get("see_pct"),
+            "marks_level": m.get("level"),
+            "marks_pct":  m.get("pct"),
+            "ai_pct":     ai.get("pct"),
+            "ai_level":   ai_level,
+            "delta":      (round(m.get("level") - ai_level, 2)
+                           if (m.get("level") is not None and ai_level is not None)
+                           else None),
+        })
+
+    # Marks-based PO attainment: same weighted formula as the AI PO tool
+    # (sum(CO_attainment x CO-PO weight) / sum(weight)), using marks CO levels.
+    po_marks = []
+    po_compare = None
+    if pomap:
+        level_map = {_norm_co(m.get("co")): float(m.get("level") or 0) for m in marks_co}
+        po_keys = list(pomap[0].get("scores", {}).keys())
+        for pk in po_keys:
+            total_w = 0.0
+            wsum    = 0.0
+            for row in pomap:
+                w = float(row.get("scores", {}).get(pk, 0) or 0)
+                if w > 0:
+                    wsum    += level_map.get(_norm_co(row.get("co")), 0.0) * w
+                    total_w += w
+            raw = round(wsum / total_w, 3) if total_w else 0.0
+            po_marks.append({"po": pk, "level": raw, "pct": round(raw / 3 * 100, 1)})
+
+        ai_po = {p.get("po"): p for p in (po_attainment or [])}
+        po_compare = []
+        for pm in po_marks:
+            ai = ai_po.get(pm["po"], {})
+            ai_pct = ai.get("pct")
+            po_compare.append({
+                "po":        pm["po"],
+                "marks_pct": pm["pct"],
+                "ai_pct":    ai_pct,
+                "delta":     (round(pm["pct"] - ai_pct, 1)
+                              if ai_pct is not None else None),
+            })
+
+    return co_compare, po_compare, po_marks
+
+
+def compute_analytics(pomap_rows, coatt_data, poatt_data, sdgco_data, sdgpo_data,
+                      coatt_marks=None):
     pomap  = pomap_rows  or []
     coatt  = coatt_data  or {}
     poatt  = poatt_data  or {}
     sdgco  = sdgco_data  or {}
     sdgpo  = sdgpo_data  or {}
+    coattm = coatt_marks or {}
 
     co_results  = coatt.get("coResults", [])
     po_results  = coatt.get("poResults", [])
@@ -368,6 +453,11 @@ def compute_analytics(pomap_rows, coatt_data, poatt_data, sdgco_data, sdgpo_data
     po_att_summary  = poatt.get("summary", {})
     atr_rows        = [p for p in po_attainment if not p.get("target_met")]
 
+    # Marks-based attainment (Method-2 Tier-I) vs AI comparison.
+    marks_summary = coattm.get("summary", {}) if coattm else {}
+    co_compare, po_compare, po_marks = _build_marks_comparison(
+        pomap, coattm, co_results, po_attainment)
+
     return dict(
         co_names=co_names,
         n_cos=n_cos,
@@ -390,6 +480,10 @@ def compute_analytics(pomap_rows, coatt_data, poatt_data, sdgco_data, sdgpo_data
         po_attainment=po_attainment,
         po_att_summary=po_att_summary,
         atr_rows=atr_rows,
+        marks_summary=marks_summary,
+        co_compare=co_compare,
+        po_compare=po_compare,
+        po_marks=po_marks,
     )
 
 
@@ -501,6 +595,35 @@ def _build_txt(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         row(f"  {r['co']}".ljust(10), f"{r['pct']:.2f}%".ljust(14), r["level"])
     lines.append(f"\n  Mean: {a['mean_att_pct']}%")
     note("co_att")
+
+    if a.get("co_compare"):
+        ms = a.get("marks_summary", {}) or {}
+        h2("4b. CO ATTAINMENT: DIRECT (MARKS-BASED) vs AI-ESTIMATED")
+        lines.append(f"  Method-2 Tier-I  |  Target {ms.get('target_pct', 60)}%  |  "
+                     f"CIE {ms.get('cie_weight', 20)}% + SEE {ms.get('see_weight', 80)}%  |  "
+                     f"Students: CIE {ms.get('n_students_cie', 0)} / SEE {ms.get('n_students_see', 0)}")
+        lines.append("")
+        row("  CO".ljust(8), "CIE%".ljust(8), "SEE%".ljust(8),
+            "Marks Lv".ljust(10), "AI %".ljust(8), "AI Lv".ljust(7), "Delta")
+        lines.append("  " + "-" * 56)
+        for c in a["co_compare"]:
+            ia = "-" if c["ia_pct"] is None else f"{c['ia_pct']:.0f}"
+            se = "-" if c["see_pct"] is None else f"{c['see_pct']:.0f}"
+            aip = "-" if c["ai_pct"] is None else f"{c['ai_pct']:.0f}"
+            ail = "-" if c["ai_level"] is None else str(c["ai_level"])
+            dl  = "-" if c["delta"] is None else f"{c['delta']:+.2f}"
+            row(f"  {c['co']}".ljust(8), ia.ljust(8), se.ljust(8),
+                f"{c['marks_level']:.2f}".ljust(10), aip.ljust(8), ail.ljust(7), dl)
+        if a.get("po_compare"):
+            lines.append("")
+            lines.append("  PO Attainment %: Marks-Based vs AI")
+            row("  PO".ljust(8), "Marks%".ljust(10), "AI%".ljust(10), "Delta")
+            lines.append("  " + "-" * 38)
+            for p in a["po_compare"]:
+                aip = "-" if p["ai_pct"] is None else f"{p['ai_pct']:.1f}"
+                dl  = "-" if p["delta"] is None else f"{p['delta']:+.1f}"
+                row(f"  {p['po']}".ljust(8), f"{p['marks_pct']:.1f}".ljust(10), aip.ljust(10), dl)
+        note("co_compare")
 
     h2("5. PO ATTAINMENT SUMMARY")
     if a["po_results"]:
@@ -807,6 +930,56 @@ def build_docx(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
         _insert_chart(_rc.co_attainment_chart(a["co_results"], a["thresholds"]))
     note("co_att")
 
+    # 4b. CO Attainment: Direct (Marks-Based) vs AI-Estimated
+    if a.get("co_compare"):
+        ms = a.get("marks_summary", {}) or {}
+        add_h1("4b. CO Attainment: Direct (Marks-Based) vs AI-Estimated")
+        add_para(f"Method-2 Tier-I  |  Target {ms.get('target_pct', 60)}%  |  "
+                 f"CIE {ms.get('cie_weight', 20)}% + SEE {ms.get('see_weight', 80)}%  |  "
+                 f"Students: CIE {ms.get('n_students_cie', 0)} / SEE {ms.get('n_students_see', 0)}",
+                 size=9, color=GREY, indent=True)
+        cc = a["co_compare"]
+        tbl = doc.add_table(rows=1 + len(cc), cols=7)
+        tbl.style = "Table Grid"
+        for i, h in enumerate(["CO", "CIE %", "SEE %", "Marks Level",
+                               "AI %", "AI Level", "Delta"]):
+            tbl.rows[0].cells[i].text = h
+        for i, c in enumerate(cc):
+            cells = tbl.rows[i + 1].cells
+            cells[0].text = _s(c["co"])
+            cells[1].text = "-" if c["ia_pct"]  is None else f"{c['ia_pct']:.0f}%"
+            cells[2].text = "-" if c["see_pct"] is None else f"{c['see_pct']:.0f}%"
+            cells[3].text = f"{c['marks_level']:.2f}"
+            cells[4].text = "-" if c["ai_pct"]   is None else f"{c['ai_pct']:.0f}%"
+            cells[5].text = "-" if c["ai_level"] is None else _s(c["ai_level"])
+            cells[6].text = "-" if c["delta"]    is None else f"{c['delta']:+.2f}"
+        for cell in tbl.rows[0].cells:
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    run.bold = True
+        doc.add_paragraph()
+        if _rc:
+            _insert_chart(_rc.co_attainment_compare_chart(cc))
+        if a.get("po_compare"):
+            add_para("PO Attainment %: Marks-Based vs AI", size=10, bold=True, indent=True)
+            pc  = a["po_compare"]
+            ptbl = doc.add_table(rows=1 + len(pc), cols=4)
+            ptbl.style = "Table Grid"
+            for i, h in enumerate(["PO", "Marks %", "AI %", "Delta"]):
+                ptbl.rows[0].cells[i].text = h
+            for i, p in enumerate(pc):
+                cells = ptbl.rows[i + 1].cells
+                cells[0].text = _s(p["po"])
+                cells[1].text = f"{p['marks_pct']:.1f}%"
+                cells[2].text = "-" if p["ai_pct"] is None else f"{p['ai_pct']:.1f}%"
+                cells[3].text = "-" if p["delta"]  is None else f"{p['delta']:+.1f}"
+            for cell in ptbl.rows[0].cells:
+                for para in cell.paragraphs:
+                    for run in para.runs:
+                        run.bold = True
+            doc.add_paragraph()
+        note("co_compare")
+
     # 5. PO Attainment Summary
     add_h1("5. PO Attainment Summary")
     if a["po_results"]:
@@ -1000,7 +1173,20 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     def _s(v): return str(v) if v is not None else ""
 
     def _safe(s):
-        return str(s).encode("latin-1", "replace").decode("latin-1")
+        # FPDF's core fonts are latin-1 only, so transliterate the common
+        # Unicode punctuation (em/en dashes, smart quotes, ellipsis, bullet)
+        # that appears in SDG names and AI-generated text to ASCII first -
+        # otherwise latin-1 'replace' turns each one into a stray '?'.
+        s = str(s)
+        for uni, ascii_ in (
+            ("—", "-"), ("–", "-"),          # em / en dash
+            ("‘", "'"), ("’", "'"),          # single curly quotes
+            ("“", '"'), ("”", '"'),          # double curly quotes
+            ("…", "..."), ("•", "-"),        # ellipsis, bullet
+            (" ", " "),                            # non-breaking space
+        ):
+            s = s.replace(uni, ascii_)
+        return s.encode("latin-1", "replace").decode("latin-1")
 
     def _pdf_chart(buf, w=155):
         if buf is None or _rc is None:
@@ -1128,6 +1314,61 @@ def build_pdf(pomap_data, coatt_data, poatt_data, sdgco_data, sdgpo_data,
     pdf.ln(3)
     _pdf_chart(_rc.co_attainment_chart(a["co_results"], a["thresholds"]) if _rc else None)
     note("co_att")
+
+    # 4b. CO Attainment: Direct (Marks-Based) vs AI-Estimated
+    if a.get("co_compare"):
+        ms = a.get("marks_summary", {}) or {}
+        h2("4b. CO Attainment: Marks-Based vs AI-Estimated")
+        pdf.set_font("Helvetica", "I", 8)
+        pdf.multi_cell(0, 4.6,
+            _safe(f"Method-2 Tier-I  |  Target {ms.get('target_pct', 60)}%  |  "
+                  f"CIE {ms.get('cie_weight', 20)}% + SEE {ms.get('see_weight', 80)}%  |  "
+                  f"Students: CIE {ms.get('n_students_cie', 0)} / SEE {ms.get('n_students_see', 0)}"),
+            new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        cc = a["co_compare"]
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.set_fill_color(209, 250, 229)
+        for lbl, w in [("CO", 25), ("CIE %", 25), ("SEE %", 25), ("Marks Lv", 30),
+                       ("AI %", 25), ("AI Lv", 22), ("Delta", 28)]:
+            pdf.cell(w, 7, lbl, border=1, fill=True, align="C")
+        pdf.ln()
+        pdf.set_font("Helvetica", "", 8.5)
+        for c in cc:
+            ia  = "-" if c["ia_pct"]   is None else f"{c['ia_pct']:.0f}%"
+            se  = "-" if c["see_pct"]  is None else f"{c['see_pct']:.0f}%"
+            aip = "-" if c["ai_pct"]   is None else f"{c['ai_pct']:.0f}%"
+            ail = "-" if c["ai_level"] is None else _s(c["ai_level"])
+            dl  = "-" if c["delta"]    is None else f"{c['delta']:+.2f}"
+            pdf.cell(25, 6, _s(c["co"]), border=1)
+            pdf.cell(25, 6, ia,  border=1, align="C")
+            pdf.cell(25, 6, se,  border=1, align="C")
+            pdf.cell(30, 6, f"{c['marks_level']:.2f}", border=1, align="C")
+            pdf.cell(25, 6, aip, border=1, align="C")
+            pdf.cell(22, 6, ail, border=1, align="C")
+            pdf.cell(28, 6, dl,  border=1, align="C")
+            pdf.ln()
+        pdf.ln(3)
+        _pdf_chart(_rc.co_attainment_compare_chart(cc) if _rc else None)
+        if a.get("po_compare"):
+            pdf.set_font("Helvetica", "B", 9.5)
+            pdf.cell(0, 6, "PO Attainment %: Marks-Based vs AI",
+                     new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.set_fill_color(209, 250, 229)
+            for lbl, w in [("PO", 40), ("Marks %", 45), ("AI %", 45), ("Delta", 40)]:
+                pdf.cell(w, 7, lbl, border=1, fill=True, align="C")
+            pdf.ln()
+            pdf.set_font("Helvetica", "", 9)
+            for p in a["po_compare"]:
+                aip = "-" if p["ai_pct"] is None else f"{p['ai_pct']:.1f}%"
+                dl  = "-" if p["delta"]  is None else f"{p['delta']:+.1f}"
+                pdf.cell(40, 6, _s(p["po"]), border=1)
+                pdf.cell(45, 6, f"{p['marks_pct']:.1f}%", border=1, align="C")
+                pdf.cell(45, 6, aip, border=1, align="C")
+                pdf.cell(40, 6, dl,  border=1, align="C")
+                pdf.ln()
+            pdf.ln(3)
+        note("co_compare")
 
     # 5. PO Attainment
     h2("5. PO Attainment Summary")

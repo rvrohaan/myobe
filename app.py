@@ -62,13 +62,34 @@ from generate_po_mapping import (
     generate_mapping_stream, parse_mapping_response,
     POS as _ENG_POS,           # kept for backward compat
     POS_BY_TYPE, COLLEGE_TYPE_META, get_pos_for_type,
+    SCIENCE_ARTS_BRANCHES, BRANCH_BY_CODE, get_branch_label,
     save_txt as po_save_txt,
     save_docx as po_save_docx,
     save_pdf  as po_save_pdf,
 )
 # Dynamic helper — always reads from current user's session
 def _get_standard_pos():
-    return get_pos_for_type(session.get("college_type", "engineering"))
+    return get_pos_for_type(session.get("college_type", "engineering"),
+                            session.get("branch"))
+
+
+def _po_reference_lines(sep=" · ", per_line=3):
+    """'PO1: Name . PO2: Name ...' reference block for the current college type,
+    used inside AI prompts so the model scores the right POs."""
+    pos = _get_standard_pos()
+    parts = [f"{k}: {n}" for k, n, _ in pos]
+    lines = [sep.join(parts[i:i + per_line]) for i in range(0, len(parts), per_line)]
+    return "\n".join(lines)
+
+
+def _po_keys():
+    """List of PO keys for the current college type, e.g. ['PO1', ..., 'PO12']."""
+    return [p[0] for p in _get_standard_pos()]
+
+
+def _po_zero_json(value=0):
+    """JSON skeleton like {"PO1":0,"PO2":0,...} for the current college type."""
+    return "{" + ",".join(f'"{k}":{value}' for k in _po_keys()) + "}"
 
 STANDARD_POS = _ENG_POS   # legacy alias used in a few places; prefer _get_standard_pos()
 
@@ -199,6 +220,13 @@ _COLLEGE_CONTEXTS = {
         "type": "Arts (Degree)", "discipline": "arts / humanities",
         "accreditation": "UGC/NAAC (LOCF)",
         "professional": "humanities / social science graduate", "program": "B.A / M.A",
+        "outcomes_term": "Programme Outcomes (POs)",
+        "body": "UGC", "framework": "OBE/NAAC",
+    },
+    "science_arts": {
+        "type": "Science & Arts (Degree)", "discipline": "science / arts / humanities",
+        "accreditation": "UGC/NAAC (LOCF)",
+        "professional": "science / humanities graduate", "program": "B.Sc / B.A / M.Sc / M.A",
         "outcomes_term": "Programme Outcomes (POs)",
         "body": "UGC", "framework": "OBE/NAAC",
     },
@@ -457,6 +485,7 @@ def login():
             session["username"]     = username
             session["tokens"]       = users[username].get("tokens", 0)
             session["college_type"] = users[username].get("college_type", "engineering")
+            session["branch"]       = users[username].get("branch", "")
             return redirect(request.args.get("next") or url_for("dashboard"))
 
     resp = make_response(render_template(
@@ -506,11 +535,16 @@ def register():
     if college_type not in _COLLEGE_CONTEXTS:
         college_type = "engineering"
 
+    branch = request.form.get("branch", "").strip()
+    if college_type != "science_arts" or branch not in BRANCH_BY_CODE:
+        branch = ""
+
     users[username] = {
         "password":     generate_password_hash(password),
         "tokens":       5,
         "email":        email,
         "college_type": college_type,
+        "branch":       branch,
     }
     _save_users(users)
 
@@ -519,6 +553,7 @@ def register():
     session["username"]     = username
     session["tokens"]       = 5
     session["college_type"] = college_type
+    session["branch"]       = branch
     return redirect(url_for("dashboard"))
 
 
@@ -3086,7 +3121,7 @@ def configure_po_mapping():
     selected_standard = data.get("selected_standard", [])   # ["PO1", "PO2", ...]
     custom_pos        = data.get("custom_pos", [])           # [{key, name, desc}, ...]
 
-    std_map = {p[0]: p for p in STANDARD_POS}
+    std_map = {p[0]: p for p in _get_standard_pos()}
     pos = [std_map[k] for k in selected_standard if k in std_map]
     for cp in custom_pos:
         key  = (cp.get("key") or "").strip().upper()
@@ -3110,7 +3145,9 @@ def generate_po_mapping_route():
     cos          = store.get("pomap_cos", [])
     course_code  = store.get("pomap_course_code", "COURSE")
     course_title = store.get("pomap_course_title", "Untitled")
-    pos          = store.get("pomap_pos")   # None = use all standard POs
+    # No custom selection -> use the user's college-type PO framework (not the
+    # engineering default baked into generate_mapping_stream).
+    pos          = store.get("pomap_pos") or _get_standard_pos()
     po_keys      = [p[0] for p in pos] if pos else None
 
     if not cos:
@@ -3323,6 +3360,7 @@ def generate_lp():
     # Use pre-uploaded COs if available and requested
     use_uploaded = request.args.get("use_uploaded_cos", "false").lower() == "true"
     uploaded_cos = store.get("lp_uploaded_cos") if use_uploaded else None
+    lp_po_keys   = _po_keys()   # college-type PO framework (read in request context)
 
     def event_stream():
         import anthropic
@@ -3334,7 +3372,7 @@ def generate_lp():
         try:
             for item in generate_lesson_plan_stream(
                 client, code, info["title"], info["text"], meta,
-                num_cos=num_cos, existing_cos=uploaded_cos
+                num_cos=num_cos, existing_cos=uploaded_cos, po_keys=lp_po_keys
             ):
                 if "error" in item:
                     _refund_tokens(3)
@@ -3720,11 +3758,14 @@ def settings():
     current_tokens = user_data.get("tokens", 0)
     current_email  = user_data.get("email", "")
     current_college_type = user_data.get("college_type", "engineering")
+    current_branch = user_data.get("branch", "")
     session["tokens"] = current_tokens
     return render_template("settings.html", username=username, tokens=current_tokens,
                            packages=TOPUP_PACKAGES,
                            email=current_email, email_error=email_error, email_ok=email_ok,
                            college_type=current_college_type,
+                           branch=current_branch,
+                           science_arts_branches=SCIENCE_ARTS_BRANCHES,
                            college_type_meta=COLLEGE_TYPE_META)
 
 
@@ -3780,14 +3821,26 @@ def set_college_type():
     college_type = (data.get("college_type") or "engineering").strip()
     if college_type not in _COLLEGE_CONTEXTS:
         return jsonify({"error": "Unknown college type"}), 400
+
+    branch = (data.get("branch") or "").strip()
+    if college_type != "science_arts" or branch not in BRANCH_BY_CODE:
+        branch = ""
+    if college_type == "science_arts" and not branch:
+        return jsonify({"error": "Please select a branch for Science & Arts."}), 400
+
     users = load_users()
     username = session["username"]
     users[username]["college_type"] = college_type
+    users[username]["branch"]       = branch
     _save_users(users)
     session["college_type"] = college_type
+    session["branch"]       = branch
     ctx = _COLLEGE_CONTEXTS[college_type]
-    return jsonify({"ok": True, "college_type": college_type, "label": ctx["type"],
-                    "accreditation": ctx["accreditation"]})
+    label = ctx["type"]
+    if branch:
+        label = get_branch_label(branch) or label
+    return jsonify({"ok": True, "college_type": college_type, "branch": branch,
+                    "label": label, "accreditation": ctx["accreditation"]})
 
 
 # ── Cashfree payment routes ───────────────────────────────────────────────────
@@ -4054,19 +4107,16 @@ def generate_po_attainments():
         return jsonify({"error": "API key not configured"}), 500
 
     prompt = (
-        f"You are an OBE accreditation expert for Indian engineering colleges.\n\n"
+        f"You are an OBE accreditation expert for Indian higher-education colleges.\n\n"
         f"Course: {title} ({course})\n"
         f"Syllabus excerpt:\n{text}\n\n"
         "Estimate realistic Programme Outcome (PO) attainment percentages for this course. "
-        "The 12 standard POs are:\n"
-        "PO1: Engineering Knowledge · PO2: Problem Analysis · PO3: Design/Development of Solutions\n"
-        "PO4: Conduct Investigations · PO5: Modern Tool Usage · PO6: The Engineer and Society\n"
-        "PO7: Environment and Sustainability · PO8: Ethics · PO9: Individual and Team Work\n"
-        "PO10: Communication · PO11: Project Management and Finance · PO12: Life-long Learning\n\n"
+        "The Programme Outcomes (POs) for this programme are:\n"
+        f"{_po_reference_lines()}\n\n"
         "Assign attainment % (0-100) based on how strongly the course content addresses each PO. "
-        "Core technical POs directly covered by the syllabus should score higher. "
+        "Core POs directly covered by the syllabus should score higher. "
         "Use realistic values (e.g. 55-85 for relevant POs, 30-55 for partially relevant ones).\n\n"
-        "Return ONLY a valid JSON array, no explanation:\n"
+        "Return ONLY a valid JSON array covering every PO listed above, no explanation:\n"
         '[{"name":"PO1","attainment":75},{"name":"PO2","attainment":80},...]'
     )
 
@@ -4119,13 +4169,16 @@ def generate_po_sdg_weights():
     if not api_key:
         return jsonify({"error": "API key not configured"}), 500
 
+    po_ref  = _po_reference_lines()
+    po_keys = ", ".join(_po_keys())
     prompt = (
         f"You are an OBE accreditation expert.\n\n"
         f"Course: {title} ({course})\nSyllabus excerpt:\n{text}\n\n"
-        f"Rate how strongly each of PO1–PO12 contributes to {sdg}.\n"
+        f"The Programme Outcomes (POs) for this programme are:\n{po_ref}\n\n"
+        f"Rate how strongly each PO ({po_keys}) contributes to {sdg}.\n"
         f"Scale: 3=Strong, 2=Moderate, 1=Low, 0=None.\n\n"
-        f"Return ONLY a valid JSON object — no explanation:\n"
-        f'{{"PO1":2,"PO2":3,"PO3":2,"PO4":1,"PO5":2,"PO6":1,"PO7":0,"PO8":0,"PO9":1,"PO10":1,"PO11":1,"PO12":1}}'
+        f"Return ONLY a valid JSON object covering every PO — no explanation:\n"
+        f'{_po_zero_json()}'
     )
 
     try:
@@ -4174,24 +4227,22 @@ def generate_sdg_po_auto():
         return jsonify({"error": "API key not configured"}), 500
 
     prompt = (
-        f"You are an OBE accreditation expert for Indian engineering colleges.\n\n"
+        f"You are an OBE accreditation expert for Indian higher-education colleges.\n\n"
         f"Course: {title} ({course})\nSyllabus excerpt:\n{text}\n\n"
         "Based on this syllabus, do TWO things:\n\n"
-        "1. Estimate realistic PO attainment percentages (0-100) for PO1-PO12:\n"
-        "   PO1: Engineering Knowledge  PO2: Problem Analysis  PO3: Design/Development of Solutions\n"
-        "   PO4: Conduct Investigations  PO5: Modern Tool Usage  PO6: The Engineer and Society\n"
-        "   PO7: Environment and Sustainability  PO8: Ethics  PO9: Individual and Team Work\n"
-        "   PO10: Communication  PO11: Project Management and Finance  PO12: Life-long Learning\n"
-        "   Core technical POs directly covered should score 65-85; partially relevant ones 40-65.\n\n"
+        "1. Estimate realistic PO attainment percentages (0-100) for every PO below:\n"
+        f"{_po_reference_lines(sep='  ', per_line=3)}\n"
+        "   Core POs directly covered should score 65-85; partially relevant ones 40-65.\n\n"
         "2. Identify the top 3-5 UN SDGs this course contributes to, and rate how strongly each PO\n"
         "   contributes to each selected SDG (3=Strong, 2=Moderate, 1=Low, 0=None).\n\n"
-        "Return ONLY a valid JSON object with no explanation or markdown:\n"
+        "Return ONLY a valid JSON object with no explanation or markdown. Every PO object must\n"
+        "cover all the POs listed above:\n"
         "{\n"
         '  "pos": [{"name":"PO1","attainment":75},{"name":"PO2","attainment":80},...],\n'
         '  "sdgs_selected": ["SDG 4 — Quality Education","SDG 9 — Industry, Innovation and Infrastructure"],\n'
         '  "weights_all": {\n'
-        '    "SDG 4 — Quality Education": {"PO1":2,"PO2":1,"PO3":1,"PO4":0,"PO5":1,"PO6":1,"PO7":0,"PO8":1,"PO9":1,"PO10":2,"PO11":1,"PO12":2},\n'
-        '    "SDG 9 — Industry, Innovation and Infrastructure": {"PO1":3,"PO2":3,"PO3":3,"PO4":2,"PO5":3,"PO6":1,"PO7":1,"PO8":0,"PO9":1,"PO10":1,"PO11":2,"PO12":1}\n'
+        f'    "SDG 4 — Quality Education": {_po_zero_json()},\n'
+        f'    "SDG 9 — Industry, Innovation and Infrastructure": {_po_zero_json()}\n'
         "  }\n"
         "}"
     )
@@ -4257,26 +4308,26 @@ def generate_sdg_po_all():
     sdg_key_row = "  ".join(short_sdgs)
 
     prompt = (
-        f"You are an OBE expert for Indian engineering colleges.\n\n"
+        f"You are an OBE expert for Indian higher-education colleges.\n\n"
         f"Course: {title} ({course})\nSyllabus excerpt:\n{text}\n\n"
+        f"The Programme Outcomes (POs) for this programme are:\n{_po_reference_lines(sep='  ', per_line=3)}\n\n"
         "Do TWO things:\n\n"
-        "1. Estimate realistic PO attainment % (0-100) for PO1-PO12.\n"
-        "   Core technical POs directly covered: 65-85; partially relevant: 40-65.\n\n"
+        "1. Estimate realistic PO attainment % (0-100) for every PO above.\n"
+        "   Core POs directly covered: 65-85; partially relevant: 40-65.\n\n"
         "2. Rate each PO's contribution to ALL 17 UN SDGs using short keys SDG1..SDG17:\n"
         "   SDG1=No Poverty  SDG2=Zero Hunger  SDG3=Good Health  SDG4=Quality Education\n"
         "   SDG5=Gender Equality  SDG6=Clean Water  SDG7=Clean Energy  SDG8=Decent Work\n"
         "   SDG9=Industry & Innovation  SDG10=Reduced Inequalities  SDG11=Sustainable Cities\n"
         "   SDG12=Responsible Consumption  SDG13=Climate Action  SDG14=Life Below Water\n"
         "   SDG15=Life on Land  SDG16=Peace & Justice  SDG17=Partnerships\n\n"
-        "   Scale: 3=Strong/direct, 2=Moderate, 1=Low/indirect, 0=No link.\n"
-        "   For engineering courses, SDG4 and SDG9 usually score highest.\n\n"
-        "Return ONLY valid JSON — no explanation:\n"
+        "   Scale: 3=Strong/direct, 2=Moderate, 1=Low/indirect, 0=No link.\n\n"
+        "Return ONLY valid JSON — no explanation. Every SDG weight object must cover all POs above:\n"
         "{\n"
-        '  "pos": [{"name":"PO1","attainment":75},...,{"name":"PO12","attainment":50}],\n'
+        '  "pos": [{"name":"PO1","attainment":75},...],\n'
         '  "weights": {\n'
-        '    "SDG1":{"PO1":0,"PO2":0,"PO3":0,"PO4":0,"PO5":0,"PO6":1,"PO7":0,"PO8":1,"PO9":1,"PO10":1,"PO11":0,"PO12":1},\n'
-        '    "SDG4":{"PO1":2,"PO2":2,"PO3":1,"PO4":1,"PO5":1,"PO6":1,"PO7":0,"PO8":1,"PO9":1,"PO10":2,"PO11":1,"PO12":3},\n'
-        '    "SDG9":{"PO1":3,"PO2":3,"PO3":3,"PO4":2,"PO5":3,"PO6":1,"PO7":1,"PO8":0,"PO9":1,"PO10":1,"PO11":2,"PO12":1},\n'
+        f'    "SDG1":{_po_zero_json()},\n'
+        f'    "SDG4":{_po_zero_json()},\n'
+        f'    "SDG9":{_po_zero_json()},\n'
         "    ... all 17 SDGs ...\n"
         "  }\n"
         "}"
@@ -4917,8 +4968,11 @@ def export_sdg_co_all():
     if not matrix:
         return jsonify({"error": "No matrix data"}), 400
 
-    def _s(v): return str(v) if v is not None else ""
-    short = lambda sdg: sdg.split(" — ")[0]   # "SDG 1 — ..." → "SDG 1"
+    def _s(v):
+        if v is None:
+            return ""
+        return str(v).replace("—", " - ").replace("–", "-").encode("latin-1", "replace").decode("latin-1")
+    short = lambda sdg: sdg.split(" — ")[0]   # "SDG 1 — ..." -> "SDG 1"
 
     suffix = {"txt": ".txt", "docx": ".docx", "pdf": ".pdf"}[fmt]
     mime   = {"txt": "text/plain",
@@ -4975,7 +5029,7 @@ def export_sdg_co_all():
             pdf.add_page(orientation="L")   # landscape for wide matrix
             pdf.set_font("Helvetica", "B", 12)
             pdf.set_text_color(6, 78, 91)
-            pdf.cell(0, 8, f"CO-SDG Contribution Matrix — {title} ({course})",
+            pdf.cell(0, 8, _s(f"CO-SDG Contribution Matrix - {title} ({course})"),
                      new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             pdf.set_text_color(0, 0, 0)
             pdf.ln(2)
@@ -4985,12 +5039,12 @@ def export_sdg_co_all():
             pdf.set_fill_color(209, 250, 229)
             pdf.cell(co_w, 6, "CO", border=1, fill=True, align="C")
             for s in sdgs:
-                pdf.cell(cw, 6, short(s), border=1, fill=True, align="C")
+                pdf.cell(cw, 6, _s(short(s)), border=1, fill=True, align="C")
             pdf.ln()
             pdf.set_font("Helvetica", "", 7.5)
             for co in cos:
                 row = matrix.get(co, {})
-                pdf.cell(co_w, 5, co, border=1, align="C")
+                pdf.cell(co_w, 5, _s(co), border=1, align="C")
                 for s in sdgs:
                     v = row.get(s, 0)
                     if v == 3:
@@ -5001,7 +5055,7 @@ def export_sdg_co_all():
                         pdf.set_fill_color(221, 238, 247); fill = True
                     else:
                         fill = False
-                    pdf.cell(cw, 5, _s(v) if v else "–", border=1, align="C", fill=fill)
+                    pdf.cell(cw, 5, _s(v) if v else "-", border=1, align="C", fill=fill)
                     if fill:
                         pdf.set_fill_color(255, 255, 255)
                 pdf.ln()
@@ -5356,20 +5410,17 @@ def generate_co_attainment_ai():
     co_list_str = "\n".join(f"- {c['name']}: {c['statement']}" for c in cos)
 
     prompt = (
-        f"You are an OBE accreditation expert for Indian engineering colleges.\n\n"
+        f"You are an OBE accreditation expert for Indian higher-education colleges.\n\n"
         f"Course: {title} ({course})\nCourse Outcomes:\n{co_list_str}\n\n"
-        "Based on these COs for a typical engineering course, do TWO things:\n\n"
+        "Based on these COs, do TWO things:\n\n"
         "1. Estimate CO attainment % (0-100) for each CO. Well-run courses typically attain 55-80%. "
         "Higher-order Bloom's levels (analyze/evaluate/create) usually attain lower than "
         "knowledge/comprehension COs.\n\n"
-        "2. Rate each CO's contribution to PO1-PO12 (3=Strong, 2=Moderate, 1=Low, 0=None).\n"
-        "   PO1: Engineering Knowledge  PO2: Problem Analysis  PO3: Design/Development\n"
-        "   PO4: Conduct Investigations  PO5: Modern Tool Usage  PO6: Engineer and Society\n"
-        "   PO7: Environment and Sustainability  PO8: Ethics  PO9: Individual and Team Work\n"
-        "   PO10: Communication  PO11: Project Management  PO12: Life-long Learning\n\n"
-        "Return ONLY valid JSON, no explanation or markdown:\n"
+        "2. Rate each CO's contribution to every PO below (3=Strong, 2=Moderate, 1=Low, 0=None).\n"
+        f"{_po_reference_lines(sep='  ', per_line=3)}\n\n"
+        "Return ONLY valid JSON, no explanation or markdown. Each CO's weights must cover all POs:\n"
         '{"co_attainments":[{"co":"CO1","pct":72.5},...],'
-        '"co_po_weights":{"CO1":{"PO1":3,"PO2":2,"PO3":2,"PO4":0,"PO5":1,"PO6":0,"PO7":0,"PO8":0,"PO9":1,"PO10":1,"PO11":1,"PO12":1},...}}'
+        f'"co_po_weights":{{"CO1":{_po_zero_json()},...}}}}'
     )
 
     try:
@@ -5405,7 +5456,7 @@ def generate_co_attainment_ai():
         pct = co_atts.get(c["name"], 60.0)
         co_results.append({"co": c["name"], "pct": round(pct, 2), "level": _level(pct)})
 
-    po_names = [f"PO{i}" for i in range(1, 13)]
+    po_names = _po_keys()
     po_results = []
     for po in po_names:
         total_w = 0
@@ -5483,7 +5534,7 @@ def aio_prepare():
     store["pomap_course_code"]  = code
     store["pomap_course_title"] = info.get("title", code)
     store["pomap_rows"]         = None
-    store["pomap_pos"]          = None   # use all 12 standard POs
+    store["pomap_pos"]          = None   # None -> use the college-type PO framework
 
     # LP / TD uploaded COs — generate_lp/td use these when use_uploaded_cos=true
     store["lp_uploaded_cos"] = cos_norm if cos_norm else None
@@ -5643,7 +5694,7 @@ def generate_module1_report():
         co_tally=co_tally, bloom_summary=bloom_summary,
         analytics=analytics, ai=ai_data, sample_paper=sample_paper,
         code=code, title=title, semester=semester, is_lab=is_lab,
-        taxonomy_grid=taxonomy_grid,
+        taxonomy_grid=taxonomy_grid, pos=_get_standard_pos(),
     )
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
@@ -5677,6 +5728,7 @@ def generate_module1_report():
 
 import generate_m3_report as _m3r
 import generate_m4_report as _m4r
+import co_attainment_marks as _coattm
 
 
 # ── "Suggest ways to improve" context builders (Modules 3 & 4) ────────────────
@@ -5962,14 +6014,14 @@ def generate_po_attainment_ai():
     info  = store.get("courses", {}).get(course.upper(), {})
     title = info.get("title", course)
 
-    po_name_map = {p[0]: p[1] for p in STANDARD_POS}
+    po_name_map = {p[0]: p[1] for p in _get_standard_pos()}
 
     client = _ant.Anthropic(api_key=api_key, timeout=45.0)
 
     # ── Path A: we have pomap + co_results → compute mathematically, AI adds ATR ──
     if pomap_rows and co_results:
         level_map = {r["co"]: int(r.get("level", 0)) for r in co_results}
-        po_keys   = list(pomap_rows[0].get("scores", {}).keys()) if pomap_rows else [f"PO{i}" for i in range(1, 13)]
+        po_keys   = list(pomap_rows[0].get("scores", {}).keys()) if pomap_rows else _po_keys()
 
         po_att_raw = {}
         for pk in po_keys:
@@ -6040,21 +6092,18 @@ def generate_po_attainment_ai():
 
         co_lines = "\n".join(f"  {c['name']}: {c.get('statement','')}" for c in cos)
         prompt = (
-            f"You are an OBE accreditation expert for Indian engineering colleges.\n\n"
+            f"You are an OBE accreditation expert for Indian higher-education colleges.\n\n"
             f"Course: {title} ({course})\nCourse Outcomes:\n{co_lines}\n\n"
             "Do THREE things:\n\n"
             "1. Estimate CO attainment levels (0-3) for each CO. "
             "Well-run courses: level 2-3 for most COs.\n\n"
-            "2. Rate each CO's contribution to PO1-PO12 (3=Strong, 2=Moderate, 1=Low, 0=None).\n"
-            "   PO1:Engineering Knowledge  PO2:Problem Analysis  PO3:Design/Dev\n"
-            "   PO4:Investigations  PO5:Modern Tools  PO6:Engineer&Society\n"
-            "   PO7:Environment  PO8:Ethics  PO9:Team Work  PO10:Communication\n"
-            "   PO11:Project Mgmt  PO12:Life-long Learning\n\n"
+            "2. Rate each CO's contribution to every PO below (3=Strong, 2=Moderate, 1=Low, 0=None).\n"
+            f"{_po_reference_lines(sep='  ', per_line=4)}\n\n"
             "3. For POs likely below 60% attainment, write a short ATR sentence.\n\n"
-            "Return ONLY valid JSON:\n"
+            "Return ONLY valid JSON. co_po_weights for each CO must cover all POs:\n"
             "{\n"
             '  "co_levels": {"CO1":2,"CO2":3,...},\n'
-            '  "co_po_weights": {"CO1":{"PO1":3,"PO2":2,...},...},\n'
+            f'  "co_po_weights": {{"CO1":{_po_zero_json()},...}},\n'
             '  "atr": {"PO3":"Introduce more design tasks...","PO8":"Add ethics case studies..."}\n'
             "}"
         )
@@ -6079,7 +6128,7 @@ def generate_po_attainment_ai():
         co_levels  = ai.get("co_levels", {})
         co_po_wts  = ai.get("co_po_weights", {})
         atr_map    = ai.get("atr", {})
-        po_keys    = [f"PO{i}" for i in range(1, 13)]
+        po_keys    = _po_keys()
 
         po_att_raw = {}
         for pk in po_keys:
@@ -6293,6 +6342,7 @@ def generate_module4_report():
     poatt_data = body.get("poatt") or {}
     sdgco_data = body.get("sdgco") or {}
     sdgpo_data = body.get("sdgpo") or {}
+    coatt_marks = body.get("coatt_marks") or {}
 
     code  = (store.get("pomap_course_code") or body.get("course") or "COURSE").strip().upper()
     title = store.get("pomap_course_title") or body.get("course_title") or "Untitled"
@@ -6310,7 +6360,8 @@ def generate_module4_report():
     if err:
         return err
 
-    analytics = _m4r.compute_analytics(pomap_rows, coatt_data, poatt_data, sdgco_data, sdgpo_data)
+    analytics = _m4r.compute_analytics(pomap_rows, coatt_data, poatt_data, sdgco_data, sdgpo_data,
+                                       coatt_marks=coatt_marks)
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     ai_data = {}
@@ -6375,6 +6426,59 @@ def generate_module4_report():
         mimetype=mime,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# -- Module 4 marks-based CO attainment ----------------------------------------
+
+@app.route("/download_marks_template")
+@login_required
+def download_marks_template():
+    """Return the blank/example .xlsx template for entering student marks."""
+    try:
+        buf = _coattm.build_template_xlsx()
+    except Exception as e:
+        return jsonify({"error": f"Could not build template: {e}"}), 500
+    return Response(
+        buf.read(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="Module4_Marks_Template.xlsx"'},
+    )
+
+
+@app.route("/upload_student_marks", methods=["POST"])
+@login_required
+def upload_student_marks():
+    """Parse an uploaded marks workbook and compute Method-2 Tier-I CO attainment.
+
+    Returns {coatt_marks, summary} on success, or a 400 with a clear message.
+    No raw marks are stored server-side; the compact result is passed back by
+    the client when generating the Module-4 report.
+    """
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    f   = request.files["file"]
+    ext = os.path.splitext(f.filename or "")[1].lower()
+    if ext not in (".xlsx", ".xls"):
+        return jsonify({"error": f"Unsupported type '{ext}'. Use an Excel .xlsx or .xls file."}), 400
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+    try:
+        f.save(tmp.name)
+        tmp.close()
+        parsed = _coattm.parse_marks_workbook(tmp.name, ext)
+        result = _coattm.compute_marks_attainment(parsed)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": f"Failed to read marks file: {e}"}), 500
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+    return jsonify({"coatt_marks": result, "summary": result["summary"]})
 
 
 if __name__ == "__main__":

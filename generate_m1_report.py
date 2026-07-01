@@ -768,6 +768,70 @@ _PO_DEFINITIONS = [
     ('PO12', 'Life-long Learning',              'cognitive', 'L2'),  # Understand
 ]
 
+# Content-theme keyword sets reused for 'thematic' POs (society / environment /
+# ethics). A PO scored thematically is assessable by questions, but by content
+# theme rather than by cognitive level.
+# Kept identical to the engineering PO6/PO7/PO8 keyword sets so engineering
+# reports are byte-for-byte unchanged; they also match the other college types'
+# society/environment/ethics POs by substring (e.g. "Community Health",
+# "Sustainable Healthcare", "Medical Ethics").
+_THEME_SOCIETY = ['societ', 'social', 'community', 'public', 'cultural', 'legal',
+                  'welfare', 'human']
+_THEME_ENVIRONMENT = ['environment', 'sustainab', 'green', 'energy', 'climate',
+                      'emission', 'ecolog', 'pollution', 'waste', 'renewable']
+_THEME_ETHICS = ['ethic', 'moral', 'integrity', 'plagiar', 'responsib', 'norms',
+                 'professional conduct']
+
+
+def _derive_po_definitions(pos):
+    """Turn a college-type PO list [(key, name, desc), ...] into assessment
+    definitions (key, name, mode, spec) by reading each PO's name.
+
+      mode 'process'   : behavioural (teamwork/communication/management) - not
+                         assessable by a written/lab question bank.
+      mode 'thematic'  : content-theme keywords (society/environment/ethics).
+      mode 'cognitive' : scored by the minimum Revised-Bloom level the PO demands.
+
+    Designed to reproduce the engineering _PO_DEFINITIONS exactly when given the
+    engineering POs, while adapting names/levels for other college types.
+    """
+    defs = []
+    for entry in pos:
+        key  = entry[0]
+        name = entry[1] if len(entry) > 1 else key
+        n    = name.lower()
+        # Behavioural outcomes a question bank cannot assess directly.
+        if any(w in n for w in ('team', 'communication', 'project management',
+                                'management and finance', 'leadership', 'collaboration',
+                                'stakeholder', 'interprofessional', 'entrepreneur')):
+            defs.append((key, name, 'process', None))
+        # Life-long learning: awareness-level cognitive (L2), matches engineering.
+        elif 'life-long' in n or 'lifelong' in n or 'life long' in n:
+            defs.append((key, name, 'cognitive', 'L2'))
+        # Content-theme POs.
+        elif any(k in n for k in ('ethic', 'integrity', 'moral')):
+            defs.append((key, name, 'thematic', _THEME_ETHICS))
+        elif any(k in n for k in ('environment', 'sustainab')):
+            defs.append((key, name, 'thematic', _THEME_ENVIRONMENT))
+        elif any(k in n for k in ('society', 'societ', 'social', 'community',
+                                  'accountab', 'governance')):
+            defs.append((key, name, 'thematic', _THEME_SOCIETY))
+        else:
+            # Cognitive PO: infer the Bloom level it demands from the name.
+            if any(k in n for k in ('design', 'develop', 'creat', 'innovat',
+                                    'formulat', 'construct')):
+                spec = 'L6'
+            elif any(k in n for k in ('analysis', 'analyse', 'analyz', 'investigat',
+                                      'problem', 'inquiry', 'reasoning', 'diagnos', 'critical')):
+                spec = 'L4'
+            elif any(k in n for k in ('evaluat', 'research', 'evidence', 'appraisal',
+                                      'judgement', 'judgment', 'decision')):
+                spec = 'L5'
+            else:  # knowledge, tool usage, general -> Apply
+                spec = 'L3'
+            defs.append((key, name, 'cognitive', spec))
+    return defs
+
 # SDG themes detected from CO-statement keywords (lower-cased substring match).
 # Keyword sets are deliberately discipline-agnostic: foundational science, maths
 # and computing courses contribute to the SDGs through data, modelling, analysis
@@ -830,14 +894,19 @@ def _po_sdg_rating(pct: float) -> str:
 
 
 def compute_po_quality(cos: list, co_tally: dict, analytics: dict,
-                       taxonomy_grid: dict, is_lab: bool = False) -> tuple:
-    """Score question quality against all 12 Programme Outcomes.
+                       taxonomy_grid: dict, is_lab: bool = False,
+                       pos: list = None) -> tuple:
+    """Score question quality against the programme's Programme Outcomes.
 
     Returns (rows, summary). Each row is a dict with the PO, the basis used to
     assess it, the item count/share, the Bloom sub-elements that carry it, and a
     rating. Cognitive and thematic POs are assessable by the question bank; process
     POs are reported as assessed through other components (not scored).
+
+    pos: the college-type PO list [(key, name, desc), ...]; when omitted the
+    engineering PO definitions are used (backward compatible).
     """
+    po_defs = _derive_po_definitions(pos) if pos else _PO_DEFINITIONS
     co_lvl = _compute_bloom_analytics(cos, taxonomy_grid)['co_to_level']
     qn = _co_question_counts(cos, co_tally, analytics, is_lab)
     total_q = sum(qn.values()) or 1
@@ -845,7 +914,7 @@ def compute_po_quality(cos: list, co_tally: dict, analytics: dict,
     rows = []
     addressed = 0
     assessable = 0
-    for po, name, mode, spec in _PO_DEFINITIONS:
+    for po, name, mode, spec in po_defs:
         if mode == 'process':
             rows.append({
                 'po': po, 'name': name, 'mode': mode,
@@ -892,7 +961,7 @@ def compute_po_quality(cos: list, co_tally: dict, analytics: dict,
             'rating': _po_sdg_rating(pct) if n > 0 else 'Poor',
         })
     summary = {
-        'addressed': addressed, 'assessable': assessable, 'total': len(_PO_DEFINITIONS),
+        'addressed': addressed, 'assessable': assessable, 'total': len(po_defs),
         'process': [r['po'] for r in rows if r['mode'] == 'process'],
         'total_q': total_q,
     }
@@ -1211,6 +1280,7 @@ def build_docx(
     output_path: str,
     is_lab: bool = False,
     taxonomy_grid=None,
+    pos=None,
 ):
     from docx import Document
     from docx.shared import Pt, Inches, RGBColor
@@ -1874,7 +1944,7 @@ def build_docx(
 
     # ── Section 10: Question Quality vs Programme Outcomes (PO) ───────────────
     _section_divider(10, "Question Quality vs Programme Outcomes (PO)")
-    _po_rows, _po_sum = compute_po_quality(cos, co_tally, analytics, taxonomy_grid, is_lab)
+    _po_rows, _po_sum = compute_po_quality(cos, co_tally, analytics, taxonomy_grid, is_lab, pos=pos)
     _add_para(_po_quality_intro(title, code, _po_sum), italic=True, size=9)
 
     _po_tbl = _add_table(
@@ -1957,6 +2027,7 @@ def build_docx(
 def build_txt(
     cos, co_text, qb_data, co_tally, bloom_summary, analytics, ai,
     sample_paper, code, title, semester, output_path, is_lab=False, taxonomy_grid=None,
+    pos=None,
 ):
     SEP  = "=" * 72
     SEP2 = "-" * 72
@@ -2223,7 +2294,7 @@ def build_txt(
 
     # Section 10: Question Quality vs Programme Outcomes
     _sec(10, "Question Quality vs Programme Outcomes (PO)")
-    po_rows, po_sum = compute_po_quality(cos, co_tally, analytics, taxonomy_grid, is_lab)
+    po_rows, po_sum = compute_po_quality(cos, co_tally, analytics, taxonomy_grid, is_lab, pos=pos)
     lines.append(textwrap.fill(_po_quality_intro(title, code, po_sum), 72))
     lines.append("")
     _tbl(["PO", "Programme Outcome", "Basis", "Items", "%", "Quality"],
@@ -2271,6 +2342,7 @@ def build_txt(
 def build_pdf(
     cos, co_text, qb_data, co_tally, bloom_summary, analytics, ai,
     sample_paper, code, title, semester, output_path, is_lab=False, taxonomy_grid=None,
+    pos=None,
 ):
     from fpdf import FPDF, XPos, YPos
 
@@ -2842,7 +2914,7 @@ def build_pdf(
     # Section 10: Question Quality vs Programme Outcomes
     pdf.add_page()
     _heading1("SECTION 10: QUESTION QUALITY VS PROGRAMME OUTCOMES (PO)")
-    po_rows, po_sum = compute_po_quality(cos, co_tally, analytics, taxonomy_grid, is_lab)
+    po_rows, po_sum = compute_po_quality(cos, co_tally, analytics, taxonomy_grid, is_lab, pos=pos)
     _body(_po_quality_intro(title, code, po_sum))
     pdf.ln(1)
     _tbl(["PO", "Programme Outcome", "Basis", "Items", "%", "Bloom Sub-elements", "Quality"],

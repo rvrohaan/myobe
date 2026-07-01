@@ -141,6 +141,7 @@ function showSection(name) {
 
 function goBack(fromSec) {
   if (fromSec === 'aio-co-upload')        { showSection('courses');           setStepBar(2); }
+  else if (fromSec === 'aio-marks-upload'){ document.getElementById('sec-aio-marks-upload')?.classList.add('hidden'); showModuleSub('module4'); }
   else if (fromSec === 'aio-po-upload')   { showSection(_m4OptionD ? 'aio-co-upload' : 'courses'); setStepBar(2); }
   else if (fromSec === 'courses')         { showSection('upload');            setStepBar(1); }
   else if (fromSec === 'preview-qb')      { showSection('upload-qb');         setStepBar(1); }
@@ -2163,7 +2164,8 @@ function toggleAiPanel() {
 
 /* ── CO–PO Mapping (Mode 4) ─────────────────────────────────────────────── */
 
-const STANDARD_POS = [
+// Default engineering POs; overwritten on load with the user's college-type POs.
+let STANDARD_POS = [
   { key: 'PO1',  name: 'Engineering Knowledge',
     desc: 'Apply knowledge of mathematics, science, engineering fundamentals, and specialization to solve complex engineering problems.' },
   { key: 'PO2',  name: 'Problem Analysis',
@@ -2190,9 +2192,23 @@ const STANDARD_POS = [
     desc: 'Recognize the need for, and have the ability to engage in independent and life-long learning in the broadest context of technological change.' },
 ];
 
+// Load the current user's college-type Programme Outcomes so the CO-PO mapping
+// checklist and adjust panel show the right POs (Science/Medical/Arts/etc.),
+// not the engineering defaults above.
+(function _loadCollegePos() {
+  fetch('/api/college_pos')
+    .then(r => r.ok ? r.json() : null)
+    .then(list => {
+      if (Array.isArray(list) && list.length) {
+        STANDARD_POS = list.map(p => ({ key: p.key, name: p.name, desc: p.desc || '' }));
+      }
+    })
+    .catch(() => { /* keep engineering defaults on failure */ });
+})();
+
 /* ── MODE 10: All in One ─────────────────────────────────────────────────── */
 
-ALL_SECS.push('aio-select', 'aio-run', 'aio-done', 'aio-co-upload', 'aio-po-upload', 'm1-preview', 'm3-preview', 'm4-preview');
+ALL_SECS.push('aio-select', 'aio-run', 'aio-done', 'aio-co-upload', 'aio-po-upload', 'aio-marks-upload', 'm1-preview', 'm3-preview', 'm4-preview');
 STEP_DEFS['allinone'] = ['Upload', 'Select Course', 'Generate', 'Done'];
 STEP_MAP['allinone']  = { 'upload': 1, 'courses': 2, 'aio-select': 2, 'aio-run': 3, 'aio-done': 4 };
 
@@ -2254,6 +2270,14 @@ let _m4OptionA = false;
 let _m4OptionC = false;
 // True while Module 4 Option D (syllabus + user's own CO file + PO file) flow is active
 let _m4OptionD = false;
+// Module 4 marks-based attainment (Method-2 Tier-I), set when the user uploads a
+// marks workbook on the optional gate screen. Kept outside `_aio` because
+// moduleGenerateAll() resets `_aio`. Passed to the Module-4 report for comparison.
+let _m4MarksCoatt = null;
+let _m4MarksSummary = null;
+// Continuation invoked after the marks gate (Continue or Skip) to run the chosen
+// Module-4 generation option.
+let _m4PendingGen = null;
 
 function _hideModuleSubs() {
   ['module1', 'module2', 'module3', 'module4'].forEach(id => {
@@ -2353,7 +2377,7 @@ async function module4GenerateWithCo() {
   MODULE_COSTS['module4'] = 5;
   _m4OptionA    = true;
   _aioInitialCos = null;
-  await moduleGenerateAll('module4');
+  _m4ShowMarksGate(() => moduleGenerateAll('module4'));
 }
 
 async function module4GenerateSyllabusOnly() {
@@ -2362,7 +2386,7 @@ async function module4GenerateSyllabusOnly() {
   MODULE_COSTS['module4'] = 6;
   _m4OptionA    = false;
   _aioInitialCos = null;
-  await moduleGenerateAll('module4');
+  _m4ShowMarksGate(() => moduleGenerateAll('module4'));
 }
 
 // Option C: auto-generate COs from syllabus, but use the user's uploaded POs
@@ -2376,7 +2400,7 @@ async function module4GenerateWithPo() {
   _m4OptionD    = false;
   _aioInitialCos = null;
   _aioPomapConfiguredPos = null;   // cleared until the PO file is parsed
-  await moduleGenerateAll('module4');
+  _m4ShowMarksGate(() => moduleGenerateAll('module4'));
 }
 
 // Option D: upload BOTH your own CO file and PO file (no auto-generation).
@@ -2390,7 +2414,113 @@ async function module4GenerateWithCoAndPo() {
   _m4OptionD    = true;
   _aioInitialCos = null;
   _aioPomapConfiguredPos = null;   // cleared until the PO file is parsed
-  await moduleGenerateAll('module4');
+  _m4ShowMarksGate(() => moduleGenerateAll('module4'));
+}
+
+// ── Module 4: optional student-marks gate (shown before any option generates) ──
+// Resets any prior marks, stores the chosen generation continuation, and shows the
+// marks-upload screen. Continue/Skip then invoke the continuation.
+async function _m4ShowMarksGate(genFn) {
+  // Gate on tokens BEFORE showing the marks screen. The token-error banner lives on
+  // the Module-4 option screen; if the balance is checked only later (after Skip/
+  // Continue), the error is written to a hidden element and the buttons appear to do
+  // nothing. Checking here keeps the error visible where the user is.
+  if (!(await _checkModuleTokens('module4'))) return;
+
+  _m4MarksCoatt   = null;
+  _m4MarksSummary = null;
+  _m4PendingGen   = genFn;
+
+  const statusEl = document.getElementById('aio-marks-upload-status');
+  const errEl    = document.getElementById('aio-marks-upload-err');
+  const warnEl   = document.getElementById('aio-marks-upload-warn');
+  const nextBtn  = document.getElementById('btn-aio-marks-next');
+  const fileIn   = document.getElementById('aio-marks-file-input');
+  if (statusEl) statusEl.textContent = 'No file selected — choose a filled .xlsx or .xls file.';
+  if (errEl)    errEl.classList.add('hidden');
+  if (warnEl)   warnEl.classList.add('hidden');
+  if (nextBtn)  nextBtn.disabled = true;
+  if (fileIn)   fileIn.value = '';
+  showSection('aio-marks-upload');
+}
+
+function downloadMarksTemplate() {
+  window.location.href = '/download_marks_template';
+}
+
+async function aioMarksUploadFile(input) {
+  const file     = input.files[0];
+  const statusEl = document.getElementById('aio-marks-upload-status');
+  const loadEl   = document.getElementById('aio-marks-upload-loading');
+  const errEl    = document.getElementById('aio-marks-upload-err');
+  const warnEl   = document.getElementById('aio-marks-upload-warn');
+  const warnText = document.getElementById('aio-marks-upload-warn-text');
+  const nextBtn  = document.getElementById('btn-aio-marks-next');
+  if (!file) return;
+
+  _m4MarksCoatt = null;
+  _m4MarksSummary = null;
+  nextBtn.disabled = true;
+  statusEl.textContent = 'Uploading…';
+  loadEl.classList.remove('hidden');
+  errEl.classList.add('hidden');
+  warnEl.classList.add('hidden');
+
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch('/upload_student_marks', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    _m4MarksCoatt   = d.coatt_marks;
+    _m4MarksSummary = d.summary || {};
+    const s = _m4MarksSummary;
+    statusEl.innerHTML =
+      `<span style="color:#10b981;font-weight:700;">&#10003; ${s.n_cos || 0} COs, ` +
+      `${s.n_questions || 0} questions, CIE ${s.n_students_cie || 0} / SEE ${s.n_students_see || 0} students ` +
+      `loaded from <em>${esc(file.name)}</em></span>`;
+    nextBtn.disabled = false;
+
+    // Detection feedback: warn when only one component, or none, was identified.
+    if (s.has_cie && s.has_see) {
+      warnEl.classList.add('hidden');                     // both present — all good
+    } else if (s.component_source === 'assumed_cie') {
+      warnText.innerHTML =
+        'Could not detect CIE or SEE sections in this file, so every column was treated as ' +
+        '<strong>CIE</strong> (internal). This may be incorrect. We recommend you ' +
+        '<strong>download the sample template</strong> above, enter your marks there, and re-upload. ' +
+        'You can still continue to use CIE only.';
+      warnEl.classList.remove('hidden');
+    } else {
+      const have    = s.has_cie ? 'CIE' : 'SEE';
+      const missing = s.has_cie ? 'SEE' : 'CIE';
+      warnText.innerHTML =
+        `Only <strong>${have}</strong> marks were detected — no ${missing} section was found. ` +
+        `Attainment will be based on ${have} alone (no ${missing} component). To include ${missing}, ` +
+        `download the sample, add the ${missing} columns, and re-upload — or click ` +
+        `<strong>Continue</strong> to proceed with ${have} only.`;
+      warnEl.classList.remove('hidden');
+    }
+  } catch(e) {
+    statusEl.textContent = 'Upload failed.';
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+    warnEl.classList.add('hidden');
+  } finally {
+    loadEl.classList.add('hidden');
+  }
+}
+
+function aioMarksContinue() {
+  const fn = _m4PendingGen;
+  if (typeof fn === 'function') fn();
+}
+
+function aioMarksSkip() {
+  _m4MarksCoatt   = null;
+  _m4MarksSummary = null;
+  const fn = _m4PendingGen;
+  if (typeof fn === 'function') fn();
 }
 
 // ── AIO Module 3 Option A: in-flow CO upload ──────────────────────────────────
@@ -2511,15 +2641,17 @@ function aioPoUploadNext() {
   aioStart();
 }
 
-async function moduleGenerateAll(moduleId) {
+// Verify the user has enough tokens for a module. On success clears the module's
+// token-error banner and returns true; on insufficient balance it fills and shows
+// that banner and returns false. Kept separate so it can gate flows (e.g. the
+// Module-4 marks screen) BEFORE navigating away from the module screen where the
+// banner lives. Fetch failures are treated as "allow" so the server stays the
+// authoritative check.
+async function _checkModuleTokens(moduleId) {
   const tools = MODULE_TOOLS[moduleId] || [];
-  if (!tools.length) return;
-
-  // Upfront token check
   const required = MODULE_COSTS[moduleId] !== undefined
     ? MODULE_COSTS[moduleId]
     : AIO_TOOLS.filter(t => tools.includes(t.id)).reduce((s, t) => s + t.tokens, 0);
-
   const errEl = document.getElementById(`mod${moduleId.replace('module','')}-token-err`);
   if (required > 0) {
     try {
@@ -2534,12 +2666,21 @@ async function moduleGenerateAll(moduleId) {
               `Please top up in Settings.`;
             errEl.classList.remove('hidden');
           }
-          return;
+          return false;
         }
       }
     } catch(_) {}
   }
   if (errEl) errEl.classList.add('hidden');
+  return true;
+}
+
+async function moduleGenerateAll(moduleId) {
+  const tools = MODULE_TOOLS[moduleId] || [];
+  if (!tools.length) return;
+
+  // Upfront token check
+  if (!(await _checkModuleTokens(moduleId))) return;
 
   _aioFromModule = moduleId;   // remember so Back from upload returns here
   _hideModuleSubs();
@@ -2666,9 +2807,9 @@ const AIO_TOOLS = [
   { id: 'qbank',         label: 'Question Bank',          icon: 'book-open', tokens: 3, canEdit: false, canRegen: false,
     desc: 'Auto-generate 2, 5, 10-mark questions organised by unit' },
   { id: 'pomap',         label: 'CO–PO Mapping',          icon: 'map', tokens: 1, canEdit: false, canRegen: true,
-    desc: 'NBA-compliant CO-PO mapping table with 3/2/1/0 scores' },
+    desc: 'OBE Accreditation-compliant CO-PO mapping table with 3/2/1/0 scores' },
   { id: 'lessonplan',    label: 'Lesson Plan',            icon: 'calendar', tokens: 3, canEdit: false, canRegen: true,
-    desc: 'Complete lesson plan with NBA/NAAC alignment' },
+    desc: 'Complete lesson plan with OBE Accreditation alignment' },
   { id: 'teachingdiary', label: 'Teaching Diary',         icon: 'notebook', tokens: 3, canEdit: false, canRegen: true,
     desc: 'Full-semester teaching diary with session delivery plan' },
   { id: 'sdgco',         label: 'CO → SDG',              icon: 'bar-chart', tokens: 1, canEdit: false, canRegen: true,
@@ -2678,7 +2819,7 @@ const AIO_TOOLS = [
   { id: 'coatt',         label: 'CO Attainment',         icon: 'trending-up', tokens: 1, canEdit: false, canRegen: true,
     desc: 'AI-estimated CO attainment levels and PO attainment' },
   { id: 'poatt',         label: 'PO Attainment',         icon: 'bar-chart', tokens: 1, canEdit: false, canRegen: true,
-    desc: 'NBA-standard PO attainment levels with ATR for below-threshold POs' },
+    desc: 'OBE Accreditation-standard PO attainment levels with ATR for below-threshold POs' },
 ];
 
 // Tools that require COs to exist before they can run
@@ -4340,6 +4481,9 @@ function _buildCoAttPreview(d) {
     txt += '\nPO Attainment:\n';
     txt += d.poResults.map(p => `${p.po}: ${p.attainment}`).join('  ');
   }
+  if (_m4MarksCoatt) {
+    txt += '\n\nMarks-based attainment uploaded — comparison included in the report.';
+  }
   return txt;
 }
 
@@ -4382,7 +4526,7 @@ async function _aioRunPoAtt() {
 function _buildPoAttPreview(d) {
   const pos = d.po_attainment || [];
   const sum = d.summary || {};
-  let txt = `PO Attainment  (NBA Method)\n\n`;
+  let txt = `PO Attainment  (OBE Accreditation Method)\n\n`;
   txt += `${'PO'.padEnd(6)}  ${'Name'.padEnd(32)}  ${'Att%'.padEnd(7)}  Lvl  Target\n${'─'.repeat(60)}\n`;
   pos.forEach(p => {
     txt += `${p.po.padEnd(6)}  ${p.name.slice(0,32).padEnd(32)}  ${p.pct.toFixed(1).padEnd(7)}  ${p.level}    ${p.target_met ? 'Met' : 'Below'}\n`;
@@ -4449,7 +4593,7 @@ function _aioShowDone() {
           <p style="font-size:.77rem;color:var(--muted);margin:0;line-height:1.5;">
             Single document containing all 11 Module-1 deliverables: CO Generation, Question Bank,
             Sample Paper, Bloom's Compliance, CO Coverage, Difficulty Analysis, Scenario Analysis,
-            QQI, Marks Distribution, OBE/NBA Compliance &amp; Accreditation Readiness Dashboard.
+            QQI, Marks Distribution, OBE Accreditation Compliance &amp; Accreditation Readiness Dashboard.
           </p>
           <p style="font-size:.72rem;color:#6366f1;font-weight:700;margin:6px 0 0;">
             Edit before downloading in TXT, DOCX or PDF
@@ -4512,7 +4656,7 @@ function _aioShowDone() {
           <p style="font-size:.77rem;color:var(--muted);margin:0;line-height:1.5;">
             11-section Course Delivery report: CO &amp; Bloom's analysis, CO-PO-SDG alignment,
             session coverage matrix, teaching method distribution, TD analytics, SDG &amp; AI integration,
-            NBA/NAAC compliance checklist and Readiness Dashboard.
+            OBE Accreditation compliance checklist and Readiness Dashboard.
           </p>
           <p style="font-size:.72rem;color:#e11d48;font-weight:700;margin:6px 0 0;">
             Edit before downloading in TXT, DOCX or PDF
@@ -4543,7 +4687,7 @@ function _aioShowDone() {
           </p>
           <p style="font-size:.77rem;color:var(--muted);margin:0;line-height:1.5;">
             11-section Assessment report: CO-PO Mapping, CO Attainment, PO Attainment,
-            CO&#8594;SDG &amp; PO&#8594;SDG contributions, Composite SDG Index, NBA/NAAC compliance checklist
+            CO&#8594;SDG &amp; PO&#8594;SDG contributions, Composite SDG Index, OBE Accreditation compliance checklist
             and Assessment Readiness Dashboard.
           </p>
           <p style="font-size:.72rem;color:#059669;font-weight:700;margin:6px 0 0;">
@@ -5253,7 +5397,7 @@ async function _m3Rephrase() {
     const r = await fetch('/m1_report_apply_suggestion', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ original: text, advice: 'Improve clarity, precision, and academic tone for an NBA/NAAC report.' }),
+      body: JSON.stringify({ original: text, advice: 'Improve clarity, precision, and academic tone for an OBE Accreditation report.' }),
     });
     const d = await r.json();
     if (d.error) throw new Error(d.error);
@@ -5402,6 +5546,7 @@ async function _previewModule4Report(clickedBtn) {
         poatt:      _aio.results['poatt'] || {},
         sdgco:      _aio.results['sdgco'] || {},
         sdgpo:      _aio.results['sdgpo'] || {},
+        coatt_marks: _m4MarksCoatt || {},
       }),
     });
     if (!r.ok) {
@@ -5466,7 +5611,7 @@ async function _m4Rephrase() {
     const r = await fetch('/m1_report_apply_suggestion', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ original: text, advice: 'Improve clarity, precision, and academic tone for an NBA/NAAC assessment report.' }),
+      body: JSON.stringify({ original: text, advice: 'Improve clarity, precision, and academic tone for an OBE Accreditation assessment report.' }),
     });
     const d = await r.json();
     if (d.error) throw new Error(d.error);
@@ -5579,6 +5724,7 @@ async function downloadM4Report() {
           poatt:      _aio.results['poatt'] || {},
           sdgco:      _aio.results['sdgco'] || {},
           sdgpo:      _aio.results['sdgpo'] || {},
+          coatt_marks: _m4MarksCoatt || {},
         }),
       });
     }

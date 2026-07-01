@@ -250,6 +250,64 @@
     </div>
   </div>
 
+  <!-- Module 4: Student marks upload (optional, shown at the start of Module 4) -->
+  <div id="sec-aio-marks-upload" class="card hidden">
+    <h2>Upload Student Marks (Optional &mdash; actual student data)</h2>
+    <p class="sub">Upload student marks to compute <strong>real CO attainment</strong> from actual performance (Method-2 Tier-I: CIE internal tests + SEE semester exam). The AI-estimated attainment is still produced, and the Module&#8209;4 report shows a side-by-side comparison. Don't have a file ready? Download the sample Excel, fill it in, and upload it &mdash; or skip to use the AI estimate only.</p>
+
+    <div style="margin:16px 0;">
+      <button class="btn btn-ghost" onclick="downloadMarksTemplate()" style="font-size:.82rem;">
+        <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.125em" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download sample Excel template
+      </button>
+    </div>
+
+    <div style="margin:12px 0 20px;padding:18px 20px;border:1.5px dashed var(--border);border-radius:12px;background:rgba(5,150,105,.04);">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:1.4rem;color:#059669;"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.125em" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+        <div style="flex:1;">
+          <div style="font-size:.88rem;font-weight:700;margin-bottom:4px;">Student Marks File</div>
+          <div id="aio-marks-upload-status" style="font-size:.78rem;color:var(--muted);">
+            No file selected &mdash; choose a filled .xlsx or .xls file.
+          </div>
+        </div>
+        <label class="btn btn-primary" style="cursor:pointer;font-size:.82rem;">
+          Choose File
+          <input type="file" id="aio-marks-file-input" accept=".xlsx,.xls"
+                 style="display:none;" onchange="aioMarksUploadFile(this)">
+        </label>
+      </div>
+      <div class="uni-progress hidden" id="aio-marks-upload-loading" style="margin-top:12px;">
+        <span class="uni-progress-label">Parsing marks file&#8230;</span>
+        <div class="uni-progress-track"><div class="uni-progress-fill is-indeterminate"></div></div>
+      </div>
+    </div>
+
+    <div class="alert alert-error hidden" id="aio-marks-upload-err" style="margin-bottom:12px;"></div>
+
+    <!-- Detection warning (amber): shown when only one component, or none, is detected -->
+    <div class="hidden" id="aio-marks-upload-warn" role="alert"
+         style="margin-bottom:12px;padding:11px 14px;border-radius:8px;font-size:.84rem;line-height:1.5;
+                display:flex;gap:10px;align-items:flex-start;
+                background:rgba(245,158,11,.12);color:#fcd34d;border:1px solid rgba(245,158,11,.4);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:1px;">
+        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      <span id="aio-marks-upload-warn-text"></span>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goBack('aio-marks-upload')">&#8592; Back</button>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" onclick="aioMarksSkip()" style="margin-right:8px;">Skip &mdash; use AI estimate</button>
+      <button class="btn btn-primary" id="btn-aio-marks-next" onclick="aioMarksContinue()" disabled>
+        Continue &#8594;
+      </button>
+    </div>
+  </div>
+
   <!-- Step 5: Done -->
   <div id="sec-aio-done" class="card hidden">
     <h2>All Done!</h2>
@@ -271,7 +329,7 @@
       <h2 style="margin:0;">Module 3 Report Preview</h2>
       <button class="btn btn-ghost" style="padding:4px 10px;font-size:.78rem;" onclick="toggleM3AiPanel()">AI Assistant</button>
     </div>
-    <p class="sub">Review and edit the report. Select text to rephrase it, or ask the AI about delivery quality, SDG coverage, or NBA compliance.</p>
+    <p class="sub">Review and edit the report. Select text to rephrase it, or ask the AI about delivery quality, SDG coverage, or OBE Accreditation compliance.</p>
 
     <div class="preview-layout">
       <div id="m3-report-preview-div" contenteditable="true" spellcheck="false"></div>
@@ -369,7 +427,7 @@
       <h2 style="margin:0;">Module 4 Report Preview</h2>
       <button class="btn btn-ghost" style="padding:4px 10px;font-size:.78rem;" onclick="toggleM4AiPanel()">AI Assistant</button>
     </div>
-    <p class="sub">Review and edit the report. Select text to rephrase it, or ask the AI about attainment levels, SDG coverage, or NBA compliance.</p>
+    <p class="sub">Review and edit the report. Select text to rephrase it, or ask the AI about attainment levels, SDG coverage, or OBE Accreditation compliance.</p>
 
     <div class="preview-layout">
       <div id="m4-report-preview-div" contenteditable="true" spellcheck="false"></div>

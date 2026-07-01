@@ -113,6 +113,41 @@ def attainment_level_chart(level_dist):
     return _buf(fig)
 
 
+def co_attainment_compare_chart(co_compare):
+    """Grouped horizontal bars per CO: marks-based vs AI attainment level (0-3)."""
+    if not co_compare:
+        return None
+    labels  = [c.get('co', '') for c in co_compare]
+    marks_v = [float(c.get('marks_level') or 0) for c in co_compare]
+    ai_v    = [float(c.get('ai_level')) if c.get('ai_level') is not None else 0.0
+               for c in co_compare]
+
+    y = np.arange(len(labels))
+    h = 0.38
+    fig, ax = plt.subplots(figsize=(6.5, max(2.5, len(labels) * 0.6 + 0.8)))
+    b1 = ax.barh(y + h / 2, marks_v, height=h, color=_C_GREEN,
+                 edgecolor='white', linewidth=0.5, label='Marks-based')
+    b2 = ax.barh(y - h / 2, ai_v, height=h, color=_C_INDIGO,
+                 edgecolor='white', linewidth=0.5, label='AI-estimated')
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels, fontsize=9)
+    ax.set_xlim(0, 3.4)
+    ax.set_xticks([0, 1, 2, 3])
+    ax.set_xlabel('Attainment Level (0-3)', fontsize=9)
+    ax.set_title('CO Attainment: Marks-Based vs AI', fontsize=11,
+                 fontweight='bold', color=_C_INDIGO)
+    ax.legend(fontsize=8, loc='lower right')
+    for bars in (b1, b2):
+        for bar in bars:
+            w = bar.get_width()
+            ax.text(w + 0.05, bar.get_y() + bar.get_height() / 2,
+                    f'{w:.2f}', va='center', ha='left', fontsize=7.5)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    fig.tight_layout()
+    return _buf(fig)
+
+
 def copo_heatmap(pomap_rows, po_keys):
     """Color-coded heatmap of the CO-PO mapping matrix (scores 0-3)."""
     if not pomap_rows or not po_keys:

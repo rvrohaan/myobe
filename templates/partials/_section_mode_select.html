@@ -90,22 +90,52 @@
     .module-card:hover { transform: translateY(-6px); box-shadow: 0 14px 40px rgba(0,0,0,.13); border-color: rgba(99,102,241,.28); }
     .module-card:hover::after { transform: scaleX(1); }
 
+    /* Header row: module number on the left, output-count badge on the right. */
+    .module-card-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; margin-bottom: 14px;
+    }
     .module-number {
       font-size: .64rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
       color: var(--mc-text, var(--primary));
       background: var(--mc-icon-bg, #ede9fe);
-      padding: 3px 10px; border-radius: 999px; display: inline-block; margin-bottom: 14px;
-      align-self: flex-start;
+      padding: 3px 10px; border-radius: 999px; display: inline-block;
     }
+    /* High-emphasis badge that surfaces the depth of what the module produces
+       (e.g. "11-section report"). Filled with the module accent so it reads as
+       the loudest element on the card — the generations, not the chrome. */
+    .module-output-badge {
+      display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+      font-size: .63rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase;
+      color: #fff; background: var(--mc-accent, var(--primary));
+      padding: 4px 11px; border-radius: 999px; white-space: nowrap;
+      box-shadow: 0 3px 12px rgba(0,0,0,.28);
+    }
+    .module-output-badge svg { width: 12px; height: 12px; flex-shrink: 0; }
     .module-icon { font-size: 2rem; margin-bottom: 10px; line-height: 1; }
     .module-title { font-size: 1rem; font-weight: 800; margin-bottom: 8px; color: var(--text); line-height: 1.3; }
     .module-desc  { font-size: .77rem; color: var(--muted); line-height: 1.55; margin-bottom: 14px; flex: 1; }
+    .module-deliverables-label {
+      display: flex; align-items: center; gap: 6px;
+      font-size: .6rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 8px;
+    }
+    .module-deliverables-label svg { width: 12px; height: 12px; color: var(--mc-text, var(--primary)); flex-shrink: 0; }
     .module-features { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 16px; }
     .module-feature-chip {
+      display: inline-flex; align-items: center; gap: 5px;
       font-size: .67rem; font-weight: 600;
       background: var(--mc-icon-bg, #ede9fe);
       color: var(--mc-text, var(--primary));
-      padding: 3px 9px; border-radius: 999px;
+      padding: 3px 9px 3px 8px; border-radius: 999px;
+    }
+    /* Leading check mark, tinted via the chip's text colour — marks each chip as
+       a concrete deliverable rather than a generic tag. Mask keeps HTML clean. */
+    .module-feature-chip::before {
+      content: ''; width: 11px; height: 11px; flex-shrink: 0;
+      background: currentColor;
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/contain no-repeat;
+              mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/contain no-repeat;
     }
     .module-cta {
       display: inline-flex; align-items: center; gap: 5px;
@@ -254,15 +284,25 @@
       <!-- Module 1: CO Generation + Question Bank -->
       <div class="module-card" onclick="selectMode('module1')"
            style="--mc-accent:linear-gradient(90deg,#6366f1,#8b5cf6); --mc-icon-bg:#ede9fe; --mc-text:#6366f1; animation-delay:.04s">
-        <div class="module-number">Module 1</div>
+        <div class="module-card-head">
+          <div class="module-number">Module 1</div>
+          <span class="module-output-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
+            11-section report
+          </span>
+        </div>
         <div class="module-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></div>
         <div class="module-title">AI-Powered Question Paper</div>
-        <div class="module-desc">Generate Bloom's-aligned COs and an intelligent question bank from your syllabus, with CO coverage, QQI scoring and OBE/NBA compliance reports.</div>
+        <div class="module-desc">Generate Bloom's-aligned COs and an intelligent question bank from your syllabus, with CO coverage, QQI scoring and OBE Accreditation compliance reports.</div>
+        <div class="module-deliverables-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
+          Generates
+        </div>
         <div class="module-features">
           <span class="module-feature-chip">CO Generation</span>
           <span class="module-feature-chip">Question Bank</span>
           <span class="module-feature-chip">Bloom's Taxonomy</span>
-          <span class="module-feature-chip">OBE/NBA/NAAC</span>
+          <span class="module-feature-chip">OBE Accreditation</span>
         </div>
         <span class="module-cta">Get Started with Module 1 →</span>
       </div>
@@ -270,10 +310,20 @@
       <!-- Module 2: Question Paper (compose from QB) -->
       <div class="module-card" onclick="selectMode('module2')"
            style="--mc-accent:linear-gradient(90deg,#0ea5e9,#38bdf8); --mc-icon-bg:#e0f2fe; --mc-text:#0284c7; animation-delay:.09s">
-        <div class="module-number">Module 2</div>
+        <div class="module-card-head">
+          <div class="module-number">Module 2</div>
+          <span class="module-output-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
+            4 paper types
+          </span>
+        </div>
         <div class="module-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></div>
         <div class="module-title">Smart Question Paper Generation</div>
         <div class="module-desc">Compose Assignment, Quiz, Internal Assessment, or Final Exam papers from an existing question bank — with CO-tag filtering and editable preview.</div>
+        <div class="module-deliverables-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
+          Generates
+        </div>
         <div class="module-features">
           <span class="module-feature-chip">Question Paper</span>
           <span class="module-feature-chip">Assignment</span>
@@ -286,14 +336,23 @@
       <!-- Module 3: Course Delivery -->
       <div class="module-card" onclick="selectMode('module3')"
            style="--mc-accent:linear-gradient(90deg,#f43f5e,#fb7185); --mc-icon-bg:#ffe4e6; --mc-text:#e11d48; animation-delay:.14s">
-        <div class="module-number">Module 3</div>
+        <div class="module-card-head">
+          <div class="module-number">Module 3</div>
+          <span class="module-output-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
+            Full-semester plan
+          </span>
+        </div>
         <div class="module-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg></div>
         <div class="module-title">AI-Powered Course Delivery Management System</div>
         <div class="module-desc">Plan and track course delivery with AI-generated lesson plans and full-semester teaching diaries with CO-PO-SDG alignment.</div>
+        <div class="module-deliverables-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
+          Generates
+        </div>
         <div class="module-features">
           <span class="module-feature-chip">Lesson Plan</span>
           <span class="module-feature-chip">Teaching Diary</span>
-          <span class="module-feature-chip">HoD Monitoring</span>
           <span class="module-feature-chip">Analytics</span>
         </div>
         <span class="module-cta">Get Started with Module 3 →</span>
@@ -302,15 +361,27 @@
       <!-- Module 4: Assessment Methods -->
       <div class="module-card" onclick="selectMode('module4')"
            style="--mc-accent:linear-gradient(90deg,#10b981,#34d399); --mc-icon-bg:#d1fae5; --mc-text:#059669; animation-delay:.19s">
-        <div class="module-number">Module 4</div>
+        <div class="module-card-head">
+          <div class="module-number">Module 4</div>
+          <span class="module-output-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
+            6 analyses
+          </span>
+        </div>
         <div class="module-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></div>
         <div class="module-title">AI-Powered Assessment Methods</div>
-        <div class="module-desc">Calculate CO-PO mapping, CO attainment, and SDG contributions for NBA/NAAC/NEP accreditation with ATR reports and visual graphs.</div>
+        <div class="module-desc">Calculate CO-PO mapping, CO attainment, and SDG contributions for OBE Accreditation with ATR reports and visual graphs.</div>
+        <div class="module-deliverables-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>
+          Generates
+        </div>
         <div class="module-features">
           <span class="module-feature-chip">CO-PO-PSO Mapping</span>
           <span class="module-feature-chip">CO Attainment</span>
-          <span class="module-feature-chip">SDG Contributions</span>
-          <span class="module-feature-chip">ATR Reports</span>
+          <span class="module-feature-chip">PO Attainment</span>
+          <span class="module-feature-chip">CO&#8594;SDG</span>
+          <span class="module-feature-chip">PO&#8594;SDG</span>
+          <span class="module-feature-chip">ATR Report</span>
         </div>
         <span class="module-cta">Get Started with Module 4 →</span>
       </div>
@@ -333,7 +404,7 @@
       <span class="gen-opt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></span>
       <span class="gen-opt-text">
         <span class="gen-opt-label">Generate All in Module 1</span>
-        <span class="gen-opt-sub">Auto-generate Bloom's taxonomy-aligned COs + complete Question Bank, then download the comprehensive 11-section report — Sample Paper, Bloom's Compliance, CO Coverage, Difficulty Analysis, Scenario Analysis, QQI, Marks Distribution, OBE/NBA Compliance &amp; Accreditation Readiness Dashboard. All in one click.</span>
+        <span class="gen-opt-sub">Auto-generate Bloom's taxonomy-aligned COs + complete Question Bank, then download the comprehensive 11-section report — Sample Paper, Bloom's Compliance, CO Coverage, Difficulty Analysis, Scenario Analysis, QQI, Marks Distribution, OBE Accreditation Compliance &amp; Accreditation Readiness Dashboard. All in one click.</span>
       </span>
       <span class="gen-opt-token" id="mod-token-cost-module1">6 tokens</span>
     </button>

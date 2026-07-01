@@ -9,11 +9,34 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)),
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-# ── Standard POs (12) ─────────────────────────────────────────────────────────
+# ── Standard POs ──────────────────────────────────────────────────────────────
+# Default engineering PO key subset used when the caller does not supply a
+# college-type PO framework (see generate_lesson_plan_stream(po_keys=...)).
 _STANDARD_POS = [
     "PO1", "PO2", "PO3", "PO4", "PO5", "PO6",
     "PO7", "PO9", "PO10", "PO12",
 ]
+
+
+def _pos_from_mapping(mapping_rows, fallback=None):
+    """PO column keys to render, taken from the PO scores the AI actually
+    produced (so the table matches the college-type POs), numerically ordered.
+    Falls back to the engineering subset when the data has none."""
+    seen, keys = set(), []
+    for row in (mapping_rows or []):
+        for k in (row.get("po_scores") or {}).keys():
+            if k not in seen:
+                seen.add(k)
+                keys.append(k)
+    if not keys:
+        return list(fallback or _STANDARD_POS)
+
+    def _n(k):
+        m = re.match(r"PO(\d+)", k)
+        return int(m.group(1)) if m else 999
+
+    keys.sort(key=_n)
+    return keys
 
 # ── System prompt ─────────────────────────────────────────────────────────────
 _SYSTEM = """\
@@ -62,7 +85,10 @@ _OBE_ALIGNMENT = [
 
 def _build_prompt(course_code: str, course_title: str, course_text: str,
                   num_cos: int, meta: dict,
-                  existing_cos: list | None = None) -> str:
+                  existing_cos: list | None = None,
+                  po_keys: list | None = None) -> str:
+    _pk = po_keys or _STANDARD_POS
+    po_scores_skeleton = "{" + ", ".join(f'"{k}": 0' for k in _pk) + "}"
     semester = meta.get("semester", "III")
     academic_year = meta.get("academic_year", "2026-2027")
     regulation = meta.get("regulation", "R26")
@@ -126,7 +152,7 @@ OUTPUT — return ONLY this JSON (no markdown, no explanation):
   "co_po_sdg_mapping": [
     {{
       "co": "CO1",
-      "po_scores": {{"PO1": 0, "PO2": 0, "PO3": 0, "PO4": 0, "PO5": 0, "PO6": 0, "PO7": 0, "PO9": 0, "PO10": 0, "PO12": 0}},
+      "po_scores": {po_scores_skeleton},
       "pso1": 0,
       "sdg": "SDG4"
     }}
@@ -199,12 +225,13 @@ def _extract_json(raw: str) -> dict | None:
 def generate_lesson_plan(client, course_code: str, course_title: str,
                          course_text: str, meta: dict,
                          num_cos: int = 5,
-                         existing_cos: list | None = None) -> dict:
+                         existing_cos: list | None = None,
+                         po_keys: list | None = None) -> dict:
     """Call Claude and return parsed lesson plan dict. Raises on failure."""
     if existing_cos:
         num_cos = len(existing_cos)
     prompt = _build_prompt(course_code, course_title, course_text, num_cos, meta,
-                           existing_cos=existing_cos)
+                           existing_cos=existing_cos, po_keys=po_keys)
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=8192,
@@ -223,7 +250,8 @@ def generate_lesson_plan(client, course_code: str, course_title: str,
 def generate_lesson_plan_stream(client, course_code: str, course_title: str,
                                 course_text: str, meta: dict,
                                 num_cos: int = 5,
-                                existing_cos: list | None = None):
+                                existing_cos: list | None = None,
+                                po_keys: list | None = None):
     """Yield SSE-style progress dicts. Last item has key 'done' and 'data'.
 
     Streams the model response so the SSE connection keeps receiving bytes.
@@ -240,7 +268,7 @@ def generate_lesson_plan_stream(client, course_code: str, course_title: str,
         yield {"progress": "Generating COs and lesson plan sections via AI…"}
 
     prompt = _build_prompt(course_code, course_title, course_text, num_cos, meta,
-                           existing_cos=existing_cos)
+                           existing_cos=existing_cos, po_keys=po_keys)
     raw = ""
     try:
         with client.messages.stream(
@@ -354,7 +382,7 @@ def _add_info_table(doc, meta: dict, course_code: str, course_title: str):
 def _build_co_po_table(doc, mapping_rows: list, cos: list):
     """Build CO–PO–PSO–SDG mapping table."""
     from docx.shared import Pt
-    pos = _STANDARD_POS
+    pos = _pos_from_mapping(mapping_rows)
     headers = ["CO"] + pos + ["PSO1", "SDG"]
     ncols = len(headers)
 
@@ -704,7 +732,7 @@ def build_pdf(data: dict, meta: dict, course_code: str, course_title: str,
     # 3. CO-PO-SDG Mapping
     story.append(Paragraph("3. CO–PO–PSO–SDG MAPPING", heading_style))
     mapping = data.get("co_po_sdg_mapping", [])
-    pos = _STANDARD_POS
+    pos = _pos_from_mapping(mapping)
     map_headers = ["CO"] + pos + ["PSO1", "SDG"]
     map_rows = [map_headers]
     _SCORE_COLORS_RL = {
@@ -934,7 +962,7 @@ def build_txt(data: dict, meta: dict, course_code: str, course_title: str,
 
     sec("3. CO–PO–PSO–SDG MAPPING")
     mapping = data.get("co_po_sdg_mapping", [])
-    pos = _STANDARD_POS
+    pos = _pos_from_mapping(mapping)
     table_txt(
         ["CO"] + pos + ["PSO1", "SDG"],
         [([row.get("co","")]
