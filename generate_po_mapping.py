@@ -485,6 +485,7 @@ COLLEGE_TYPE_META = {
     "management":    {"label": "Management",             "accreditation": "AICTE/AACSB","short": "Mgmt"},
     "architecture":  {"label": "Architecture & Planning","accreditation": "COA",        "short": "Arch"},
     "agriculture":   {"label": "Agriculture & Allied",   "accreditation": "ICAR/ICAR",  "short": "Agri"},
+    "nursing":       {"label": "Nursing",                "accreditation": "INC",        "short": "Nurse"},
     "science":       {"label": "Science (Degree)",        "accreditation": "UGC/NAAC",   "short": "Sci"},
     "arts":          {"label": "Arts (Degree)",           "accreditation": "UGC/NAAC",   "short": "Arts"},
     "science_arts":  {"label": "Science & Arts (Degree)", "accreditation": "UGC/NAAC",   "short": "Sci/Arts"},

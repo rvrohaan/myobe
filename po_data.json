@@ -2477,5 +2477,60 @@
         "Recognize the need for and engage in independent and life-long learning in response to advances in agricultural science, technology, climate change and global food systems."
       ]
     ]
+  },
+  "nursing": {
+    "mode": "single",
+    "pos": [
+      [
+        "PO1",
+        "Patient-Centered Care",
+        "Programme Outcome"
+      ],
+      [
+        "PO2",
+        "Professionalism",
+        "Programme Outcome"
+      ],
+      [
+        "PO3",
+        "Teaching and Leadership",
+        "Programme Outcome"
+      ],
+      [
+        "PO4",
+        "System-Based Practice",
+        "Programme Outcome"
+      ],
+      [
+        "PO5",
+        "Health Informatics and Technology",
+        "Programme Outcome"
+      ],
+      [
+        "PO6",
+        "Communication",
+        "Programme Outcome"
+      ],
+      [
+        "PO7",
+        "Teamwork and Collaboration",
+        "Programme Outcome"
+      ],
+      [
+        "PO8",
+        "Safety",
+        "Programme Outcome"
+      ],
+      [
+        "PO9",
+        "Quality Improvement",
+        "Programme Outcome"
+      ],
+      [
+        "PO10",
+        "Evidence-Based Practice",
+        "Programme Outcome"
+      ]
+    ]
   }
 }

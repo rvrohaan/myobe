@@ -209,6 +209,13 @@ _COLLEGE_CONTEXTS = {
         "outcomes_term": "Programme Outcomes (POs)",
         "body": "ICAR", "framework": "OBE/ICAR",
     },
+    "nursing": {
+        "type": "Nursing", "discipline": "nursing",
+        "accreditation": "INC (Indian Nursing Council)",
+        "professional": "nurse", "program": "B.Sc Nursing / M.Sc Nursing",
+        "outcomes_term": "Programme Outcomes (POs)",
+        "body": "INC", "framework": "OBE/INC",
+    },
     "science": {
         "type": "Science (Degree)", "discipline": "science",
         "accreditation": "UGC/NAAC (LOCF)",

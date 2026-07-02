@@ -49,6 +49,7 @@ SOURCES = {
     "management":   ("POs/PO-MBA Program Outcomes.docx",         "single"),
     "architecture": ("POs/PO-Architecture and Planning.docx",    "single"),
     "agriculture":  ("POs/PO-Agriculture and Allied Sciences.docx", "single"),
+    "nursing":      ("POs/Nursing Colleges-PO.docx",                "single"),
 }
 
 OUTPUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "po_data.json")
