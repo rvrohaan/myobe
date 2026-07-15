@@ -51,7 +51,7 @@
     .nav-links a:hover, .nav-links a.active { color:#fff; background:rgba(255,255,255,.08); }
     .nav-actions { margin-left:auto; display:flex; align-items:center; gap:10px; }
     .nav-username { font-size:.8rem; color:rgba(255,255,255,.5); }
-    .nav-token-badge { font-size:.68rem; font-weight:700; padding:2px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.04em; background:rgba(99,102,241,.18); color:#a5b4fc; }
+    .nav-token-badge { font-size:.68rem; font-weight:700; padding:2px 9px; border-radius:999px; background:rgba(99,102,241,.18); color:#a5b4fc; letter-spacing:.02em; }
     .btn-nav-ghost { padding:8px 18px; background:transparent; border:1.5px solid rgba(255,255,255,.2); border-radius:8px; font-size:.88rem; font-weight:600; color:rgba(255,255,255,.8); text-decoration:none; transition:border-color .15s,color .15s; }
     .btn-nav-ghost:hover, .btn-nav-ghost.active { border-color:var(--primary); color:#fff; }
     .btn-nav-primary { padding:8px 20px; background:var(--primary); border:none; border-radius:8px; font-size:.88rem; font-weight:700; color:#fff; text-decoration:none; transition:background .15s; }
@@ -350,11 +350,41 @@
         {{ email or 'Not set' }}
       </span>
     </div>
+    {% if not is_inst_member %}
     <div class="info-row">
       <span class="info-label">Tokens</span>
       <span id="acct-token-count" style="font-size:1rem;font-weight:800;color:#a5b4fc;">{{ tokens }}</span>
     </div>
+    {% endif %}
   </div>
+
+  {% if is_inst_member %}
+  <!-- ── Institution ── -->
+  <div class="settings-card">
+    <h2>Institution</h2>
+    <div class="info-row">
+      <span class="info-label">Institution</span>
+      <span>{{ inst_name }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Role</span>
+      <span>{{ 'Admin' if is_inst_admin else 'Member' }}</span>
+    </div>
+    {% if is_inst_admin %}
+    <div class="info-row">
+      <span class="info-label">Pool tokens</span>
+      <span style="font-size:1rem;font-weight:800;color:#a5b4fc;">{{ badge_tokens }}</span>
+    </div>
+    {% endif %}
+    <p style="font-size:.85rem;color:var(--muted);margin-top:14px;">
+      Your usage is covered by your institution's plan - no personal tokens needed.
+      {% if is_inst_admin %}
+      Manage your faculty and invites on the
+      <a href="/institution" style="color:#a5b4fc;font-weight:600;">Institution page</a>.
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
 
   <!-- ── College / Institution Type ── -->
   <div class="settings-card">
@@ -362,6 +392,30 @@
     <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px;">
       Selects the Programme Outcomes (POs) framework used across all modules.
     </p>
+    {% if is_inst_member %}
+    <div class="info-row">
+      <span class="info-label">Type</span>
+      <span>{{ college_type_meta[college_type].label if college_type in college_type_meta else college_type }}</span>
+    </div>
+    <p style="font-size:.82rem;color:var(--muted);margin-top:12px;">
+      Set by your institution and cannot be changed.
+    </p>
+    {% if college_type == 'science_arts' %}
+    <div id="branch-wrap" style="margin-top:16px;">
+      <label class="field-label" for="branch-select">Branch / Programme</label>
+      <p style="font-size:.8rem;color:var(--muted);margin:4px 0 8px;">
+        Selects the specific Science or Arts degree programme and its Programme Outcomes (POs).
+      </p>
+      <select id="branch-select" class="dark-input" onchange="setBranch(this.value)">
+        <option value="">-- Select a branch --</option>
+        {% for code, lbl, stream in science_arts_branches %}
+        <option value="{{ code }}"{% if branch == code %} selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div id="ct-msg"></div>
+    {% else %}
     <div class="college-grid">
       {% set types = [
         ('engineering', 'Engineering', ''),
@@ -398,6 +452,7 @@
     </div>
 
     <div id="ct-msg"></div>
+    {% endif %}
   </div>
 
   <!-- ── Email ── -->
@@ -432,6 +487,7 @@
   </div>
 
   <!-- ── Token top-up ── -->
+  {% if not is_inst_member %}
   <div class="settings-card">
     <h2>Top Up Tokens</h2>
     <p style="font-size:.85rem;color:var(--muted);margin-bottom:20px;">
@@ -460,6 +516,7 @@
 
     <div id="topup-msg"></div>
   </div>
+  {% endif %}
 
   <!-- ── Token cost reference ── -->
   <div class="settings-card">

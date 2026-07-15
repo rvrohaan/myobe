@@ -1,5 +1,7 @@
 import os
 import re
+import io
+import csv
 import json
 import uuid
 import time
@@ -126,6 +128,8 @@ _DATA_DIR   = os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file_
 os.makedirs(_DATA_DIR, exist_ok=True)
 USERS_FILE  = os.path.join(_DATA_DIR, "users.json")
 TOKENS_FILE = os.path.join(_DATA_DIR, "reset_tokens.json")
+INSTITUTIONS_FILE = os.path.join(_DATA_DIR, "institutions.json")
+INVITES_FILE      = os.path.join(_DATA_DIR, "invites.json")
 
 
 def load_users() -> dict:
@@ -265,11 +269,135 @@ def login_required(fn):
     return wrapper
 
 
+def _site_admins() -> set:
+    """Usernames allowed on the owner panel (SITE_ADMIN_USERS env, comma-separated).
+
+    Checked against the env on every request so access is revocable instantly
+    and can never be granted through any web path.
+    """
+    raw = os.environ.get("SITE_ADMIN_USERS", "")
+    return {u.strip() for u in raw.split(",") if u.strip()}
+
+
+def _is_site_admin(username) -> bool:
+    return bool(username) and username in _site_admins()
+
+
+def site_admin_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login", next=request.path))
+        if not _is_site_admin(session.get("username")):
+            if request.method == "GET":
+                return redirect(url_for("dashboard"))
+            return jsonify({"error": "Site admin access required."}), 403
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+@app.context_processor
+def _inject_badge_context():
+    """Token-badge state for templates.
+
+    Pool balances are read live from institutions.json (they change from other
+    members' actions, so they must never be cached in the session cookie) and
+    are exposed only to the institution admin; regular members get a plain
+    "Institute plan" badge with no number.
+    """
+    if not session.get("logged_in"):
+        return {}
+    username = session.get("username", "")
+    users = load_users()
+    is_site_admin = _is_site_admin(username)
+    inst_id, inst = _user_institution(username, users)
+    if inst_id:
+        is_admin = users.get(username, {}).get("inst_role") == "admin"
+        return {
+            "badge_mode":     "inst_admin" if is_admin else "inst_member",
+            "badge_tokens":   inst.get("pool_tokens", 0) if is_admin else None,
+            "inst_name":      inst.get("name", inst_id),
+            "is_inst_admin":  is_admin,
+            "is_inst_member": True,
+            "is_site_admin":  is_site_admin,
+        }
+    return {
+        "badge_mode":     "personal",
+        "badge_tokens":   users.get(username, {}).get("tokens", 0),
+        "inst_name":      None,
+        "is_inst_admin":  False,
+        "is_inst_member": False,
+        "is_site_admin":  is_site_admin,
+    }
+
+
 TOPUP_PACKAGES = [
     {"id": "starter", "label": "Starter", "tokens": 10,  "price": 100},
     {"id": "popular", "label": "Popular", "tokens": 60,  "price": 500},
     {"id": "pro",     "label": "Pro",     "tokens": 150, "price": 1000},
 ]
+
+
+def _debit_tokens(username, cost):
+    """Debit `cost` tokens: institutional pool for institute members, personal
+    balance for individual accounts. Institute members are pool-only (no
+    personal fallback; top-up is blocked for them).
+
+    Returns (source, display_balance, err):
+      source          -- "pool:<inst_id>" | "personal" | None (on error)
+      display_balance -- number to surface to this user (None for regular
+                         institute members: the pool balance is admin-only)
+      err             -- error message when the debit could not be made
+    """
+    users = load_users()
+    inst_id, inst = _user_institution(username, users)
+    if inst_id:
+        role = users.get(username, {}).get("inst_role", "member")
+        if inst.get("pool_tokens", 0) < cost:
+            if role == "admin":
+                err = ("Your institution's token pool is empty. "
+                       "Contact MyOBE to refill it.")
+            else:
+                err = ("Your institution's token pool is empty. "
+                       "Please ask your institution admin to get it refilled.")
+            return None, None, err
+        institutions = _load_institutions()
+        inst = institutions[inst_id]
+        inst["pool_tokens"] = inst.get("pool_tokens", 0) - cost
+        usage = inst.setdefault("usage", {})
+        usage[username] = usage.get(username, 0) + cost
+        _save_institutions(institutions)
+        display = inst["pool_tokens"] if role == "admin" else None
+        return f"pool:{inst_id}", display, None
+    balance = users.get(username, {}).get("tokens", 0)
+    if balance < cost:
+        err = f"Not enough tokens. You need {cost} token(s) but have {balance}. Top up in Settings."
+        return None, None, err
+    users[username]["tokens"] = balance - cost
+    _save_users(users)
+    return "personal", users[username]["tokens"], None
+
+
+def _credit_tokens(source, username, cost):
+    """Refund `cost` tokens to wherever they were debited from.
+
+    Falls back to a personal credit if the pool's institution has vanished
+    or been deactivated since the charge -- tokens are never lost.
+    """
+    if source and source.startswith("pool:"):
+        inst_id = source.split(":", 1)[1]
+        institutions = _load_institutions()
+        inst = institutions.get(inst_id)
+        if inst and inst.get("active", True):
+            inst["pool_tokens"] = inst.get("pool_tokens", 0) + cost
+            usage = inst.setdefault("usage", {})
+            usage[username] = max(usage.get(username, 0) - cost, 0)
+            _save_institutions(institutions)
+            return
+    users = load_users()
+    if username in users:
+        users[username]["tokens"] = users[username].get("tokens", 0) + cost
+        _save_users(users)
 
 
 def tokens_required(cost=1):
@@ -280,24 +408,24 @@ def tokens_required(cost=1):
             if not session.get("logged_in"):
                 return redirect(url_for("login", next=request.path))
             username = session["username"]
-            users = load_users()
-            balance = users.get(username, {}).get("tokens", 0)
-            if balance < cost:
-                err = f"Not enough tokens. You need {cost} token(s) but have {balance}. Top up in Settings."
+            source, display, err = _debit_tokens(username, cost)
+            if err:
                 if "text/event-stream" in request.headers.get("Accept", ""):
                     def _err_stream():
                         yield f"data: {json.dumps({'error': err})}\n\n"
                     return Response(_err_stream(), mimetype="text/event-stream",
                                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
                 return jsonify({"error": err}), 403
-            users[username]["tokens"] = balance - cost
-            _save_users(users)
-            session["tokens"] = users[username]["tokens"]
-            new_balance = users[username]["tokens"]
+            # Refunds (possibly inside the SSE stream) must credit the same
+            # source; request.environ survives stream_with_context.
+            request.environ["myobe.charge_source"] = source
+            if source == "personal":
+                session["tokens"] = display
+            new_balance = display
 
             @after_this_request
             def _inject_token_header(response):
-                if response.content_type != "text/event-stream":
+                if new_balance is not None and response.content_type != "text/event-stream":
                     response.headers["X-Tokens-Remaining"] = str(new_balance)
                 return response
 
@@ -307,14 +435,12 @@ def tokens_required(cost=1):
 
 
 def _refund_tokens(cost):
-    """Refund tokens to the current user when SSE generation fails mid-stream."""
+    """Refund tokens to the charge source when SSE generation fails mid-stream."""
     username = session.get("username")
     if not username or cost <= 0:
         return
-    users = load_users()
-    if username in users:
-        users[username]["tokens"] = users[username].get("tokens", 0) + cost
-        _save_users(users)
+    source = request.environ.get("myobe.charge_source", "personal")
+    _credit_tokens(source, username, cost)
 
 
 def _charge_report(module, sig_material, cost=2):
@@ -335,14 +461,12 @@ def _charge_report(module, sig_material, cost=2):
     if session.get(key) == sig:
         return False, None
     username = session.get("username")
-    users = load_users()
-    balance = users.get(username, {}).get("tokens", 0)
-    if balance < cost:
-        err = f"Not enough tokens. You need {cost} token(s) but have {balance}. Top up in Settings."
+    source, display, err = _debit_tokens(username, cost)
+    if err:
         return False, (jsonify({"error": err}), 403)
-    users[username]["tokens"] = balance - cost
-    _save_users(users)
-    session["tokens"] = users[username]["tokens"]
+    request.environ["myobe.charge_source"] = source
+    if source == "personal":
+        session["tokens"] = display
     session[key] = sig
     return True, None
 
@@ -383,6 +507,60 @@ def _purge_expired(tokens: dict) -> dict:
     return {k: v for k, v in tokens.items() if v["expires"] > now}
 
 
+# -- Institution / invite helpers ---------------------------------------------
+
+def _load_institutions() -> dict:
+    if os.path.exists(INSTITUTIONS_FILE):
+        with open(INSTITUTIONS_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def _save_institutions(institutions: dict) -> None:
+    with open(INSTITUTIONS_FILE, "w", encoding="utf-8") as f:
+        json.dump(institutions, f, indent=2)
+
+
+def _load_invites() -> dict:
+    if os.path.exists(INVITES_FILE):
+        with open(INVITES_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def _save_invites(invites: dict) -> None:
+    with open(INVITES_FILE, "w", encoding="utf-8") as f:
+        json.dump(invites, f, indent=2)
+
+
+def _invite_status(inv: dict) -> str:
+    """Effective invite status; 'expired' is computed, never stored."""
+    if inv.get("status") == "pending" and inv.get("expires", 0) < time.time():
+        return "expired"
+    return inv.get("status", "pending")
+
+
+def _inst_members(inst_id: str, users: dict) -> dict:
+    """Users belonging to an institution (membership lives on user records)."""
+    return {u: d for u, d in users.items()
+            if isinstance(d, dict) and d.get("institution") == inst_id}
+
+
+def _user_institution(username: str, users: dict):
+    """Return (inst_id, inst) for the user's ACTIVE institution, else (None, None).
+
+    A missing or deactivated institution makes the user behave as an
+    individual account (personal tokens) until it is restored.
+    """
+    inst_id = users.get(username, {}).get("institution")
+    if not inst_id:
+        return None, None
+    inst = _load_institutions().get(inst_id)
+    if not inst or not inst.get("active", True):
+        return None, None
+    return inst_id, inst
+
+
 def _send_reset_email(to_email: str, reset_url: str) -> bool:
     api_key = os.environ.get("RESEND_API_KEY", "").strip()
     frm     = os.environ.get("SMTP_FROM", "MyOBE <help@myobe.in>").strip()
@@ -416,6 +594,48 @@ def _send_reset_email(to_email: str, reset_url: str) -> bool:
         return True
     except Exception as e:
         app.logger.error("Resend error: %s", e)
+        return False
+
+
+def _send_invite_email(to_email: str, name: str, inst_name: str, join_url: str) -> bool:
+    api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    frm     = os.environ.get("SMTP_FROM", "MyOBE <help@myobe.in>").strip()
+    if not api_key:
+        app.logger.error("RESEND_API_KEY not set (invite for %s not sent)", to_email)
+        return False
+
+    greeting = f"Hi {name}," if name else "Hi,"
+    plain = (
+        f"{greeting}\n\n"
+        f"{inst_name} has invited you to MyOBE, the academic content generator.\n"
+        "Your usage is covered by your institution's plan - no payment needed.\n\n"
+        f"Create your account here (link expires in 7 days):\n{join_url}\n\n"
+        "If you weren't expecting this, you can safely ignore this email."
+    )
+    html = (
+        f"<p>{greeting}</p>"
+        f"<p><strong>{inst_name}</strong> has invited you to <strong>MyOBE</strong>, "
+        "the academic content generator. Your usage is covered by your "
+        "institution's plan - no payment needed.</p>"
+        f'<p><a href="{join_url}" style="display:inline-block;padding:10px 24px;'
+        'background:#4f46e5;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">'
+        "Create my account</a></p>"
+        '<p style="color:#64748b;font-size:.85em;">Link expires in 7 days. '
+        "If you weren't expecting this, ignore this email.</p>"
+    )
+
+    try:
+        resend.api_key = api_key
+        resend.Emails.send({
+            "from":    frm,
+            "to":      [to_email],
+            "subject": f"You have been invited to MyOBE by {inst_name}",
+            "html":    html,
+            "text":    plain,
+        })
+        return True
+    except Exception as e:
+        app.logger.error("Resend error (invite): %s", e)
         return False
 
 
@@ -552,6 +772,7 @@ def register():
         "email":        email,
         "college_type": college_type,
         "branch":       branch,
+        "created":      int(time.time()),
     }
     _save_users(users)
 
@@ -3731,6 +3952,486 @@ def reset_password(token):
     return render_template("reset_password.html", token=token, error=error)
 
 
+# -- Institution invite acceptance --------------------------------------------
+
+@app.route("/join/<token>", methods=["GET", "POST"])
+def join(token):
+    invites = _load_invites()
+    inv = invites.get(token)
+    status = _invite_status(inv) if inv else None
+    if status != "pending":
+        msgs = {
+            "accepted": "This invite has already been used. Try signing in instead.",
+            "expired":  "This invite link has expired. Please ask your institution admin to resend it.",
+            "revoked":  "This invite has been revoked by your institution admin.",
+        }
+        return render_template("join.html", valid=False,
+                               error=msgs.get(status, "This invite link is invalid."))
+    inst_id = inv["institution"]
+    inst = _load_institutions().get(inst_id)
+    if not inst or not inst.get("active", True):
+        return render_template("join.html", valid=False,
+                               error="This institution's plan is not active right now. "
+                                     "Please contact your institution admin.")
+
+    error = None
+    username = ""
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        confirm  = request.form.get("confirm",  "")
+        users = load_users()
+        email = inv["email"].lower()
+
+        if not username or len(username) < 3:
+            error = "Username must be at least 3 characters."
+        elif not all(c.isalnum() or c in "-_" for c in username):
+            error = "Username may only contain letters, numbers, - and _."
+        elif username in users:
+            error = f"Username '{username}' is already taken."
+        elif len(password) < 6:
+            error = "Password must be at least 6 characters."
+        elif password != confirm:
+            error = "Passwords do not match."
+        elif any(d.get("email", "").lower() == email
+                 for d in users.values() if isinstance(d, dict)):
+            error = ("An account with this email already exists. "
+                     "Please contact your institution admin.")
+        else:
+            college_type = inst.get("default_college_type", "engineering")
+            users[username] = {
+                "password":     generate_password_hash(password),
+                "tokens":       0,
+                "email":        email,
+                "college_type": college_type,
+                "branch":       "",
+                "institution":  inst_id,
+                "inst_role":    inv.get("role", "member"),
+                "created":      int(time.time()),
+            }
+            _save_users(users)
+            invites = _load_invites()
+            invites[token]["status"] = "accepted"
+            invites[token]["accepted_username"] = username
+            _save_invites(invites)
+            session.clear()
+            session["logged_in"]    = True
+            session["username"]     = username
+            session["tokens"]       = 0
+            session["college_type"] = college_type
+            session["branch"]       = ""
+            return redirect(url_for("dashboard"))
+
+    return render_template("join.html", valid=True, error=error,
+                           inst_name=inst.get("name", inst_id),
+                           email=inv["email"], invite_name=inv.get("name", ""),
+                           username=username,
+                           invite_role=inv.get("role", "member"))
+
+
+# -- Institution admin dashboard ----------------------------------------------
+
+def inst_admin_required(fn):
+    """Allow only a logged-in institution admin whose institution exists.
+
+    (Deactivated institutions still pass so the admin can view the dashboard.)
+    """
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login", next=request.path))
+        users = load_users()
+        me = users.get(session["username"], {})
+        inst_id = me.get("institution")
+        if not inst_id or me.get("inst_role") != "admin" \
+                or inst_id not in _load_institutions():
+            if request.method == "GET":
+                return redirect(url_for("dashboard"))
+            return jsonify({"error": "Institution admin access required."}), 403
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def _my_institution():
+    """(inst_id, inst, users) for the current admin. Call after inst_admin_required."""
+    users = load_users()
+    inst_id = users[session["username"]]["institution"]
+    return inst_id, _load_institutions()[inst_id], users
+
+
+@app.route("/institution")
+@inst_admin_required
+def institution_dashboard():
+    inst_id, inst, users = _my_institution()
+    members = []
+    usage = inst.get("usage", {})
+    for u, d in sorted(_inst_members(inst_id, users).items()):
+        members.append({
+            "username": u,
+            "email":    d.get("email", ""),
+            "role":     d.get("inst_role", "member"),
+            "usage":    usage.get(u, 0),
+            "is_self":  u == session["username"],
+        })
+    invites = []
+    for tok, inv in _load_invites().items():
+        if inv.get("institution") != inst_id:
+            continue
+        status = _invite_status(inv)
+        invites.append({
+            "token":    tok,
+            "email":    inv.get("email", ""),
+            "name":     inv.get("name", ""),
+            "status":   status,
+            "created":  inv.get("created", 0),
+            "expires":  time.strftime("%d %b %Y", time.localtime(inv.get("expires", 0))),
+            "join_url": url_for("join", token=tok, _external=True) if status == "pending" else None,
+        })
+    invites.sort(key=lambda i: i["created"], reverse=True)
+    return render_template("institution.html",
+                           inst_id=inst_id,
+                           inst=inst,
+                           members=members,
+                           invites=invites,
+                           low_pool=inst.get("pool_tokens", 0) < 20)
+
+
+@app.route("/institution/roster", methods=["POST"])
+@inst_admin_required
+def institution_roster():
+    f = request.files.get("roster")
+    if not f or not f.filename:
+        return jsonify({"error": "Please choose a CSV file."}), 400
+    raw = f.read()
+    if len(raw) > 1_000_000:
+        return jsonify({"error": "File too large. Upload a CSV under 1 MB."}), 400
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1")
+
+    inst_id, inst, users = _my_institution()
+    invites = _load_invites()
+
+    member_emails = {d.get("email", "").lower()
+                     for d in _inst_members(inst_id, users).values()}
+    all_emails = {d.get("email", "").lower()
+                  for d in users.values() if isinstance(d, dict) and d.get("email")}
+    pending_by_email = {v.get("email", "").lower(): k for k, v in invites.items()
+                        if v.get("institution") == inst_id and _invite_status(v) == "pending"}
+
+    invited, resent, skipped = [], [], []
+    to_send = []
+    seen = set()
+    rows = list(csv.reader(io.StringIO(text)))
+    if len(rows) > 500:
+        return jsonify({"error": "Too many rows. Upload at most 500 professors at a time."}), 400
+    for i, row in enumerate(rows):
+        cells = [c.strip() for c in row if c.strip()]
+        if not cells:
+            continue
+        email = next((c.lower() for c in cells if "@" in c), None)
+        name  = next((c for c in cells if "@" not in c), "")
+        if email is None and i == 0 and any("email" in c.lower() for c in cells):
+            continue  # header row
+        if not email or "." not in email.split("@")[-1]:
+            skipped.append({"email": " ".join(cells)[:60], "reason": "invalid email"})
+            continue
+        if email in seen:
+            skipped.append({"email": email, "reason": "duplicate row"})
+            continue
+        seen.add(email)
+        if email in member_emails:
+            skipped.append({"email": email, "reason": "already a member"})
+            continue
+        if email in all_emails:
+            skipped.append({"email": email,
+                            "reason": "an individual account with this email already exists"})
+            continue
+        token = secrets.token_urlsafe(32)
+        entry = {"institution": inst_id, "email": email, "name": name,
+                 "created": int(time.time()), "expires": time.time() + 7 * 86400,
+                 "status": "pending", "accepted_username": None}
+        old = pending_by_email.pop(email, None)
+        if old:
+            invites[old]["status"] = "revoked"
+            resent.append(email)
+        else:
+            invited.append(email)
+        invites[token] = entry
+        to_send.append((email, name, url_for("join", token=token, _external=True)))
+    _save_invites(invites)
+
+    inst_name = inst.get("name", inst_id)
+
+    def _send_batch(batch, name_):
+        for e, n, u in batch:
+            _send_invite_email(e, n, name_, u)
+
+    if to_send:
+        threading.Thread(target=_send_batch, args=(to_send, inst_name), daemon=True).start()
+    return jsonify({"invited": len(invited), "resent": len(resent), "skipped": skipped})
+
+
+@app.route("/institution/invite/resend", methods=["POST"])
+@inst_admin_required
+def institution_invite_resend():
+    data = request.get_json() or {}
+    old_token = data.get("token", "")
+    invites = _load_invites()
+    inv = invites.get(old_token)
+    inst_id, inst, _users = _my_institution()
+    if not inv or inv.get("institution") != inst_id:
+        return jsonify({"error": "Invite not found."}), 404
+    if inv.get("status") == "accepted":
+        return jsonify({"error": "This invite was already accepted."}), 400
+    inv["status"] = "revoked"
+    token = secrets.token_urlsafe(32)
+    invites[token] = {"institution": inst_id, "email": inv["email"],
+                      "name": inv.get("name", ""), "created": int(time.time()),
+                      "expires": time.time() + 7 * 86400,
+                      "status": "pending", "accepted_username": None}
+    _save_invites(invites)
+    join_url = url_for("join", token=token, _external=True)
+    threading.Thread(target=_send_invite_email,
+                     args=(inv["email"], inv.get("name", ""),
+                           inst.get("name", inst_id), join_url),
+                     daemon=True).start()
+    return jsonify({"ok": True, "email": inv["email"], "join_url": join_url})
+
+
+@app.route("/institution/invite/revoke", methods=["POST"])
+@inst_admin_required
+def institution_invite_revoke():
+    data = request.get_json() or {}
+    token = data.get("token", "")
+    invites = _load_invites()
+    inv = invites.get(token)
+    inst_id, _inst, _users = _my_institution()
+    if not inv or inv.get("institution") != inst_id:
+        return jsonify({"error": "Invite not found."}), 404
+    if inv.get("status") == "accepted":
+        return jsonify({"error": "This invite was already accepted."}), 400
+    inv["status"] = "revoked"
+    _save_invites(invites)
+    return jsonify({"ok": True})
+
+
+@app.route("/institution/member/remove", methods=["POST"])
+@inst_admin_required
+def institution_member_remove():
+    data = request.get_json() or {}
+    target = data.get("username", "")
+    inst_id, _inst, users = _my_institution()
+    entry = users.get(target)
+    if not entry or entry.get("institution") != inst_id:
+        return jsonify({"error": "Member not found."}), 404
+    if target == session["username"] or entry.get("inst_role") == "admin":
+        return jsonify({"error": "Admins cannot be removed here. Contact MyOBE."}), 400
+    # The account reverts to a normal individual account (keeps its personal
+    # token balance); their historical pool usage stays in the institution log.
+    entry.pop("institution", None)
+    entry.pop("inst_role", None)
+    _save_users(users)
+    return jsonify({"ok": True})
+
+
+# -- Site owner admin panel ----------------------------------------------------
+
+_ADMIN_USER_COLUMNS = ["username", "email", "tokens", "college_type", "branch",
+                       "institution", "inst_role", "created"]
+
+
+def _admin_user_rows(users: dict) -> list:
+    rows = []
+    for u, d in sorted(users.items()):
+        if not isinstance(d, dict):
+            continue
+        created = d.get("created")
+        rows.append({
+            "username":     u,
+            "email":        d.get("email", ""),
+            "tokens":       d.get("tokens", 0),
+            "college_type": d.get("college_type", ""),
+            "branch":       d.get("branch", ""),
+            "institution":  d.get("institution", ""),
+            "inst_role":    d.get("inst_role", ""),
+            "created":      time.strftime("%Y-%m-%d", time.localtime(created)) if created else "",
+        })
+    return rows
+
+
+@app.route("/admin")
+@site_admin_required
+def admin_panel():
+    users = load_users()
+    institutions = _load_institutions()
+    invites = _load_invites()
+
+    now = time.localtime()
+    month_start = time.mktime((now.tm_year, now.tm_mon, 1, 0, 0, 0, 0, 0, -1))
+    user_dicts = {u: d for u, d in users.items() if isinstance(d, dict)}
+    members = {u: d for u, d in user_dicts.items() if d.get("institution")}
+    stats = {
+        "total_users":     len(user_dicts),
+        "new_this_month":  sum(1 for d in user_dicts.values()
+                               if d.get("created", 0) >= month_start),
+        "inst_members":    len(members),
+        "personal_tokens": sum(d.get("tokens", 0) for u, d in user_dicts.items()
+                               if not d.get("institution")),
+        "institutions":    len(institutions),
+        "pool_tokens":     sum(i.get("pool_tokens", 0) for i in institutions.values()),
+    }
+
+    inst_rows = []
+    for slug in sorted(institutions):
+        inst = institutions[slug]
+        m = _inst_members(slug, users)
+        admins = sorted(u for u, d in m.items() if d.get("inst_role") == "admin")
+        admin_invite_pending = any(
+            v.get("institution") == slug and v.get("role") == "admin"
+            and _invite_status(v) == "pending"
+            for v in invites.values())
+        inst_rows.append({
+            "slug":        slug,
+            "name":        inst.get("name", slug),
+            "pool_tokens": inst.get("pool_tokens", 0),
+            "active":      inst.get("active", True),
+            "members":     len(m),
+            "used":        sum(inst.get("usage", {}).values()),
+            "admins":      admins,
+            "admin_invite_pending": admin_invite_pending,
+        })
+
+    return render_template("admin.html",
+                           stats=stats,
+                           all_users=_admin_user_rows(users),
+                           institutions=inst_rows,
+                           college_type_meta=COLLEGE_TYPE_META)
+
+
+@app.route("/admin/users.csv")
+@site_admin_required
+def admin_users_csv():
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=_ADMIN_USER_COLUMNS)
+    writer.writeheader()
+    for row in _admin_user_rows(load_users()):
+        writer.writerow(row)
+    filename = f"myobe_users_{time.strftime('%Y-%m-%d')}.csv"
+    return Response(buf.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+
+@app.route("/admin/institution/topup", methods=["POST"])
+@site_admin_required
+def admin_institution_topup():
+    data = request.get_json() or {}
+    slug = data.get("slug", "")
+    try:
+        amount = int(data.get("amount", 0))
+    except (TypeError, ValueError):
+        amount = 0
+    if amount <= 0:
+        return jsonify({"error": "Amount must be a positive whole number."}), 400
+    institutions = _load_institutions()
+    if slug not in institutions:
+        return jsonify({"error": "Institution not found."}), 404
+    institutions[slug]["pool_tokens"] = institutions[slug].get("pool_tokens", 0) + amount
+    _save_institutions(institutions)
+    return jsonify({"ok": True, "pool_tokens": institutions[slug]["pool_tokens"]})
+
+
+@app.route("/admin/institution/active", methods=["POST"])
+@site_admin_required
+def admin_institution_active():
+    data = request.get_json() or {}
+    slug = data.get("slug", "")
+    institutions = _load_institutions()
+    if slug not in institutions:
+        return jsonify({"error": "Institution not found."}), 404
+    institutions[slug]["active"] = bool(data.get("active"))
+    _save_institutions(institutions)
+    return jsonify({"ok": True, "active": institutions[slug]["active"]})
+
+
+@app.route("/admin/institution/create", methods=["POST"])
+@site_admin_required
+def admin_institution_create():
+    data = request.get_json() or {}
+    slug         = (data.get("slug") or "").strip().lower()
+    name         = (data.get("name") or "").strip()
+    college_type = (data.get("college_type") or "").strip()
+    admin_mode   = (data.get("admin_mode") or "invite").strip()
+    try:
+        pool = int(data.get("pool", 0))
+    except (TypeError, ValueError):
+        pool = -1
+
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,}", slug):
+        return jsonify({"error": "Slug must be 3+ chars: lowercase letters, digits and hyphens."}), 400
+    if not name:
+        return jsonify({"error": "Institution name cannot be empty."}), 400
+    if pool < 0:
+        return jsonify({"error": "Pool tokens must be a non-negative whole number."}), 400
+    if college_type not in _COLLEGE_CONTEXTS:
+        return jsonify({"error": "Unknown college type."}), 400
+    institutions = _load_institutions()
+    if slug in institutions:
+        return jsonify({"error": f"Institution '{slug}' already exists."}), 400
+
+    users = load_users()
+    join_url = None
+
+    if admin_mode == "existing":
+        admin_username = (data.get("admin_username") or "").strip()
+        target = users.get(admin_username)
+        if not isinstance(target, dict):
+            return jsonify({"error": f"User '{admin_username}' not found."}), 400
+        if target.get("institution"):
+            return jsonify({"error": f"User '{admin_username}' already belongs to an institution."}), 400
+        target["institution"]  = slug
+        target["inst_role"]    = "admin"
+        target["college_type"] = college_type
+        admin_result = f"Designated existing user '{admin_username}' as admin."
+    else:
+        admin_name  = (data.get("admin_name") or "").strip()
+        admin_email = (data.get("admin_email") or "").strip().lower()
+        if not admin_email or "@" not in admin_email or "." not in admin_email.split("@")[-1]:
+            return jsonify({"error": "Please enter a valid admin email address."}), 400
+        if any(d.get("email", "").lower() == admin_email
+               for d in users.values() if isinstance(d, dict)):
+            return jsonify({"error": "An account with that email already exists. "
+                                     "Use 'existing user' mode instead."}), 400
+        token = secrets.token_urlsafe(32)
+        invites = _load_invites()
+        invites[token] = {"institution": slug, "email": admin_email,
+                          "name": admin_name, "role": "admin",
+                          "created": int(time.time()),
+                          "expires": time.time() + 7 * 86400,
+                          "status": "pending", "accepted_username": None}
+        _save_invites(invites)
+        join_url = url_for("join", token=token, _external=True)
+        threading.Thread(target=_send_invite_email,
+                         args=(admin_email, admin_name, name, join_url),
+                         daemon=True).start()
+        admin_result = f"Admin invite sent to {admin_email}."
+
+    institutions[slug] = {
+        "name":                 name,
+        "pool_tokens":          pool,
+        "active":               True,
+        "default_college_type": college_type,
+        "created":              int(time.time()),
+        "usage":                {},
+    }
+    _save_institutions(institutions)
+    if admin_mode == "existing":
+        _save_users(users)
+    return jsonify({"ok": True, "slug": slug, "message": admin_result,
+                    "join_url": join_url})
+
+
 # â"€â"€ Settings â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 @app.route("/settings", methods=["GET", "POST"])
@@ -3779,6 +4480,10 @@ def settings():
 @app.route("/topup", methods=["POST"])
 @login_required
 def topup():
+    inst_id, _inst = _user_institution(session["username"], load_users())
+    if inst_id:
+        return jsonify({"error": "Your institution plan covers token usage. "
+                                 "Personal top-up is disabled."}), 403
     pkg_id = request.json.get("package_id", "") if request.is_json else request.form.get("package_id", "")
     pkg = next((p for p in TOPUP_PACKAGES if p["id"] == pkg_id), None)
     if not pkg:
@@ -3795,9 +4500,16 @@ def topup():
 @login_required
 def api_token_balance():
     users = load_users()
-    balance = users.get(session["username"], {}).get("tokens", 0)
+    username = session["username"]
+    inst_id, inst = _user_institution(username, users)
+    if inst_id:
+        if users.get(username, {}).get("inst_role") == "admin":
+            return jsonify({"tokens": inst.get("pool_tokens", 0), "badge_mode": "inst_admin"})
+        # Pool balance is admin-only; members see a label, not a number.
+        return jsonify({"tokens": None, "badge_mode": "inst_member"})
+    balance = users.get(username, {}).get("tokens", 0)
     session["tokens"] = balance
-    return jsonify({"tokens": balance})
+    return jsonify({"tokens": balance, "badge_mode": "personal"})
 
 
 @app.route("/api/college_types")
@@ -3837,6 +4549,11 @@ def set_college_type():
 
     users = load_users()
     username = session["username"]
+    inst_id, _inst = _user_institution(username, users)
+    if inst_id and college_type != users[username].get("college_type"):
+        # Institute members inherit the institution's college type; only a
+        # branch change (science_arts) is allowed.
+        return jsonify({"error": "Your college type is set by your institution."}), 403
     users[username]["college_type"] = college_type
     users[username]["branch"]       = branch
     _save_users(users)
@@ -3894,6 +4611,10 @@ def _credit_tokens_for_order(username, pkg_id, order_id):
 @app.route("/create_order", methods=["POST"])
 @login_required
 def create_order():
+    inst_id, _inst = _user_institution(session["username"], load_users())
+    if inst_id:
+        return jsonify({"error": "Your institution plan covers token usage. "
+                                 "Personal top-up is disabled."}), 403
     app_id     = os.environ.get("CASHFREE_APP_ID", "").strip()
     secret_key = os.environ.get("CASHFREE_SECRET_KEY", "").strip()
     if not app_id or not secret_key:

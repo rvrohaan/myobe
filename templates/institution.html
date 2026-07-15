@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Institution — MyOBE</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:       #6366f1;
+      --primary-dark:  #4f46e5;
+      --text:          #f1f5f9;
+      --muted:         rgba(255,255,255,.66);
+      --border:        rgba(255,255,255,.1);
+      --success:       #10b981;
+      --radius:        14px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #080618 0%, #0d0b26 40%, #12103a 70%, #080618 100%);
+      background-attachment: fixed;
+      color: var(--text);
+      min-height: 100vh; min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .bg-orb {
+      position: fixed; border-radius: 50%; filter: blur(90px);
+      pointer-events: none; z-index: 0;
+    }
+    .bg-orb-1 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(99,102,241,.15) 0%, transparent 70%); top: -150px; right: -100px; }
+    .bg-orb-2 { width: 350px; height: 350px; background: radial-gradient(circle, rgba(139,92,246,.12) 0%, transparent 70%); bottom: -100px; left: -50px; }
+
+    /* -- Navbar -- */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8,6,24,.88); backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      padding: 0 5%;
+      display: flex; align-items: center; height: 64px;
+    }
+    .nav-brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:#fff; font-size:1.15rem; font-weight:800; letter-spacing:-.4px; flex-shrink:0; }
+    .nav-brand-icon { width:36px; height:36px; background:var(--primary); border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; box-shadow:0 2px 8px rgba(99,102,241,.5); }
+    /* Tab pills come from /static/expandable-tabs.css (linked by _navbar.html). */
+    .nav-actions { margin-left:auto; display:flex; align-items:center; gap:10px; }
+    .nav-username { font-size:.8rem; color:rgba(255,255,255,.5); }
+    .nav-token-badge { font-size:.68rem; font-weight:700; padding:2px 9px; border-radius:999px; background:rgba(99,102,241,.18); color:#a5b4fc; letter-spacing:.02em; }
+    .btn-nav-ghost { padding:8px 18px; background:transparent; border:1.5px solid rgba(255,255,255,.2); border-radius:8px; font-size:.88rem; font-weight:600; color:rgba(255,255,255,.8); text-decoration:none; transition:border-color .15s,color .15s; }
+    .btn-nav-primary { padding:8px 20px; background:var(--primary); border:none; border-radius:8px; font-size:.88rem; font-weight:700; color:#fff; text-decoration:none; }
+    .theme-toggle-btn { width:36px; height:36px; border-radius:8px; border:1.5px solid rgba(255,255,255,.2); background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:border-color .15s; flex-shrink:0; color:var(--text); }
+    .theme-toggle-btn svg { width:17px; height:17px; }
+    .theme-toggle-btn .icon-sun { display:none; }
+    html:not(.light-theme) .theme-toggle-btn .icon-moon { display:block; }
+    html.light-theme .theme-toggle-btn .icon-sun { display:block; }
+    html.light-theme .theme-toggle-btn .icon-moon { display:none; }
+
+    /* -- Page -- */
+    main { flex:1; position:relative; z-index:1; width:100%; max-width:900px; margin:0 auto; padding:36px 20px 60px; }
+    .settings-back { display:inline-flex; align-items:center; gap:7px; font-size:.85rem; font-weight:600; color:rgba(255,255,255,.55); text-decoration:none; margin-bottom:18px; transition:color .15s; }
+    .settings-back:hover { color:#fff; }
+    h1 { font-size:1.6rem; font-weight:800; letter-spacing:-.4px; color:#fff; }
+    .page-sub { font-size:.9rem; color:var(--muted); margin:6px 0 28px; }
+
+    .settings-card {
+      background: rgba(255,255,255,.05);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 26px 28px;
+      margin-bottom: 22px;
+      backdrop-filter: blur(12px);
+    }
+    .settings-card h2 { font-size:1.02rem; font-weight:700; color:#fff; margin-bottom:14px; }
+
+    /* -- Pool hero -- */
+    .token-hero {
+      display:flex; align-items:center; gap:16px;
+      background: linear-gradient(135deg, rgba(99,102,241,.16) 0%, rgba(139,92,246,.1) 100%);
+      border: 1px solid rgba(99,102,241,.3);
+      border-radius: 12px; padding: 18px 22px; margin-bottom: 16px;
+    }
+    .token-hero-icon { font-size:1.6rem; }
+    .token-hero-count { font-size:1.7rem; font-weight:800; color:#fff; line-height:1.1; }
+    .token-hero-label { font-size:.8rem; color:var(--muted); }
+
+    .warn-banner {
+      background: rgba(234,179,8,.1); border:1px solid rgba(234,179,8,.25);
+      color:#fde68a; padding:12px 16px; border-radius:10px;
+      font-size:.86rem; line-height:1.5; margin-bottom:16px;
+      display:flex; gap:9px; align-items:flex-start;
+    }
+    .warn-banner.danger { background:rgba(239,68,68,.1); border-color:rgba(239,68,68,.3); color:#fca5a5; }
+
+    /* -- Tables -- */
+    .inst-table { width:100%; border-collapse:collapse; font-size:.87rem; }
+    .inst-table th {
+      text-align:left; font-size:.7rem; font-weight:700; text-transform:uppercase;
+      letter-spacing:.06em; color:rgba(255,255,255,.45);
+      padding:8px 10px; border-bottom:1px solid var(--border);
+    }
+    .inst-table td { padding:10px; border-bottom:1px solid rgba(255,255,255,.06); vertical-align:middle; }
+    .inst-table tr:last-child td { border-bottom:none; }
+    .inst-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+
+    .pill { display:inline-block; font-size:.68rem; font-weight:700; padding:2px 10px; border-radius:999px; text-transform:uppercase; letter-spacing:.04em; }
+    .pill-admin    { background:rgba(139,92,246,.18); color:#c4b5fd; }
+    .pill-member   { background:rgba(255,255,255,.1);  color:rgba(255,255,255,.6); }
+    .pill-pending  { background:rgba(99,102,241,.18);  color:#a5b4fc; }
+    .pill-accepted { background:rgba(16,185,129,.15);  color:#6ee7b7; }
+    .pill-expired  { background:rgba(234,179,8,.15);   color:#fde68a; }
+    .pill-revoked  { background:rgba(239,68,68,.14);   color:#fca5a5; }
+
+    .btn-mini {
+      padding:5px 12px; border-radius:7px; border:1.5px solid rgba(255,255,255,.18);
+      background:transparent; color:rgba(255,255,255,.75);
+      font-size:.76rem; font-weight:600; cursor:pointer;
+      transition:border-color .15s,color .15s,background .15s;
+    }
+    .btn-mini:hover { border-color:var(--primary); color:#fff; }
+    .btn-mini:disabled { opacity:.5; cursor:default; }
+    .btn-mini.danger:hover { border-color:#ef4444; color:#fca5a5; }
+    .row-actions { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
+
+    /* -- Upload -- */
+    .roster-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .roster-row input[type=file] {
+      flex:1; min-width:220px; font-size:.85rem; color:var(--muted);
+      padding:9px 12px; background:rgba(255,255,255,.06);
+      border:1.5px dashed rgba(255,255,255,.2); border-radius:10px;
+    }
+    .btn-save {
+      padding:10px 22px; background:linear-gradient(135deg, var(--primary), #8b5cf6);
+      color:#fff; border:none; border-radius:9px; font-size:.88rem; font-weight:700;
+      cursor:pointer; transition:opacity .15s; box-shadow:0 4px 16px rgba(99,102,241,.3);
+    }
+    .btn-save:hover { opacity:.9; }
+    .btn-save:disabled { opacity:.55; cursor:default; }
+    .hint { font-size:.78rem; color:rgba(255,255,255,.4); margin-top:10px; }
+
+    .flash-success {
+      background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.25);
+      color:#6ee7b7; padding:10px 14px; border-radius:10px;
+      font-size:.84rem; margin-top:14px; display:flex; gap:8px; align-items:flex-start;
+    }
+    .flash-error {
+      background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.25);
+      color:#fca5a5; padding:10px 14px; border-radius:10px;
+      font-size:.84rem; margin-top:14px; display:flex; gap:8px; align-items:flex-start;
+    }
+    .skip-summary { margin:8px 0 0 0; padding-left:18px; font-size:.8rem; line-height:1.6; }
+
+    .empty-note { font-size:.85rem; color:rgba(255,255,255,.4); padding:8px 0; }
+    .table-wrap { overflow-x:auto; }
+
+    /* -- Light theme -- */
+    html.light-theme { --primary:#2563eb; --primary-dark:#1d4ed8; --text:#1e293b; --muted:rgba(30,41,59,.6); --border:rgba(37,99,235,.12); }
+    html.light-theme body { background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 40%, #eff6ff 70%, #dbeafe 100%); background-attachment: fixed; color:#1e293b; }
+    html.light-theme nav { background: rgba(219,234,254,.92); border-bottom-color: rgba(37,99,235,.12); }
+    html.light-theme .nav-brand { color:#1e293b; }
+    html.light-theme .nav-username { color: rgba(30,41,59,.55); }
+    html.light-theme .nav-token-badge { background: rgba(37,99,235,.12); color:#2563eb; }
+    html.light-theme .theme-toggle-btn { border-color: rgba(37,99,235,.3); }
+    html.light-theme h1, html.light-theme .settings-card h2 { color:#1e293b; }
+    html.light-theme .settings-back { color: rgba(30,41,59,.55); }
+    html.light-theme .settings-back:hover { color:#1e293b; }
+    html.light-theme .settings-card { background: rgba(255,255,255,.8); border-color: rgba(37,99,235,.12); box-shadow:0 4px 20px rgba(37,99,235,.08); }
+    html.light-theme .token-hero { background: linear-gradient(135deg, rgba(37,99,235,.1) 0%, rgba(59,130,246,.07) 100%); border-color: rgba(37,99,235,.2); }
+    html.light-theme .token-hero-count { color:#1e293b; }
+    html.light-theme .inst-table th { color: rgba(30,41,59,.5); border-bottom-color: rgba(30,41,59,.12); }
+    html.light-theme .inst-table td { border-bottom-color: rgba(30,41,59,.07); }
+    html.light-theme .pill-member { background: rgba(30,41,59,.08); color: rgba(30,41,59,.6); }
+    html.light-theme .btn-mini { border-color: rgba(30,41,59,.25); color: rgba(30,41,59,.7); }
+    html.light-theme .btn-mini:hover { border-color:#2563eb; color:#1e293b; }
+    html.light-theme .roster-row input[type=file] { background: rgba(255,255,255,.7); border-color: rgba(37,99,235,.25); color: rgba(30,41,59,.6); }
+    html.light-theme .hint { color: rgba(30,41,59,.45); }
+    html.light-theme .empty-note { color: rgba(30,41,59,.4); }
+    html.light-theme .warn-banner { background: rgba(202,138,4,.1); border-color: rgba(202,138,4,.25); color:#713f12; }
+    html.light-theme .warn-banner.danger { background: rgba(220,38,38,.08); border-color: rgba(220,38,38,.25); color:#991b1b; }
+    html.light-theme .flash-success { background: rgba(5,150,105,.1); border-color: rgba(5,150,105,.25); color:#065f46; }
+    html.light-theme .flash-error { background: rgba(220,38,38,.08); border-color: rgba(220,38,38,.2); color:#991b1b; }
+  </style>
+  <script>(function(){ if(localStorage.getItem('myobe-theme')==='light') document.documentElement.classList.add('light-theme'); })();</script>
+  <link rel="stylesheet" href="/static/a11y.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+
+{% include 'partials/_navbar.html' %}
+
+<main id="main" tabindex="-1">
+  <a href="/app" class="settings-back" aria-label="Back to dashboard">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+    Back to Dashboard
+  </a>
+  <h1>{{ inst.name }}</h1>
+  <p class="page-sub">Manage your institution's plan, faculty and invites.</p>
+
+  {% if not inst.active %}
+  <div class="warn-banner danger">
+    <span>&#9888;</span>
+    <span>This institution's plan is currently <strong>inactive</strong>. Members cannot use pool tokens. Contact MyOBE to reactivate.</span>
+  </div>
+  {% endif %}
+
+  <!-- Pool balance -->
+  <div class="settings-card">
+    <h2>Token Pool</h2>
+    <div class="token-hero">
+      <div class="token-hero-icon">&#9711;</div>
+      <div>
+        <div class="token-hero-count" id="pool-balance">{{ inst.pool_tokens }}</div>
+        <div class="token-hero-label">pool tokens remaining (shared by all members)</div>
+      </div>
+    </div>
+    {% if low_pool %}
+    <div class="warn-banner">
+      <span>&#9888;</span>
+      <span>The pool is running low. Contact MyOBE at <a href="mailto:help@myobe.in" style="color:inherit;font-weight:700;">help@myobe.in</a> to refill it before your faculty are blocked.</span>
+    </div>
+    {% endif %}
+    <p class="hint">Every generation by any member draws from this shared pool. Refills are arranged with MyOBE.</p>
+  </div>
+
+  <!-- Roster upload -->
+  <div class="settings-card">
+    <h2>Invite Faculty (Roster Upload)</h2>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px;">
+      Upload a CSV of professors. Each one gets an email with a one-time link to create their account under your plan.
+    </p>
+    <form id="roster-form" class="roster-row">
+      <input type="file" id="roster-file" name="roster" accept=".csv,text/csv" required>
+      <button class="btn-save" type="submit" id="roster-btn">Upload &amp; Send Invites</button>
+    </form>
+    <p class="hint">CSV format: <strong>name,email</strong> - one professor per line. A header row is fine. Invite links expire in 7 days.</p>
+    <div id="roster-result"></div>
+  </div>
+
+  <!-- Invites -->
+  <div class="settings-card">
+    <h2>Invites</h2>
+    {% if invites %}
+    <div class="table-wrap">
+    <table class="inst-table">
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Status</th><th>Expires</th><th style="text-align:right;">Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for inv in invites %}
+        <tr>
+          <td>{{ inv.name or '-' }}</td>
+          <td>{{ inv.email }}</td>
+          <td><span class="pill pill-{{ inv.status }}">{{ inv.status }}</span></td>
+          <td>{{ inv.expires if inv.status in ('pending', 'expired') else '-' }}</td>
+          <td>
+            <div class="row-actions">
+              {% if inv.status == 'pending' and inv.join_url %}
+              <button class="btn-mini" onclick="copyLink(this, '{{ inv.join_url }}')">Copy link</button>
+              {% endif %}
+              {% if inv.status in ('pending', 'expired') %}
+              <button class="btn-mini" onclick="inviteAction(this, '/institution/invite/resend', '{{ inv.token }}', 'Invite re-sent.')">Resend</button>
+              <button class="btn-mini danger" onclick="inviteAction(this, '/institution/invite/revoke', '{{ inv.token }}', 'Invite revoked.')">Revoke</button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="empty-note">No invites yet. Upload a roster above to invite your faculty.</p>
+    {% endif %}
+  </div>
+
+  <!-- Members -->
+  <div class="settings-card">
+    <h2>Members</h2>
+    <div class="table-wrap">
+    <table class="inst-table">
+      <thead>
+        <tr><th>Username</th><th>Email</th><th>Role</th><th class="num">Pool tokens used</th><th style="text-align:right;">Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for m in members %}
+        <tr>
+          <td>{{ m.username }}{% if m.is_self %} <span style="color:rgba(148,163,184,.7);font-size:.78rem;">(you)</span>{% endif %}</td>
+          <td>{{ m.email or '-' }}</td>
+          <td><span class="pill pill-{{ m.role }}">{{ m.role }}</span></td>
+          <td class="num">{{ m.usage }}</td>
+          <td>
+            <div class="row-actions">
+              {% if not m.is_self and m.role != 'admin' %}
+              <button class="btn-mini danger" onclick="removeMember(this, '{{ m.username }}')">Remove</button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="hint">Removing a member converts their account back to a normal individual account; it does not delete it.</p>
+  </div>
+</main>
+
+<script>
+  function toggleTheme() {
+    const isLight = document.documentElement.classList.toggle('light-theme');
+    localStorage.setItem('myobe-theme', isLight ? 'light' : 'dark');
+  }
+
+  function showMsg(anchor, ok, text) {
+    const div = document.createElement('div');
+    div.className = ok ? 'flash-success' : 'flash-error';
+    div.innerHTML = '<span>' + (ok ? '&#10003;' : '&#9888;') + '</span><span></span>';
+    div.lastChild.textContent = text;
+    anchor.appendChild(div);
+    setTimeout(() => { div.remove(); }, 6000);
+  }
+
+  document.getElementById('roster-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fileInput = document.getElementById('roster-file');
+    const btn = document.getElementById('roster-btn');
+    const result = document.getElementById('roster-result');
+    result.innerHTML = '';
+    if (!fileInput.files.length) return;
+    const fd = new FormData();
+    fd.append('roster', fileInput.files[0]);
+    btn.disabled = true; btn.textContent = 'Uploading...';
+    try {
+      const r = await fetch('/institution/roster', { method: 'POST', body: fd });
+      const d = await r.json();
+      if (!r.ok) {
+        showMsg(result, false, d.error || 'Upload failed.');
+      } else {
+        let text = d.invited + ' invited, ' + d.resent + ' re-invited, ' + d.skipped.length + ' skipped.';
+        showMsg(result, true, text);
+        if (d.skipped.length) {
+          const ul = document.createElement('ul');
+          ul.className = 'skip-summary';
+          d.skipped.forEach(s => {
+            const li = document.createElement('li');
+            li.textContent = s.email + ' - ' + s.reason;
+            ul.appendChild(li);
+          });
+          result.appendChild(ul);
+        }
+        if (d.invited + d.resent > 0) setTimeout(() => location.reload(), 2500);
+      }
+    } catch (_) {
+      showMsg(result, false, 'Network error. Try again.');
+    }
+    btn.disabled = false; btn.textContent = 'Upload & Send Invites';
+  });
+
+  async function inviteAction(btn, url, token, okMsg) {
+    btn.disabled = true;
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      });
+      const d = await r.json();
+      if (r.ok) { setTimeout(() => location.reload(), 600); }
+      else { alert(d.error || 'Action failed.'); btn.disabled = false; }
+    } catch (_) { alert('Network error. Try again.'); btn.disabled = false; }
+  }
+
+  async function removeMember(btn, username) {
+    if (!confirm('Remove ' + username + ' from your institution? Their account becomes a normal individual account.')) return;
+    btn.disabled = true;
+    try {
+      const r = await fetch('/institution/member/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      const d = await r.json();
+      if (r.ok) { location.reload(); }
+      else { alert(d.error || 'Action failed.'); btn.disabled = false; }
+    } catch (_) { alert('Network error. Try again.'); btn.disabled = false; }
+  }
+
+  function copyLink(btn, url) {
+    navigator.clipboard.writeText(url).then(() => {
+      const old = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = old; }, 1500);
+    });
+  }
+</script>
+{% include 'partials/_footer.html' %}
+</body>
+</html>

@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Site Admin — MyOBE</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:       #6366f1;
+      --primary-dark:  #4f46e5;
+      --text:          #f1f5f9;
+      --muted:         rgba(255,255,255,.66);
+      --border:        rgba(255,255,255,.1);
+      --success:       #10b981;
+      --radius:        14px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #080618 0%, #0d0b26 40%, #12103a 70%, #080618 100%);
+      background-attachment: fixed;
+      color: var(--text);
+      min-height: 100vh; min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .bg-orb {
+      position: fixed; border-radius: 50%; filter: blur(90px);
+      pointer-events: none; z-index: 0;
+    }
+    .bg-orb-1 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(99,102,241,.15) 0%, transparent 70%); top: -150px; right: -100px; }
+    .bg-orb-2 { width: 350px; height: 350px; background: radial-gradient(circle, rgba(139,92,246,.12) 0%, transparent 70%); bottom: -100px; left: -50px; }
+
+    /* -- Navbar -- */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(8,6,24,.88); backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      padding: 0 5%;
+      display: flex; align-items: center; height: 64px;
+    }
+    .nav-brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:#fff; font-size:1.15rem; font-weight:800; letter-spacing:-.4px; flex-shrink:0; }
+    .nav-brand-icon { width:36px; height:36px; background:var(--primary); border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; box-shadow:0 2px 8px rgba(99,102,241,.5); }
+    /* Tab pills come from /static/expandable-tabs.css (linked by _navbar.html). */
+    .nav-actions { margin-left:auto; display:flex; align-items:center; gap:10px; }
+    .nav-username { font-size:.8rem; color:rgba(255,255,255,.5); }
+    .nav-token-badge { font-size:.68rem; font-weight:700; padding:2px 9px; border-radius:999px; background:rgba(99,102,241,.18); color:#a5b4fc; letter-spacing:.02em; }
+    .btn-nav-ghost { padding:8px 18px; background:transparent; border:1.5px solid rgba(255,255,255,.2); border-radius:8px; font-size:.88rem; font-weight:600; color:rgba(255,255,255,.8); text-decoration:none; transition:border-color .15s,color .15s; }
+    .btn-nav-primary { padding:8px 20px; background:var(--primary); border:none; border-radius:8px; font-size:.88rem; font-weight:700; color:#fff; text-decoration:none; }
+    .theme-toggle-btn { width:36px; height:36px; border-radius:8px; border:1.5px solid rgba(255,255,255,.2); background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:border-color .15s; flex-shrink:0; color:var(--text); }
+    .theme-toggle-btn svg { width:17px; height:17px; }
+    .theme-toggle-btn .icon-sun { display:none; }
+    html:not(.light-theme) .theme-toggle-btn .icon-moon { display:block; }
+    html.light-theme .theme-toggle-btn .icon-sun { display:block; }
+    html.light-theme .theme-toggle-btn .icon-moon { display:none; }
+
+    /* -- Page -- */
+    main { flex:1; position:relative; z-index:1; width:100%; max-width:1080px; margin:0 auto; padding:36px 20px 60px; }
+    .settings-back { display:inline-flex; align-items:center; gap:7px; font-size:.85rem; font-weight:600; color:rgba(255,255,255,.55); text-decoration:none; margin-bottom:18px; transition:color .15s; }
+    .settings-back:hover { color:#fff; }
+    h1 { font-size:1.6rem; font-weight:800; letter-spacing:-.4px; color:#fff; }
+    .page-sub { font-size:.9rem; color:var(--muted); margin:6px 0 28px; }
+
+    .settings-card {
+      background: rgba(255,255,255,.05);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 26px 28px;
+      margin-bottom: 22px;
+      backdrop-filter: blur(12px);
+    }
+    .settings-card h2 { font-size:1.02rem; font-weight:700; color:#fff; margin-bottom:14px; }
+
+    /* -- Stats -- */
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:22px; }
+    .stat-card {
+      background: rgba(255,255,255,.05); border:1px solid var(--border);
+      border-radius:12px; padding:16px 18px;
+    }
+    .stat-value { font-size:1.45rem; font-weight:800; color:#fff; line-height:1.15; }
+    .stat-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.45); margin-top:4px; }
+
+    /* -- Tables -- */
+    .inst-table { width:100%; border-collapse:collapse; font-size:.85rem; }
+    .inst-table th {
+      text-align:left; font-size:.68rem; font-weight:700; text-transform:uppercase;
+      letter-spacing:.06em; color:rgba(255,255,255,.45);
+      padding:8px 10px; border-bottom:1px solid var(--border);
+    }
+    .inst-table td { padding:9px 10px; border-bottom:1px solid rgba(255,255,255,.06); vertical-align:middle; }
+    .inst-table tr:last-child td { border-bottom:none; }
+    .inst-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+
+    .pill { display:inline-block; font-size:.66rem; font-weight:700; padding:2px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.04em; }
+    .pill-admin    { background:rgba(139,92,246,.18); color:#c4b5fd; }
+    .pill-member   { background:rgba(99,102,241,.15);  color:#a5b4fc; }
+    .pill-active   { background:rgba(16,185,129,.15);  color:#6ee7b7; }
+    .pill-inactive { background:rgba(239,68,68,.14);   color:#fca5a5; }
+    .pill-pending  { background:rgba(234,179,8,.15);   color:#fde68a; }
+
+    .btn-mini {
+      padding:5px 12px; border-radius:7px; border:1.5px solid rgba(255,255,255,.18);
+      background:transparent; color:rgba(255,255,255,.75);
+      font-size:.74rem; font-weight:600; cursor:pointer;
+      transition:border-color .15s,color .15s;
+    }
+    .btn-mini:hover { border-color:var(--primary); color:#fff; }
+    .btn-mini:disabled { opacity:.5; cursor:default; }
+    .btn-mini.danger:hover { border-color:#ef4444; color:#fca5a5; }
+    .row-actions { display:flex; gap:6px; justify-content:flex-end; align-items:center; flex-wrap:wrap; }
+
+    .btn-save {
+      padding:10px 22px; background:linear-gradient(135deg, var(--primary), #8b5cf6);
+      color:#fff; border:none; border-radius:9px; font-size:.88rem; font-weight:700;
+      cursor:pointer; transition:opacity .15s; box-shadow:0 4px 16px rgba(99,102,241,.3);
+    }
+    .btn-save:hover { opacity:.9; }
+    .btn-save:disabled { opacity:.55; cursor:default; }
+
+    .dark-input {
+      padding:9px 12px; background:rgba(255,255,255,.07);
+      border:1.5px solid rgba(255,255,255,.12); border-radius:9px;
+      font-size:.88rem; outline:none; color:#fff; width:100%;
+      transition:border-color .15s, box-shadow .15s;
+    }
+    .dark-input:focus { border-color:rgba(99,102,241,.6); box-shadow:0 0 0 3px rgba(99,102,241,.15); }
+    .dark-input::placeholder { color:rgba(255,255,255,.25); }
+    select.dark-input { appearance:auto; }
+    .topup-inline { width:80px; padding:5px 8px; font-size:.78rem; }
+
+    .field-label { display:block; font-size:.72rem; font-weight:700; color:rgba(255,255,255,.45); text-transform:uppercase; letter-spacing:.07em; margin-bottom:6px; }
+    .form-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:14px; margin-bottom:14px; }
+
+    .radio-row { display:flex; gap:18px; margin-bottom:14px; font-size:.86rem; color:var(--muted); }
+    .radio-row label { display:flex; align-items:center; gap:7px; cursor:pointer; }
+
+    .table-toolbar { display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+    .table-toolbar .dark-input { max-width:280px; }
+    .toolbar-spacer { flex:1; }
+    .btn-download {
+      display:inline-flex; align-items:center; gap:8px;
+      padding:9px 18px; border-radius:9px; border:1.5px solid rgba(255,255,255,.2);
+      background:transparent; color:rgba(255,255,255,.85); text-decoration:none;
+      font-size:.84rem; font-weight:700; transition:border-color .15s,color .15s;
+    }
+    .btn-download:hover { border-color:var(--primary); color:#fff; }
+    .btn-download svg { width:15px; height:15px; }
+
+    .flash-success {
+      background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.25);
+      color:#6ee7b7; padding:10px 14px; border-radius:10px;
+      font-size:.84rem; margin-top:14px; display:flex; gap:8px; align-items:flex-start;
+      word-break:break-all;
+    }
+    .flash-error {
+      background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.25);
+      color:#fca5a5; padding:10px 14px; border-radius:10px;
+      font-size:.84rem; margin-top:14px; display:flex; gap:8px; align-items:flex-start;
+    }
+    .hint { font-size:.78rem; color:rgba(255,255,255,.4); margin-top:10px; }
+    .empty-note { font-size:.85rem; color:rgba(255,255,255,.4); padding:8px 0; }
+    .table-wrap { overflow-x:auto; }
+    .muted-cell { color:rgba(255,255,255,.4); }
+
+    /* -- Light theme -- */
+    html.light-theme { --primary:#2563eb; --primary-dark:#1d4ed8; --text:#1e293b; --muted:rgba(30,41,59,.6); --border:rgba(37,99,235,.12); }
+    html.light-theme body { background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 40%, #eff6ff 70%, #dbeafe 100%); background-attachment: fixed; color:#1e293b; }
+    html.light-theme nav { background: rgba(219,234,254,.92); border-bottom-color: rgba(37,99,235,.12); }
+    html.light-theme .nav-brand { color:#1e293b; }
+    html.light-theme .nav-username { color: rgba(30,41,59,.55); }
+    html.light-theme .nav-token-badge { background: rgba(37,99,235,.12); color:#2563eb; }
+    html.light-theme .theme-toggle-btn { border-color: rgba(37,99,235,.3); }
+    html.light-theme h1, html.light-theme .settings-card h2 { color:#1e293b; }
+    html.light-theme .settings-back { color: rgba(30,41,59,.55); }
+    html.light-theme .settings-back:hover { color:#1e293b; }
+    html.light-theme .settings-card, html.light-theme .stat-card { background: rgba(255,255,255,.8); border-color: rgba(37,99,235,.12); box-shadow:0 4px 20px rgba(37,99,235,.06); }
+    html.light-theme .stat-value { color:#1e293b; }
+    html.light-theme .stat-label { color: rgba(30,41,59,.5); }
+    html.light-theme .inst-table th { color: rgba(30,41,59,.5); border-bottom-color: rgba(30,41,59,.12); }
+    html.light-theme .inst-table td { border-bottom-color: rgba(30,41,59,.07); }
+    html.light-theme .btn-mini { border-color: rgba(30,41,59,.25); color: rgba(30,41,59,.7); }
+    html.light-theme .btn-mini:hover { border-color:#2563eb; color:#1e293b; }
+    html.light-theme .btn-download { border-color: rgba(30,41,59,.25); color: rgba(30,41,59,.75); }
+    html.light-theme .btn-download:hover { border-color:#2563eb; color:#1e293b; }
+    html.light-theme .dark-input { background: rgba(255,255,255,.85); border-color: rgba(37,99,235,.2); color:#1e293b; }
+    html.light-theme .dark-input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+    html.light-theme .field-label { color: rgba(30,41,59,.5); }
+    html.light-theme .radio-row { color: rgba(30,41,59,.65); }
+    html.light-theme .hint { color: rgba(30,41,59,.45); }
+    html.light-theme .empty-note { color: rgba(30,41,59,.4); }
+    html.light-theme .muted-cell { color: rgba(30,41,59,.4); }
+    html.light-theme .flash-success { background: rgba(5,150,105,.1); border-color: rgba(5,150,105,.25); color:#065f46; }
+    html.light-theme .flash-error { background: rgba(220,38,38,.08); border-color: rgba(220,38,38,.2); color:#991b1b; }
+  </style>
+  <script>(function(){ if(localStorage.getItem('myobe-theme')==='light') document.documentElement.classList.add('light-theme'); })();</script>
+  <link rel="stylesheet" href="/static/a11y.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+
+{% include 'partials/_navbar.html' %}
+
+<main id="main" tabindex="-1">
+  <a href="/app" class="settings-back" aria-label="Back to dashboard">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+    Back to Dashboard
+  </a>
+  <h1>Site Admin</h1>
+  <p class="page-sub">Users, institutions and token pools across all of MyOBE.</p>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-value">{{ stats.total_users }}</div><div class="stat-label">Total users</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.new_this_month }}</div><div class="stat-label">New this month</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.inst_members }}</div><div class="stat-label">Institute members</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.personal_tokens }}</div><div class="stat-label">Personal tokens out</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.institutions }}</div><div class="stat-label">Institutions</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.pool_tokens }}</div><div class="stat-label">Pool tokens total</div></div>
+  </div>
+
+  <!-- Institutions -->
+  <div class="settings-card">
+    <h2>Institutions</h2>
+    {% if institutions %}
+    <div class="table-wrap">
+    <table class="inst-table">
+      <thead>
+        <tr><th>Slug</th><th>Name</th><th>Admins</th><th class="num">Pool</th><th class="num">Members</th><th class="num">Used</th><th>Status</th><th style="text-align:right;">Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for i in institutions %}
+        <tr>
+          <td>{{ i.slug }}</td>
+          <td>{{ i.name }}</td>
+          <td>
+            {% if i.admins %}{{ i.admins | join(', ') }}
+            {% elif i.admin_invite_pending %}<span class="pill pill-pending">invite pending</span>
+            {% else %}<span class="muted-cell">none</span>{% endif %}
+          </td>
+          <td class="num">{{ i.pool_tokens }}</td>
+          <td class="num">{{ i.members }}</td>
+          <td class="num">{{ i.used }}</td>
+          <td><span class="pill pill-{{ 'active' if i.active else 'inactive' }}">{{ 'active' if i.active else 'inactive' }}</span></td>
+          <td>
+            <div class="row-actions">
+              <input type="number" min="1" class="dark-input topup-inline" id="topup-{{ i.slug }}" placeholder="Amt">
+              <button class="btn-mini" onclick="topup('{{ i.slug }}', this)">Top up</button>
+              {% if i.active %}
+              <button class="btn-mini danger" onclick="setActive('{{ i.slug }}', false, this)">Deactivate</button>
+              {% else %}
+              <button class="btn-mini" onclick="setActive('{{ i.slug }}', true, this)">Activate</button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="empty-note">No institutions yet. Create one below.</p>
+    {% endif %}
+    <div id="inst-msg"></div>
+  </div>
+
+  <!-- Create institution -->
+  <div class="settings-card">
+    <h2>Create Institution</h2>
+    <div class="form-grid">
+      <div>
+        <label class="field-label" for="ci-slug">Slug (id)</label>
+        <input class="dark-input" id="ci-slug" placeholder="e.g. demo-college">
+      </div>
+      <div>
+        <label class="field-label" for="ci-name">Name</label>
+        <input class="dark-input" id="ci-name" placeholder="Demo Engineering College">
+      </div>
+      <div>
+        <label class="field-label" for="ci-pool">Initial pool tokens</label>
+        <input class="dark-input" id="ci-pool" type="number" min="0" value="0">
+      </div>
+      <div>
+        <label class="field-label" for="ci-type">College type</label>
+        <select class="dark-input" id="ci-type">
+          {% for val, meta in college_type_meta.items() %}
+          <option value="{{ val }}"{% if val == 'engineering' %} selected{% endif %}>{{ meta.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <label class="field-label">Institution admin</label>
+    <div class="radio-row">
+      <label><input type="radio" name="admin-mode" value="invite" checked onchange="adminModeChanged()"> Invite by email (they set their own password)</label>
+      <label><input type="radio" name="admin-mode" value="existing" onchange="adminModeChanged()"> Designate an existing user</label>
+    </div>
+    <div class="form-grid" id="admin-invite-fields">
+      <div>
+        <label class="field-label" for="ci-admin-name">Admin name</label>
+        <input class="dark-input" id="ci-admin-name" placeholder="Dr. Asha Rao">
+      </div>
+      <div>
+        <label class="field-label" for="ci-admin-email">Admin email</label>
+        <input class="dark-input" id="ci-admin-email" type="email" placeholder="asha@college.edu">
+      </div>
+    </div>
+    <div class="form-grid" id="admin-existing-fields" style="display:none;">
+      <div>
+        <label class="field-label" for="ci-admin-username">Existing username</label>
+        <input class="dark-input" id="ci-admin-username" placeholder="username">
+      </div>
+    </div>
+
+    <button class="btn-save" id="ci-btn" onclick="createInstitution(this)">Create Institution</button>
+    <div id="ci-msg"></div>
+  </div>
+
+  <!-- Users -->
+  <div class="settings-card">
+    <h2>Users ({{ stats.total_users }})</h2>
+    <div class="table-toolbar">
+      <input class="dark-input" id="user-search" type="search" placeholder="Search username, email, college type..."
+             oninput="filterUsers(this.value)">
+      <div class="toolbar-spacer"></div>
+      <a class="btn-download" href="/admin/users.csv">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+        Download CSV
+      </a>
+    </div>
+    <div class="table-wrap">
+    <table class="inst-table" id="users-table">
+      <thead>
+        <tr><th>Username</th><th>Email</th><th class="num">Tokens</th><th>College type</th><th>Institution</th><th>Joined</th></tr>
+      </thead>
+      <tbody>
+        {% for u in all_users %}
+        <tr>
+          <td>{{ u.username }}</td>
+          <td>{{ u.email or '-' }}</td>
+          <td class="num">{{ u.tokens }}</td>
+          <td>{{ u.college_type }}{% if u.branch %} / {{ u.branch }}{% endif %}</td>
+          <td>
+            {% if u.institution %}
+            {{ u.institution }} <span class="pill pill-{{ u.inst_role or 'member' }}">{{ u.inst_role or 'member' }}</span>
+            {% else %}<span class="muted-cell">-</span>{% endif %}
+          </td>
+          <td>{{ u.created or '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</main>
+
+<script>
+  function toggleTheme() {
+    const isLight = document.documentElement.classList.toggle('light-theme');
+    localStorage.setItem('myobe-theme', isLight ? 'light' : 'dark');
+  }
+
+  function showMsg(anchorId, ok, text) {
+    const anchor = document.getElementById(anchorId);
+    anchor.innerHTML = '';
+    const div = document.createElement('div');
+    div.className = ok ? 'flash-success' : 'flash-error';
+    div.innerHTML = '<span>' + (ok ? '&#10003;' : '&#9888;') + '</span><span></span>';
+    div.lastChild.textContent = text;
+    anchor.appendChild(div);
+  }
+
+  async function postJson(url, body) {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return { ok: r.ok, data: await r.json() };
+  }
+
+  async function topup(slug, btn) {
+    const input = document.getElementById('topup-' + slug);
+    const amount = parseInt(input.value, 10);
+    if (!amount || amount <= 0) { showMsg('inst-msg', false, 'Enter a positive top-up amount first.'); return; }
+    btn.disabled = true;
+    try {
+      const { ok, data } = await postJson('/admin/institution/topup', { slug, amount });
+      if (ok) { setTimeout(() => location.reload(), 500); }
+      else { showMsg('inst-msg', false, data.error || 'Top-up failed.'); btn.disabled = false; }
+    } catch (_) { showMsg('inst-msg', false, 'Network error.'); btn.disabled = false; }
+  }
+
+  async function setActive(slug, active, btn) {
+    if (!active && !confirm('Deactivate ' + slug + '? Members lose pool access immediately.')) return;
+    btn.disabled = true;
+    try {
+      const { ok, data } = await postJson('/admin/institution/active', { slug, active });
+      if (ok) { location.reload(); }
+      else { showMsg('inst-msg', false, data.error || 'Action failed.'); btn.disabled = false; }
+    } catch (_) { showMsg('inst-msg', false, 'Network error.'); btn.disabled = false; }
+  }
+
+  function adminModeChanged() {
+    const mode = document.querySelector('input[name="admin-mode"]:checked').value;
+    document.getElementById('admin-invite-fields').style.display = mode === 'invite' ? '' : 'none';
+    document.getElementById('admin-existing-fields').style.display = mode === 'existing' ? '' : 'none';
+  }
+
+  async function createInstitution(btn) {
+    const mode = document.querySelector('input[name="admin-mode"]:checked').value;
+    const body = {
+      slug: document.getElementById('ci-slug').value.trim(),
+      name: document.getElementById('ci-name').value.trim(),
+      pool: document.getElementById('ci-pool').value.trim(),
+      college_type: document.getElementById('ci-type').value,
+      admin_mode: mode,
+      admin_username: document.getElementById('ci-admin-username').value.trim(),
+      admin_name: document.getElementById('ci-admin-name').value.trim(),
+      admin_email: document.getElementById('ci-admin-email').value.trim()
+    };
+    btn.disabled = true; btn.textContent = 'Creating...';
+    try {
+      const { ok, data } = await postJson('/admin/institution/create', body);
+      if (ok) {
+        let msg = 'Created \'' + data.slug + '\'. ' + data.message;
+        if (data.join_url) msg += ' Invite link: ' + data.join_url;
+        showMsg('ci-msg', true, msg);
+        setTimeout(() => location.reload(), data.join_url ? 6000 : 1500);
+      } else {
+        showMsg('ci-msg', false, data.error || 'Could not create institution.');
+      }
+    } catch (_) {
+      showMsg('ci-msg', false, 'Network error. Try again.');
+    }
+    btn.disabled = false; btn.textContent = 'Create Institution';
+  }
+
+  function filterUsers(q) {
+    q = q.trim().toLowerCase();
+    document.querySelectorAll('#users-table tbody tr').forEach(tr => {
+      tr.style.display = !q || tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  }
+</script>
+{% include 'partials/_footer.html' %}
+</body>
+</html>

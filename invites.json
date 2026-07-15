@@ -1,0 +1,39 @@
+{
+  "AVX-3axc5EGlaI8VgJIz5_jSBcHk2jsiRniYFpKA5es": {
+    "institution": "rit",
+    "email": "rvrohaan@gmail.com",
+    "name": "RIT Admin",
+    "role": "admin",
+    "created": 1783437669,
+    "expires": 1784042469.426091,
+    "status": "accepted",
+    "accepted_username": "ritadmin"
+  },
+  "vcBMhwQZb92BZKulsX71QLm2CLBJbjNDpu9sDm8Rokg": {
+    "institution": "rit",
+    "email": "roshinirachapudi@gmail.com",
+    "name": "CivilHOD",
+    "created": 1783437950,
+    "expires": 1784042750.9296055,
+    "status": "pending",
+    "accepted_username": null
+  },
+  "c9JCEqO5C8sRnfNQzgL7hY_tlmazqyBb6cPn0IajZGs": {
+    "institution": "rit",
+    "email": "rachapudisaila@gmail.com",
+    "name": "CSHOD",
+    "created": 1783437950,
+    "expires": 1784042750.9296055,
+    "status": "accepted",
+    "accepted_username": "CSHOD"
+  },
+  "oQ1fsxVPlQqQCZkguC2KMoMhn6fIiMJeZzhN6UnTtfs": {
+    "institution": "rit",
+    "email": "krishnaprasadrr@gmail.com",
+    "name": "ECHOD",
+    "created": 1783437950,
+    "expires": 1784042750.9296055,
+    "status": "pending",
+    "accepted_username": null
+  }
+}

@@ -178,8 +178,11 @@ function startOver() {
 
 /* ── Token badge helpers ─────────────────────────────────────────────────── */
 function updateTokenBadge(n) {
+  if (n === null || n === undefined || isNaN(n)) return;
   document.querySelectorAll('.nav-token-badge').forEach(el => {
-    el.textContent = '⦿ ' + n + ' tokens';
+    const mode = el.dataset.badgeMode || 'personal';
+    if (mode === 'inst_member') return;  /* label only - pool balance is admin-only */
+    el.textContent = '⦿ ' + n + (mode === 'inst_admin' ? ' pool tokens' : ' tokens');
   });
   const gc = document.getElementById('greeting-token-count');
   if (gc) gc.textContent = n;
@@ -2659,7 +2662,9 @@ async function _checkModuleTokens(moduleId) {
       if (r.ok) {
         const d = await r.json();
         updateTokenBadge(d.tokens);
-        if (d.tokens < required) {
+        // Institute members get tokens: null (pool balance is admin-only);
+        // skip the client-side gate and let the server be the authority.
+        if (d.tokens !== null && d.tokens !== undefined && d.tokens < required) {
           if (errEl) {
             errEl.textContent =
               `Not enough tokens — this requires ${required} tokens but your balance is ${d.tokens}. ` +
@@ -2763,7 +2768,9 @@ async function module2ComposePaper() {
     if (r.ok) {
       const d = await r.json();
       updateTokenBadge(d.tokens);
-      if (d.tokens < required) {
+      // Institute members get tokens: null (pool balance is admin-only);
+      // skip the client-side gate and let the server be the authority.
+      if (d.tokens !== null && d.tokens !== undefined && d.tokens < required) {
         if (errEl) {
           errEl.textContent =
             `Not enough tokens — composing a paper requires ${required} tokens but your balance is ${d.tokens}. ` +
@@ -2987,7 +2994,13 @@ function _aioShowSelectScreen() {
 
   // Fetch token balance
   fetch('/api/token_balance').then(r => r.json()).then(d => {
-    document.getElementById('aio-avail-tokens').textContent = d.tokens;
+    const el = document.getElementById('aio-avail-tokens');
+    if (d.tokens === null || d.tokens === undefined) {
+      // Institute member: no personal balance to show
+      el.parentElement.textContent = '(covered by your institute plan)';
+    } else {
+      el.textContent = d.tokens;
+    }
   }).catch(() => {});
 
   _aioUpdateStartBtn();

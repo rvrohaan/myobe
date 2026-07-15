@@ -1,0 +1,12 @@
+{
+  "rit": {
+    "name": "Ramaiah Institue of technology",
+    "pool_tokens": 494,
+    "active": true,
+    "default_college_type": "engineering",
+    "created": 1783437669,
+    "usage": {
+      "CSHOD": 6
+    }
+  }
+}

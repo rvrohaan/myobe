@@ -255,7 +255,13 @@
       <div class="greeting-name">{{ session.username|title }}</div>
       <div class="greeting-plan">
         <span class="greeting-plan-dot"></span>
-        <span id="greeting-token-count">{{ session.tokens or 0 }}</span> tokens remaining
+        {% if badge_mode == 'inst_member' %}
+        Institute plan{% if inst_name %} - {{ inst_name }}{% endif %}
+        {% elif badge_mode == 'inst_admin' %}
+        <span id="greeting-token-count">{{ badge_tokens }}</span>&nbsp;pool tokens remaining
+        {% else %}
+        <span id="greeting-token-count">{{ badge_tokens or 0 }}</span>&nbsp;tokens remaining
+        {% endif %}
       </div>
       <div class="greeting-institution">
         <span class="greeting-inst-label">Institution type</span>
